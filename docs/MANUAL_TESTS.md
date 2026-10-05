@@ -8,7 +8,7 @@ Cette checklist reste à réaliser manuellement par l’utilisateur dans son nav
 2. Démarrer LanguageTool sur le port 8081 selon le README.
 3. Charger `dist/` en mode développeur dans Chrome/Brave. Recharger les onglets déjà ouverts.
 4. Ouvrir l’icône Correctly et vérifier le statut du moteur local.
-5. Exécuter `npm run fixture`, puis ouvrir `http://127.0.0.1:8080`.
+5. Exécuter `npm run fixture`, puis ouvrir `http://127.0.0.1:8080`. La page `http://127.0.0.1:8080/compose` reproduit une fenêtre de rédaction riche avec les styles relevés dans Gmail.
 
 ## Chargement et confidentialité
 
@@ -30,6 +30,7 @@ Cette checklist reste à réaliser manuellement par l’utilisateur dans son nav
 - [ ] Français : sélectionner Français, essayer « Il sont parti hier. » et « je vais a paris demain ».
 - [ ] Anglais : sélectionner Anglais, essayer « I has a car. » et « She go to school. ».
 - [ ] Auto : essayer séparément des phrases françaises et anglaises. Sur Windows, vérifier les limites du moteur et comparer à une langue explicite.
+- [ ] Fenêtre de rédaction (`/compose`) : corriger « je sui ici. », vérifier le gras voisin et les paragraphes ; réduire, rouvrir puis fermer la fenêtre. Les annotations suivent sa visibilité et disparaissent à la fermeture.
 - [ ] Champs ajoutés dynamiquement : bouton Ajouter un champ ; le nouveau champ est analysé.
 - [ ] Champs supprimés : bouton Supprimer ; aucune surcouche orpheline ni erreur console.
 - [ ] Texte supérieur à 5 000 caractères : aucune requête d’analyse, aucune dégradation de la frappe.
@@ -66,7 +67,7 @@ Cette checklist reste à réaliser manuellement par l’utilisateur dans son nav
 
 - [ ] Désactivation globale : les annotations disparaissent et aucune nouvelle analyse n’est envoyée.
 - [ ] Désactivation sur le site courant : seules les pages du domaine concerné sont désactivées.
-- [ ] Changement de langue et délai 200–2 000 ms pris en compte.
+- [ ] Changement de langue et délai 100–2 000 ms pris en compte.
 - [ ] Désactiver Orthographe/Grammaire masque la catégorie correspondante.
 - [ ] Dictionnaire personnel : ajouter un mot signalé puis vérifier que ses erreurs d’orthographe sont masquées ; les accords de grammaire restent possibles.
 - [ ] Réglages conservés après fermeture du navigateur.
@@ -78,6 +79,7 @@ Cette checklist reste à réaliser manuellement par l’utilisateur dans son nav
 
 - [ ] ChatGPT : saisie, popup, correction, curseur.
 - [ ] Gmail : nouveau message, format riche, correction, envoi intact.
+- [ ] WhatsApp Web : corriger « ta » en « ton » dans une phrase de test ; conserver les mots avant et après, puis continuer la saisie. Vérifier les soulignements et la popup avec le zoom utilisé.
 - [ ] LinkedIn : publication/commentaire, correction, curseur.
 - [ ] Reddit : commentaire, format, correction.
 - [ ] Consigner les éditeurs où un événement input synthétique ne suffit pas, ainsi que l’historique Annuler après une correction.

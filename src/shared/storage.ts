@@ -38,7 +38,7 @@ export function normalizeSettings(value: unknown): Settings {
     language: isLanguage(data.language) ? data.language : 'auto',
     debounceMs:
       typeof data.debounceMs === 'number' && Number.isFinite(data.debounceMs)
-        ? Math.round(Math.max(200, Math.min(2000, data.debounceMs)))
+        ? Math.round(Math.max(100, Math.min(2000, data.debounceMs)))
         : DEFAULT_DEBOUNCE_MS,
     spellingEnabled: boolean('spellingEnabled'),
     grammarEnabled: boolean('grammarEnabled'),

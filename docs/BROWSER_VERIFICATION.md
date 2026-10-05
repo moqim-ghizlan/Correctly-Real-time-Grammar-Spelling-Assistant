@@ -19,3 +19,25 @@ Après reconstruction de dist, recharger l’extension dans chrome://extensions 
 La phrase « i has 300€ » était détectée comme irlandais (ga-IE). Le paramètre preferredLanguages seul ne suffisait pas à limiter la détection. Le mode Auto utilise désormais forcePreferredLanguages avec fr/en, une préférence adaptée aux mots courants du texte court et un repli explicite si le serveur ignore la restriction.
 
 Vérification réelle supplémentaire dans le même navigateur isolé : Auto corrige « i has 300€ » en « i have 300€ » via la suggestion du verbe. Les parcours Français et Anglais restent réussis, sans erreur navigateur. Les 112 tests unitaires/intégration passent, ainsi que lint et build. Les autres erreurs possibles de cette phrase (majuscule et format monétaire) restent des suggestions indépendantes.
+
+## Rédaction riche et diagnostic Gmail
+
+Le diagnostic fourni depuis Gmail montre un champ visible sous des ancêtres en `visibility: hidden`. Ces ancêtres empêchaient à tort l’affichage des annotations. Le calcul utilise désormais la visibilité du champ, et conserve le masquage par `display: none` ou une opacité nulle. Il respecte aussi le viewport lorsque le débordement de `body` lui est propagé, ainsi que les blocs de référence des éléments positionnés, sans perdre le découpage des zones défilantes.
+
+La reproduction `tests/fixtures/compose.html` est accessible à `http://127.0.0.1:8080/compose` avec `npm run fixture`. Vérification dans Brave isolé avec l’extension compilée et LanguageTool réel : soulignement visible, popup, correction de « je sui ici. » en « je suis ici. », gras voisin et second paragraphe conservés. Réduction, réouverture, nouvelle saisie et nettoyage à la fermeture vérifiés, sans erreur ni avertissement navigateur. Les 122 tests, lint, format et build passent. Ce test reproduit les styles observés ; il ne constitue pas une vérification dans une session Gmail authentifiée. Recharger l’extension puis Gmail pour valider sur le compte utilisateur.
+
+## Perte de texte lors du remplacement dans un éditeur contrôlé
+
+Le signalement WhatsApp « salut, c'est moi, ta frere » devenant seulement « ton » a été reproduit avec Lexical 0.52.0 dans Brave. L’ancienne modification par `Range.deleteContents()` puis `Range.insertNode()` découpait une feuille de texte en plusieurs nœuds ; après l’événement input, le modèle Lexical et le DOM ne conservaient que « ton ».
+
+Le remplacement utilise désormais `Text.replaceData()` sur le nœud existant. La limite de début est normalisée vers le nœud contenant le premier caractère pour préserver les styles aux frontières inline. La reproduction conserve maintenant « salut, c'est moi, ton frere » dans le DOM et le modèle. Une correction traversant plusieurs nœuds de texte est refusée avant toute modification ; elle doit être effectuée manuellement.
+
+Vérification supplémentaire avec l’extension compilée, LanguageTool réel et un éditeur Lexical local : la popup corrige « Salut, c'est moi, je sui ici. » en « Salut, c'est moi, je suis ici. » ; le modèle reste complet et une frappe supplémentaire est conservée. Le correcteur natif est désactivé sur cette page de test. Les 126 tests passent. Aucune connexion à un compte WhatsApp n’a été utilisée ; le parcours sur le site réel reste à vérifier après rechargement.
+
+## Échelle CSS et annotations
+
+Un autre défaut a été reproduit à 90 % : les rectangles des mots incluent déjà le zoom CSS, tandis que les coordonnées de notre surcouche subissaient à nouveau ce zoom. La surcouche et la popup compensent désormais l’échelle du document. Les dimensions clientes et les miroirs des champs sont convertis à l’échelle effective du champ, conformément aux distinctions de [CSSOM View](https://www.w3.org/TR/cssom-view/#dom-element-currentcsszoom).
+
+Dans la reproduction Lexical, alignement des soulignements, popup, correction et nouvelle saisie vérifiés à 90 %, 100 % et 125 %, sans erreur ni avertissement. Les parcours textarea Auto, Français et Anglais passent également à 90 %. Cette vérification porte sur des pages locales contrôlées, pas sur une session ChatGPT ou WhatsApp authentifiée.
+
+Le délai de 100 ms choisi dans `constants.ts` est conservé. La validation et le champ des paramètres acceptent désormais ce minimum, pour éviter sa conversion automatique en 200 ms à l’enregistrement.

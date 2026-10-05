@@ -1,3 +1,4 @@
+import { synchronizeUiZoom } from './css-zoom';
 import type { CorrectionMatch } from '../correction/correction-types';
 import type { EditableField } from './field-detector';
 import {
@@ -16,6 +17,7 @@ export class Highlighter {
   private ui = createUiHost();
   annotations: Annotation[] = [];
   render(field: EditableField, text: string, matches: CorrectionMatch[]) {
+    synchronizeUiZoom(this.ui.host);
     this.ui.root.replaceChildren();
     this.annotations = [];
     if (

@@ -49,5 +49,10 @@ export function observeFields(
     attributes: true,
     attributeFilter: [...FIELD_ATTRIBUTES, 'class', 'style', 'hidden'],
   });
+  if (root === document.body)
+    observer.observe(document.documentElement, {
+      attributes: true,
+      attributeFilter: ['class', 'style'],
+    });
   return () => observer.disconnect();
 }

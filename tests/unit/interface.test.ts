@@ -230,3 +230,61 @@ describe('Chrome adapters', () => {
     expect(set).toHaveBeenCalledWith({ settings: DEFAULT_SETTINGS });
   });
 });
+
+it('keeps the whole sentence in a controlled text leaf when correcting ta to ton', () => {
+  const text = "salut, c'est moi, ta frere";
+  const field = document.createElement('div');
+  field.setAttribute('contenteditable', 'true');
+  const leaf = document.createElement('span');
+  leaf.setAttribute('data-lexical-text', 'true');
+  leaf.textContent = text;
+  field.append(leaf);
+  document.body.append(field);
+  const offset = text.indexOf('ta frere');
+  const selection = window.getSelection()!;
+  selection.setBaseAndExtent(
+    leaf.firstChild!,
+    offset + 2,
+    leaf.firstChild!,
+    offset + 2,
+  );
+  let editorText = text;
+  // A controlled editor reconciles the selected DOM text leaf into its model.
+  field.addEventListener('input', () => {
+    if (selection.anchorNode?.nodeType === Node.TEXT_NODE) {
+      editorText = selection.anchorNode.textContent ?? '';
+      leaf.textContent = editorText;
+    }
+  });
+  const correction = normalizeMatches(
+    {
+      matches: [
+        {
+          offset,
+          length: 2,
+          message: 'Accord',
+          replacements: [{ value: 'ton' }],
+          rule: { id: 'AGREEMENT', category: { id: 'GRAMMAR' } },
+        },
+      ],
+    },
+    text,
+  )[0]!;
+  expect(applyReplacement(field, correction, 'ton')).toBe(true);
+  expect(editorText).toBe("salut, c'est moi, ton frere");
+  expect(getTextFromField(field)).toBe("salut, c'est moi, ton frere");
+});
+
+it('refuses a correction crossing controlled text leaves without changing the sentence', () => {
+  const field = document.createElement('div');
+  field.setAttribute('contenteditable', 'true');
+  field.innerHTML =
+    "<p>salut, c'est moi, <span>t</span><strong>a</strong> frere</p>";
+  document.body.append(field);
+  const text = getTextFromField(field);
+  const html = field.innerHTML;
+  const offset = text.indexOf('ta frere');
+  expect(applyReplacement(field, match(text, offset, 2), 'ton')).toBe(false);
+  expect(field.innerHTML).toBe(html);
+  expect(getTextFromField(field)).toBe(text);
+});

@@ -75,7 +75,7 @@ it.each(['textarea', 'input', 'contenteditable'])(
       field.value = 'je sui ici';
     else field.textContent = 'je sui ici';
     field.dispatchEvent(new Event('input', { bubbles: true }));
-    await vi.advanceTimersByTimeAsync(399);
+    await vi.advanceTimersByTimeAsync(DEFAULT_SETTINGS.debounceMs - 1);
     expect(checker).not.toHaveBeenCalled();
     await vi.advanceTimersByTimeAsync(1);
     expect(checker).toHaveBeenCalledTimes(1);
@@ -163,5 +163,38 @@ it('removes a field immediately when its type becomes password', async () => {
   await Promise.resolve();
   await vi.advanceTimersByTimeAsync(400);
   expect(checker).not.toHaveBeenCalled();
+  expect(application.getState(field)).toBeUndefined();
+});
+
+it('corrects a dynamically mounted rich compose editor under hidden layout ancestors', async () => {
+  const checker = vi.fn(check);
+  application = new Application(DEFAULT_SETTINGS, checker);
+  application.start();
+  const layout = document.createElement('div');
+  layout.style.visibility = 'hidden';
+  layout.innerHTML =
+    '<input name="subjectbox" style="visibility:visible"><div contenteditable="true" role="textbox" style="visibility:visible"><div>je sui <strong>ici</strong></div><div>Second paragraphe.</div></div>';
+  document.body.append(layout);
+  await Promise.resolve();
+  const field = layout.querySelector<HTMLElement>('[contenteditable]')!;
+  const bold = field.querySelector('strong');
+  await vi.advanceTimersByTimeAsync(400);
+  expect(checker).toHaveBeenCalledWith(
+    'je sui ici\nSecond paragraphe.',
+    'auto',
+  );
+  expect(application.getHighlighter(field)?.annotations).toHaveLength(1);
+  field.dispatchEvent(
+    new MouseEvent('click', { bubbles: true, clientX: 50, clientY: 30 }),
+  );
+  const panel = [...document.querySelectorAll('[data-correctly-ui]')]
+    .map((host) => host.shadowRoot?.querySelector('[role=dialog]'))
+    .find(Boolean)!;
+  (panel.querySelector('button') as HTMLButtonElement).click();
+  expect(getTextFromField(field)).toBe('je suis ici\nSecond paragraphe.');
+  expect(field.querySelector('strong')).toBe(bold);
+  expect(bold?.textContent).toBe('ici');
+  layout.remove();
+  await Promise.resolve();
   expect(application.getState(field)).toBeUndefined();
 });

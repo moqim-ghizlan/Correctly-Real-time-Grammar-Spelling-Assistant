@@ -1,3 +1,4 @@
+import { synchronizeUiZoom } from './css-zoom';
 import type { CorrectionMatch } from '../correction/correction-types';
 import { createUiHost, type Box } from './overlay';
 export function calculatePopupPosition(
@@ -50,6 +51,7 @@ export class SuggestionPopup {
     ignore: () => void,
   ) {
     this.close();
+    synchronizeUiZoom(this.ui.host);
     this.previousFocus =
       document.activeElement instanceof HTMLElement
         ? document.activeElement

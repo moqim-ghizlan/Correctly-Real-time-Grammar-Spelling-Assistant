@@ -1,3 +1,4 @@
+import { effectiveZoom, synchronizeUiZoom } from './css-zoom';
 import type { CorrectionMatch } from '../correction/correction-types';
 const MIRROR_PROPERTIES = [
   'fontFamily',
@@ -28,6 +29,7 @@ export function createUiHost(): { host: HTMLDivElement; root: ShadowRoot } {
     'all:initial!important;position:fixed!important;inset:0!important;pointer-events:none!important;z-index:2147483646!important;';
   const root = host.attachShadow({ mode: 'open' });
   document.documentElement.append(host);
+  synchronizeUiZoom(host);
   return { host, root };
 }
 export function mirrorField(
@@ -38,14 +40,15 @@ export function mirrorField(
 ): Map<string, HTMLElement> {
   const style = getComputedStyle(field),
     box = field.getBoundingClientRect();
+  const zoom = effectiveZoom(field);
   const viewport = document.createElement('div');
   viewport.style.cssText =
     'position:fixed;overflow:hidden;pointer-events:none;color:transparent;';
   Object.assign(viewport.style, {
-    left: box.left + field.clientLeft + 'px',
-    top: box.top + field.clientTop + 'px',
-    width: field.clientWidth + 'px',
-    height: field.clientHeight + 'px',
+    left: box.left + field.clientLeft * zoom + 'px',
+    top: box.top + field.clientTop * zoom + 'px',
+    width: field.clientWidth * zoom + 'px',
+    height: field.clientHeight * zoom + 'px',
   });
   const mirror = document.createElement('div');
   mirror.style.cssText =
@@ -53,6 +56,7 @@ export function mirrorField(
   for (const property of MIRROR_PROPERTIES)
     mirror.style[property] = style[property];
   mirror.style.width = field.clientWidth + 'px';
+  mirror.style.zoom = String(zoom);
   if (field instanceof HTMLInputElement)
     mirror.style.lineHeight =
       Math.max(
@@ -126,6 +130,20 @@ export function intersectRect(rect: Box, clip: Box): Box | undefined {
     : undefined;
 }
 
+// Root overflow (and body overflow when propagated) clips the viewport,
+// not the element's possibly empty layout box.
+function usesViewportClip(element: HTMLElement, style: CSSStyleDeclaration) {
+  if (element === document.documentElement) return true;
+  if (element !== document.body) return false;
+  const rootStyle = getComputedStyle(document.documentElement);
+  return (
+    (rootStyle.overflowX || rootStyle.overflow || 'visible') === 'visible' &&
+    (rootStyle.overflowY || rootStyle.overflow || 'visible') === 'visible' &&
+    (!rootStyle.contain || rootStyle.contain === 'none') &&
+    (!style.contain || style.contain === 'none')
+  );
+}
+
 export function visibleFieldBox(field: HTMLElement): Box | undefined {
   let clip = intersectRect(field.getBoundingClientRect(), {
     left: 0,
@@ -133,6 +151,10 @@ export function visibleFieldBox(field: HTMLElement): Box | undefined {
     width: window.innerWidth,
     height: window.innerHeight,
   });
+  // Positioned descendants escape overflow between themselves and their
+  // containing block. Chromium's offsetParent also accounts for transformed
+  // containing blocks of fixed elements; null means the viewport.
+  let containingBlock: Element | null | undefined;
   for (
     let element: HTMLElement | null = field;
     element && clip;
@@ -141,25 +163,33 @@ export function visibleFieldBox(field: HTMLElement): Box | undefined {
     const style = getComputedStyle(element);
     if (
       style.display === 'none' ||
-      style.visibility === 'hidden' ||
+      (element === field &&
+        ['hidden', 'collapse'].includes(style.visibility)) ||
       style.opacity === '0'
     )
       return;
-    if (element === field) continue;
-    const clippedX = ['hidden', 'clip', 'scroll', 'auto'].includes(
-      style.overflowX || style.overflow,
-    );
-    const clippedY = ['hidden', 'clip', 'scroll', 'auto'].includes(
-      style.overflowY || style.overflow,
-    );
-    if (!clippedX && !clippedY) continue;
-    const bounds = element.getBoundingClientRect();
-    clip = intersectRect(clip, {
-      left: clippedX ? bounds.left + element.clientLeft : clip.left,
-      top: clippedY ? bounds.top + element.clientTop : clip.top,
-      width: clippedX ? element.clientWidth : clip.width,
-      height: clippedY ? element.clientHeight : clip.height,
-    });
+    if (containingBlock !== undefined && element !== containingBlock) continue;
+    containingBlock = undefined;
+    if (element !== field && !usesViewportClip(element, style)) {
+      const clippedX = ['hidden', 'clip', 'scroll', 'auto'].includes(
+        style.overflowX || style.overflow,
+      );
+      const clippedY = ['hidden', 'clip', 'scroll', 'auto'].includes(
+        style.overflowY || style.overflow,
+      );
+      if (clippedX || clippedY) {
+        const bounds = element.getBoundingClientRect();
+        const zoom = effectiveZoom(element);
+        clip = intersectRect(clip, {
+          left: clippedX ? bounds.left + element.clientLeft * zoom : clip.left,
+          top: clippedY ? bounds.top + element.clientTop * zoom : clip.top,
+          width: clippedX ? element.clientWidth * zoom : clip.width,
+          height: clippedY ? element.clientHeight * zoom : clip.height,
+        });
+      }
+    }
+    if (style.position === 'fixed' || style.position === 'absolute')
+      containingBlock = element.offsetParent;
   }
   return clip;
 }

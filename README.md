@@ -31,7 +31,7 @@ Le mode Auto est limité au français et à l’anglais : quelques mots courants
 
 ## Utilisation
 
-Écrivez dans un textarea, un input texte/recherche ou un contenteditable simple. Après une pause de 400 ms, les erreurs sont soulignées en rouge (orthographe) ou en orange (grammaire). Cliquez sur une erreur pour choisir une suggestion ou l’ignorer. Le clic droit prépare la meilleure suggestion dans le menu natif.
+Écrivez dans un textarea, un input texte/recherche ou un contenteditable simple. Après une pause de 100 ms par défaut, les erreurs sont soulignées en rouge (orthographe) ou en orange (grammaire). Cliquez sur une erreur pour choisir une suggestion ou l’ignorer. Le clic droit prépare la meilleure suggestion dans le menu natif.
 
 L’icône de l’extension permet de changer la langue, désactiver la correction globalement ou sur le domaine courant, ouvrir les paramètres et vérifier la disponibilité du moteur. Les paramètres ajoutent le délai, les catégories et un dictionnaire personnel sensible à la casse.
 
@@ -52,8 +52,8 @@ npm run fixture
 ## Limites de la V1
 
 - Champs de plus de 5 000 caractères ignorés ; pas encore d’analyse de paragraphe ciblé.
-- Contenteditable simple : extraction des retours à la ligne et surcouche Range sans réécriture du DOM. Les remplacements qui traversent des séparateurs de paragraphes synthétiques sont refusés.
-- Éditeurs riches pilotés par un framework, Shadow DOM de la page, canvas, zoom/transforms CSS complexes : support limité, tests manuels requis.
+- Contenteditable simple : extraction des retours à la ligne et surcouche Range sans réécriture du DOM. Les remplacements modifient les caractères du nœud de texte existant pour préserver le contenu des éditeurs contrôlés. Les corrections traversant plusieurs nœuds de texte ou des séparateurs de paragraphes synthétiques sont refusées ; elles doivent être réalisées manuellement.
+- Éditeurs riches pilotés par un framework, Shadow DOM de la page, canvas et transforms CSS complexes : support limité, tests manuels requis.
 - Les corrections émettent un événement input synthétique ; elles n’assurent pas l’intégration à l’historique Annuler de tous les éditeurs.
 - Le titre et la visibilité du menu natif dépendent du moment où Chrome reçoit la mise à jour asynchrone. Le passage de la souris prépare le menu ; un premier clic droit immédiat peut nécessiter une nouvelle ouverture.
 - Aucun fonctionnement sur les pages internes Chrome/Brave, le Chrome Web Store et les pages où les content scripts sont interdits.

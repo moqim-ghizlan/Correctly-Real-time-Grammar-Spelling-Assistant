@@ -266,7 +266,7 @@ it('validates language and settings', () => {
   expect(isLanguage('de')).toBe(false);
   expect(
     normalizeSettings({ language: 'invalid', debounceMs: -4, enabled: 'no' }),
-  ).toMatchObject({ language: 'auto', debounceMs: 200, enabled: true });
+  ).toMatchObject({ language: 'auto', debounceMs: 100, enabled: true });
   expect(
     enabledOnSite(
       { ...DEFAULT_SETTINGS, disabledSites: ['example.com'] },

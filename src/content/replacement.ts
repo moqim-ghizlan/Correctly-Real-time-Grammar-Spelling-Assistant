@@ -91,9 +91,19 @@ export function applyReplacement(
     const focus = selection
       ? pointOffset(model, selection.focusNode, selection.focusOffset)
       : -1;
-    range.deleteContents();
-    const node = document.createTextNode(replacement);
-    range.insertNode(node);
+    // Controlled editors reconcile a whole DOM text leaf into their model.
+    // Splitting that leaf can make them keep only the replacement fragment.
+    // Keep its identity and full text; refuse edits crossing leaves.
+    if (
+      !(range.startContainer instanceof Text) ||
+      range.startContainer !== range.endContainer
+    )
+      return false;
+    range.startContainer.replaceData(
+      range.startOffset,
+      range.endOffset - range.startOffset,
+      replacement,
+    );
     field.focus({ preventScroll: true });
     const next = getEditableTextModel(field);
     const anchorPoint =

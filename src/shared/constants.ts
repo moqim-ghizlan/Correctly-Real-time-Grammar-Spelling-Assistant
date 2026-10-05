@@ -1,4 +1,4 @@
-export const DEFAULT_DEBOUNCE_MS = 400;
+export const DEFAULT_DEBOUNCE_MS = 100;
 export const LANGUAGE_TOOL_BASE_URL = 'http://127.0.0.1:8081';
 export const MAX_TEXT_LENGTH = 5000;
 export const CACHE_LIMIT = 100;

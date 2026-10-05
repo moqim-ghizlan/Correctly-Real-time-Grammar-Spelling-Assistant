@@ -89,8 +89,16 @@ export function rangeFromModel(
   offset: number,
   length: number,
 ): Range | undefined {
-  const start = model.points[offset],
-    end = model.points[offset + length];
+  let start = model.points[offset];
+  const end = model.points[offset + length];
+  const firstCharacterEnd = length > 0 ? model.points[offset + 1] : undefined;
+  // At an inline boundary, prefer the text node containing the first character
+  // rather than the preceding text node's end (which would cross markup).
+  if (firstCharacterEnd?.node instanceof Text && firstCharacterEnd.offset > 0)
+    start = {
+      node: firstCharacterEnd.node,
+      offset: firstCharacterEnd.offset - 1,
+    };
   if (!start || !end) return;
   const range = document.createRange();
   range.setStart(start.node, start.offset);
