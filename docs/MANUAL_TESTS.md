@@ -1,6 +1,6 @@
 # Tests manuels — Correctly
 
-Cette checklist est à réaliser par l’utilisateur. Aucune case ci-dessous n’a été validée automatiquement. Les tests jsdom ne prouvent pas l’alignement visuel ou la compatibilité des éditeurs des sites.
+Cette checklist reste à réaliser manuellement par l’utilisateur dans son navigateur et sur ses sites. Une vérification limitée dans Brave est décrite dans [le rapport navigateur](BROWSER_VERIFICATION.md). Les tests jsdom ne prouvent pas l’alignement visuel ou la compatibilité des éditeurs des sites.
 
 ## Préparation
 

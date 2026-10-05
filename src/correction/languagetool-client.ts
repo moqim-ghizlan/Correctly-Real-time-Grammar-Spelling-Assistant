@@ -4,9 +4,15 @@ import {
   REQUEST_TIMEOUT_MS,
   RETRY_DELAY_MS,
 } from '../shared/constants';
+import { logger } from '../shared/logger';
 import { CorrectionCache } from './correction-cache';
 import type { CorrectionMatch, CheckResult } from './correction-types';
-import type { Language } from './language';
+import {
+  autoPreferredLanguages,
+  isSupportedLanguageCode,
+  preferredAutoLanguage,
+  type Language,
+} from './language';
 function record(value: unknown): Record<string, unknown> {
   if (!value || typeof value !== 'object') throw new Error('Invalid response');
   return value as Record<string, unknown>;
@@ -65,6 +71,7 @@ export function normalizeMatches(
 export class LanguageToolClient {
   private cache = new CorrectionCache();
   private unavailableUntil = 0;
+  private unavailableReason = '';
   private pending = new Map<string, Promise<CheckResult>>();
   constructor(private fetcher: typeof fetch = fetch) {}
   async checkText(text: string, language: Language): Promise<CheckResult> {
@@ -74,7 +81,11 @@ export class LanguageToolClient {
     const cached = this.cache.get(text, language);
     if (cached) return { status: 'ready', matches: cached };
     if (Date.now() < this.unavailableUntil)
-      return { status: 'unavailable', matches: [] };
+      return {
+        status: 'unavailable',
+        matches: [],
+        reason: this.unavailableReason,
+      };
     const key = JSON.stringify([language, text]);
     const existing = this.pending.get(key);
     if (existing) return existing;
@@ -92,31 +103,76 @@ export class LanguageToolClient {
   ): Promise<CheckResult> {
     const controller = new AbortController();
     const timer = setTimeout(() => controller.abort(), REQUEST_TIMEOUT_MS);
+    let reason = 'Impossible de joindre LanguageTool sur le port 8081.';
     try {
-      const response = await this.fetcher(
-        LANGUAGE_TOOL_BASE_URL + '/v2/check',
-        {
+      // Call as a plain function: native WorkerGlobalScope.fetch rejects a client receiver.
+      const fetcher = this.fetcher;
+      const check = async (requestedLanguage: Language): Promise<unknown> => {
+        reason = 'Impossible de joindre LanguageTool sur le port 8081.';
+        const body = new URLSearchParams({
+          text,
+          language: requestedLanguage,
+          enabledOnly: 'false',
+        });
+        if (requestedLanguage === 'auto') {
+          body.set('preferredVariants', 'en-US');
+          body.set('preferredLanguages', autoPreferredLanguages(text));
+          body.set('forcePreferredLanguages', 'true');
+        }
+        const response = await fetcher(LANGUAGE_TOOL_BASE_URL + '/v2/check', {
           method: 'POST',
-          body: new URLSearchParams({
-            text,
-            language,
-            preferredVariants: 'en-US',
-            enabledOnly: 'false',
-          }),
+          body,
           signal: controller.signal,
           credentials: 'omit',
           redirect: 'error',
-        },
-      );
-      if (!response.ok) throw new Error('Server unavailable');
-      const payload: unknown = await response.json();
+        });
+        if (!response.ok) {
+          reason =
+            'LanguageTool a refusé l’analyse (HTTP ' + response.status + ').';
+          throw new Error('Server unavailable');
+        }
+        reason = 'Réponse LanguageTool invalide.';
+        return (await response.json()) as unknown;
+      };
+      let payload = await check(language);
+      const responseCode = (value: unknown): unknown => {
+        const detected = record(value).language;
+        return detected && typeof detected === 'object'
+          ? record(detected).code
+          : undefined;
+      };
+      const code = responseCode(payload);
+      if (
+        language === 'auto' &&
+        typeof code === 'string' &&
+        !isSupportedLanguageCode(code)
+      ) {
+        payload = await check(preferredAutoLanguage(text));
+      }
+      const finalCode = responseCode(payload);
+      if (
+        typeof finalCode === 'string' &&
+        !isSupportedLanguageCode(finalCode)
+      ) {
+        reason =
+          'LanguageTool a renvoyé une langue non prise en charge. Seuls le français et l’anglais sont acceptés.';
+        throw new Error('Unsupported language');
+      }
       const matches = normalizeMatches(payload, text);
       this.cache.set(text, language, matches);
       this.unavailableUntil = 0;
       return { status: 'ready', matches };
     } catch {
       this.unavailableUntil = Date.now() + RETRY_DELAY_MS;
-      return { status: 'unavailable', matches: [] };
+      this.unavailableReason = controller.signal.aborted
+        ? 'LanguageTool n’a pas répondu dans le délai prévu.'
+        : reason;
+      logger.warn(this.unavailableReason);
+      return {
+        status: 'unavailable',
+        matches: [],
+        reason: this.unavailableReason,
+      };
     } finally {
       clearTimeout(timer);
     }

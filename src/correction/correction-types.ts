@@ -11,4 +11,5 @@ export interface CorrectionMatch {
 }
 export type CheckResult =
   | { status: 'ready'; matches: CorrectionMatch[] }
-  | { status: 'unavailable' | 'too-long'; matches: [] };
+  | { status: 'too-long'; matches: [] }
+  | { status: 'unavailable'; matches: []; reason?: string };

@@ -2,7 +2,7 @@
 
 Extension Chrome/Brave gratuite : orthographe et grammaire en français, en anglais ou en mode Auto, avec un moteur **LanguageTool local**. TypeScript strict, Manifest V3, aucune API cloud, aucun framework UI.
 
-La V1 est implémentée et testée en DOM simulé. Le chargement réel et l’affichage dans Chrome/Brave restent à valider avec [la checklist manuelle](docs/MANUAL_TESTS.md).
+La V1 est testée en DOM simulé et son parcours de correction a été vérifié dans Brave avec LanguageTool réel ([rapport](docs/BROWSER_VERIFICATION.md)). La compatibilité avec votre navigateur et vos sites reste à valider avec [la checklist manuelle](docs/MANUAL_TESTS.md).
 
 ## Installation
 
@@ -27,7 +27,7 @@ java -cp languagetool-server.jar org.languagetool.server.HTTPServer --config ser
 
 Correctly appelle `http://127.0.0.1:8081/v2/check` depuis le service worker. Aucun CORS ouvert ni option `--public` n’est nécessaire pour ce client d’extension. Gardez la fenêtre du serveur ouverte. L’application graphique LanguageTool Windows ne remplace pas ce serveur.
 
-Le mode Auto utilise LanguageTool ; sur Windows et les phrases très courtes, choisissez Français ou Anglais si la détection est mauvaise. La [documentation du serveur](https://dev.languagetool.org/http-server) précise les limites de la détection sans fastText.
+Le mode Auto est limité au français et à l’anglais : quelques mots courants guident la préférence sur les phrases courtes, puis LanguageTool détecte la langue parmi ces deux choix. Une réponse dans une autre langue est réanalysée avec un choix explicite ou rejetée. Pour un texte ambigu, vous pouvez toujours sélectionner Français ou Anglais. La [documentation du serveur](https://dev.languagetool.org/http-server) précise les limites de la détection sans fastText.
 
 ## Utilisation
 

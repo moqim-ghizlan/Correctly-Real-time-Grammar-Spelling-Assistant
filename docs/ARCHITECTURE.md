@@ -28,7 +28,7 @@ Les messages d’analyse ne sont acceptés que depuis cette extension et un cont
 
 Permissions : `storage` pour les réglages, `contextMenus` pour le clic droit, `activeTab` pour connaître le domaine au clic sur l’icône. Accès réseau : localhost et 127.0.0.1 uniquement. Les règles content_scripts couvrent les pages HTTP(S) pour y détecter les champs ; elles ne constituent pas une permission réseau vers une API distante.
 
-Les textes de 5 000 caractères maximum sont analysés intégralement. Aucun polling, rescan périodique du document ni requête par touche. Les erreurs sont filtrées selon les catégories et le dictionnaire avant affichage. Ignorer ne concerne qu’une occurrence ; toute modification du texte réinitialise les occurrences ignorées.
+Les textes de 5 000 caractères maximum sont analysés intégralement. Aucun polling, rescan périodique du document ni requête par touche. Le mode Auto impose les seules langues fr/en avec preferredLanguages et forcePreferredLanguages ; une préférence simple fondée sur les mots courants guide les textes courts. Si un serveur ignore cette restriction, une seconde analyse explicite est effectuée ; une réponse dans une troisième langue est rejetée. Les erreurs sont filtrées selon les catégories et le dictionnaire avant affichage. Ignorer ne concerne qu’une occurrence ; toute modification du texte réinitialise les occurrences ignorées.
 
 ## Vérification
 
