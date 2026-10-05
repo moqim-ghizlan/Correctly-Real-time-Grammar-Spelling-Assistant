@@ -1,0 +1,80 @@
+<!doctype html>
+<html lang="fr">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Paramètres — Correctly</title>
+    <link rel="stylesheet" href="./options.css" />
+  </head>
+  <body>
+    <main>
+      <header>
+        <span class="mark" aria-hidden="true">C</span>
+        <div>
+          <h1>Paramètres Correctly</h1>
+          <p>Une correction locale à votre rythme.</p>
+        </div>
+      </header>
+      <form id="settings">
+        <fieldset id="controls" disabled>
+          <label class="row" for="enabled"
+            ><span>Activer la correction</span
+            ><input id="enabled" type="checkbox"
+          /></label>
+          <label class="row" for="language"
+            ><span>Langue</span
+            ><select id="language">
+              <option value="auto">Auto</option>
+              <option value="fr">Français</option>
+              <option value="en">Anglais</option>
+            </select></label
+          >
+          <label class="row" for="delay"
+            ><span>Pause avant analyse (ms)</span
+            ><input
+              id="delay"
+              type="number"
+              min="200"
+              max="2000"
+              step="50"
+              required
+          /></label>
+          <label class="row" for="spelling"
+            ><span>Orthographe</span><input id="spelling" type="checkbox"
+          /></label>
+          <label class="row" for="grammar"
+            ><span>Grammaire</span><input id="grammar" type="checkbox"
+          /></label>
+          <label class="group" for="sites"
+            ><span>Sites désactivés</span
+            ><textarea id="sites" rows="4" placeholder="example.com"></textarea>
+          </label>
+          <p class="hint">
+            Un nom de domaine par ligne. Le réglage s’applique au domaine exact.
+          </p>
+          <label class="group" for="dictionary"
+            ><span>Dictionnaire personnel</span
+            ><textarea
+              id="dictionary"
+              rows="5"
+              placeholder="Moqim&#10;OpenAI"
+            ></textarea>
+          </label>
+          <p class="hint">
+            Un mot par ligne, sensible à la casse. Ces mots sont exclus des
+            erreurs d’orthographe.
+          </p>
+          <button class="primary" type="submit">Enregistrer</button>
+        </fieldset>
+        <p id="message" role="status"></p>
+      </form>
+      <hr />
+      <p class="hint">
+        Moteur : http://127.0.0.1:8081. Aucun service distant ni sauvegarde des
+        textes. Les champs de plus de 5 000 caractères sont ignorés dans cette
+        version.
+      </p>
+    </main>
+    <script type="module" src="./options.ts"></script>
+  </body>
+</html>

@@ -1,0 +1,167 @@
+:root {
+  font-family:
+    system-ui,
+    -apple-system,
+    BlinkMacSystemFont,
+    'Segoe UI',
+    sans-serif;
+  color: #111827;
+  background: #fff;
+  color-scheme: light dark;
+  font-size: 14px;
+}
+* {
+  box-sizing: border-box;
+}
+body {
+  margin: 0;
+  padding: 24px;
+}
+body.popup {
+  width: 340px;
+  padding: 20px;
+}
+main {
+  max-width: 620px;
+  margin: 24px auto;
+}
+header {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 24px;
+}
+.mark {
+  display: grid;
+  place-items: center;
+  width: 38px;
+  height: 38px;
+  border-radius: 10px;
+  background: #2563eb;
+  color: white;
+  font-weight: 750;
+  font-size: 24px;
+  text-decoration: underline;
+  text-underline-offset: 4px;
+}
+h1 {
+  margin: 0;
+  font-size: 21px;
+  letter-spacing: -0.4px;
+}
+header p {
+  margin: 3px 0 0;
+  color: #6b7280;
+  font-size: 12px;
+}
+.row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  margin: 18px 0;
+}
+.group {
+  display: block;
+  margin: 22px 0;
+}
+.group span {
+  display: block;
+  font-weight: 600;
+  margin-bottom: 7px;
+}
+.hint {
+  font-size: 12px;
+  color: #6b7280;
+  line-height: 1.6;
+}
+select,
+input[type='number'],
+textarea {
+  font: inherit;
+  background: #f9fafb;
+  color: inherit;
+  border: 1px solid #d1d5db;
+  border-radius: 7px;
+  padding: 8px;
+}
+textarea {
+  width: 100%;
+  resize: vertical;
+}
+input[type='checkbox'] {
+  accent-color: #2563eb;
+  width: 17px;
+  height: 17px;
+}
+button {
+  font: inherit;
+  cursor: pointer;
+  border: 1px solid #d1d5db;
+  border-radius: 7px;
+  background: #fff;
+  color: inherit;
+  padding: 9px 12px;
+}
+button.primary {
+  background: #2563eb;
+  border-color: #2563eb;
+  color: #fff;
+}
+button:disabled {
+  opacity: 0.5;
+  cursor: wait;
+}
+:focus-visible {
+  outline: 2px solid #2563eb;
+  outline-offset: 3px;
+}
+.actions {
+  display: flex;
+  gap: 8px;
+  margin-top: 20px;
+}
+.status {
+  padding: 10px 12px;
+  border: 1px solid #e5e7eb;
+  border-radius: 8px;
+  font-size: 12px;
+  line-height: 1.6;
+}
+fieldset {
+  margin: 0;
+  padding: 0;
+  border: 0;
+}
+hr {
+  border: 0;
+  border-top: 1px solid #e5e7eb;
+  margin: 20px 0;
+}
+[role='status'] {
+  min-height: 20px;
+  font-size: 12px;
+  color: #6b7280;
+}
+@media (prefers-color-scheme: dark) {
+  :root {
+    background: #111827;
+    color: #f9fafb;
+  }
+  header p,
+  .hint,
+  [role='status'] {
+    color: #9ca3af;
+  }
+  select,
+  input[type='number'],
+  textarea,
+  button {
+    background: #1f2937;
+    border-color: #374151;
+  }
+  .status,
+  hr {
+    border-color: #374151;
+  }
+}
