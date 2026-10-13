@@ -95,7 +95,7 @@ it.each(['textarea', 'input', 'contenteditable'])(
     );
   },
 );
-it('isolates multiple fields, registers later fields and disposes removed fields', async () => {
+it('switches active editors, discovers later fields on interaction and disposes removals', async () => {
   document.body.innerHTML =
     '<textarea></textarea><input><div contenteditable="true"></div>';
   application = new Application(DEFAULT_SETTINGS, check);
@@ -105,14 +105,19 @@ it('isolates multiple fields, registers later fields and disposes removed fields
   a.value = 'je sui ici';
   b.value = 'je sui ici';
   a.dispatchEvent(new Event('input'));
-  b.dispatchEvent(new Event('input'));
   await vi.advanceTimersByTimeAsync(400);
-  const aState = application.getState(a)!;
-  application.getController(a)?.ignore(aState.matches[0]!.id);
+  const oldController = application.getController(a)!;
+  b.dispatchEvent(new Event('input'));
+  expect(application.getState(a)).toBeUndefined();
+  expect(oldController.state.matches).toEqual([]);
+  await vi.advanceTimersByTimeAsync(400);
+  expect(application.getState(b)?.matches).toHaveLength(1);
   expect(application.getState(b)?.ignoredMatches.size).toBe(0);
   const dynamic = document.createElement('textarea');
   document.body.append(dynamic);
   await Promise.resolve();
+  expect(application.getState(dynamic)).toBeUndefined();
+  dynamic.dispatchEvent(new FocusEvent('focusin', { bubbles: true }));
   expect(application.getState(dynamic)).toBeDefined();
   const hostCount = document.querySelectorAll('[data-correctly-ui]').length;
   dynamic.remove();
@@ -178,6 +183,7 @@ it('corrects a dynamically mounted rich compose editor under hidden layout ances
   await Promise.resolve();
   const field = layout.querySelector<HTMLElement>('[contenteditable]')!;
   const bold = field.querySelector('strong');
+  bold!.dispatchEvent(new FocusEvent('focusin', { bubbles: true }));
   await vi.advanceTimersByTimeAsync(400);
   expect(checker).toHaveBeenCalledWith(
     'je sui ici\nSecond paragraphe.',
@@ -197,4 +203,55 @@ it('corrects a dynamically mounted rich compose editor under hidden layout ances
   layout.remove();
   await Promise.resolve();
   expect(application.getState(field)).toBeUndefined();
+});
+
+it('resumes caret tracking after closing the popup with Escape', async () => {
+  const field = document.createElement('textarea');
+  field.value = 'je sui ici\n' + 'a'.repeat(5100) + '\nlast paragraph';
+  document.body.append(field);
+  const checker = vi.fn(check);
+  application = new Application(DEFAULT_SETTINGS, checker);
+  application.start();
+  field.focus();
+  await vi.advanceTimersByTimeAsync(400);
+  application.open(field, application.getHighlighter(field)!.annotations[0]!);
+  document.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape' }));
+  field.setSelectionRange(field.value.length, field.value.length);
+  document.dispatchEvent(new Event('selectionchange'));
+  await vi.advanceTimersByTimeAsync(400);
+  expect(checker).toHaveBeenLastCalledWith('last paragraph', 'auto');
+});
+it('prunes active overlays when the body is replaced', async () => {
+  const field = document.createElement('textarea');
+  field.value = 'je sui ici';
+  document.body.append(field);
+  application = new Application(DEFAULT_SETTINGS, check);
+  application.start();
+  field.focus();
+  await vi.advanceTimersByTimeAsync(400);
+  const previousBody = document.body;
+  const next = document.createElement('body');
+  previousBody.replaceWith(next);
+  await Promise.resolve();
+  expect(application.getState(field)).toBeUndefined();
+  expect(application.getHighlighter(field)).toBeUndefined();
+});
+
+it('keeps caret analysis suspended when an already open popup is reopened', async () => {
+  const field = document.createElement('textarea');
+  field.value = 'je sui ici\n' + 'a'.repeat(5100) + '\nlast paragraph';
+  document.body.append(field);
+  const checker = vi.fn(check);
+  application = new Application(DEFAULT_SETTINGS, checker);
+  application.start();
+  field.focus();
+  await vi.advanceTimersByTimeAsync(400);
+  const annotation = application.getHighlighter(field)!.annotations[0]!;
+  application.open(field, annotation);
+  application.open(field, annotation);
+  const calls = checker.mock.calls.length;
+  field.setSelectionRange(field.value.length, field.value.length);
+  document.dispatchEvent(new Event('selectionchange'));
+  await vi.advanceTimersByTimeAsync(400);
+  expect(checker).toHaveBeenCalledTimes(calls);
 });

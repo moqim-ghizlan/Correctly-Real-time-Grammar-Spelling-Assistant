@@ -1,3 +1,4 @@
+import { parentAcrossShadow } from './field-detector';
 // Client dimensions are unscaled; DOM and Range rectangles include CSS zoom.
 export function effectiveZoom(element: HTMLElement): number {
   const native = (element as HTMLElement & { currentCSSZoom?: number })
@@ -8,7 +9,7 @@ export function effectiveZoom(element: HTMLElement): number {
   for (
     let node: HTMLElement | null = element;
     node;
-    node = node.parentElement
+    node = parentAcrossShadow(node)
   ) {
     const value = getComputedStyle(node).getPropertyValue('zoom') || '1';
     const factor = parseFloat(value) / (value.endsWith('%') ? 100 : 1);

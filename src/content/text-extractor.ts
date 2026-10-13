@@ -4,6 +4,7 @@ export interface TextPoint {
   offset: number;
 }
 export interface TextModel {
+  root: HTMLElement;
   text: string;
   points: TextPoint[];
 }
@@ -14,6 +15,13 @@ const BLOCKS = new Set([
   'H1',
   'H2',
   'H3',
+  'H4',
+  'H5',
+  'H6',
+  'UL',
+  'OL',
+  'SECTION',
+  'ARTICLE',
   'BLOCKQUOTE',
   'PRE',
 ]);
@@ -76,7 +84,7 @@ export function getEditableTextModel(root: HTMLElement): TextModel {
   };
   visit(root);
   points[0] ??= { node: root, offset: 0 };
-  return { text, points };
+  return { text, points, root };
 }
 export function getTextFromField(field: EditableField): string {
   return field instanceof HTMLInputElement ||
@@ -100,8 +108,40 @@ export function rangeFromModel(
       offset: firstCharacterEnd.offset - 1,
     };
   if (!start || !end) return;
-  const range = document.createRange();
+  const range = start.node.ownerDocument!.createRange();
   range.setStart(start.node, start.offset);
   range.setEnd(end.node, end.offset);
   return range;
+}
+
+// Normalized offsets include synthetic block separators, unlike Range.toString().
+export function offsetFromModel(
+  model: TextModel,
+  node: Node | null,
+  offset: number,
+): number {
+  if (!node || !model.root.contains(node)) return -1;
+  const exact = model.points.findIndex(
+    (point) => point.node === node && point.offset === offset,
+  );
+  if (exact >= 0) return exact;
+  if (
+    !model.points.some(
+      (point) => point.node.getRootNode() === node.getRootNode(),
+    )
+  )
+    return -1;
+  const caret = node.ownerDocument!.createRange();
+  caret.setStart(node, offset);
+  caret.collapse(true);
+  let result = 0;
+  for (let index = 0; index < model.points.length; index++) {
+    const point = model.points[index]!;
+    const boundary = node.ownerDocument!.createRange();
+    boundary.setStart(point.node, point.offset);
+    boundary.collapse(true);
+    if (boundary.compareBoundaryPoints(Range.START_TO_START, caret) > 0) break;
+    result = index;
+  }
+  return result;
 }

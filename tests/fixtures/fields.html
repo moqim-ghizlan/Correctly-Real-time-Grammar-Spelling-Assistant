@@ -90,7 +90,21 @@ je vais a paris demain</textarea>
       Ajouter un texte de plus de 5 000 caractères
     </button>
     <div id="dynamic"></div>
+    <label>Email<input type="email" value="wrong@example.com" /></label>
+    <label>URL<input type="url" value="https://example.com" /></label>
+    <label>T?l?phone<input type="tel" value="hello wrld" /></label>
+    <div contenteditable="plaintext-only">je sui ici</div>
+    <div id="shadow-editor"></div>
+    <iframe
+      title="?diteur dans une frame"
+      srcdoc="<textarea>je sui ici</textarea>"
+    ></iframe>
     <script>
+      const shadow = document
+        .querySelector('#shadow-editor')
+        .attachShadow({ mode: 'open' });
+      shadow.innerHTML =
+        '<label>Shadow DOM ouvert<textarea>je sui ici</textarea></label>';
       document.querySelector('#add').addEventListener('click', () => {
         const field = document.createElement('textarea');
         field.value = 'je sui ici';

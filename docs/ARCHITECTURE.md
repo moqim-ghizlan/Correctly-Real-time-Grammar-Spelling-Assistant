@@ -1,5 +1,7 @@
 # Architecture Correctly
 
+La version 0.2.0 utilise une d?tection ? l?interaction et un seul ?diteur actif. Voir [les changements V2](V2.md).
+
 ## Flux
 
 `input → état du champ → debounce → message Chrome → service worker → LanguageTool local → corrections normalisées → surcouche → action utilisateur`.
@@ -8,7 +10,7 @@ Le content script est un bundle IIFE autonome, car les content scripts Manifest 
 
 ## Modules
 
-- `content/field-detector` : seuls textarea, input text/search et racines contenteditable. Password, number, email, readonly, disabled, îlots non éditables et UI Correctly exclus.
+- `content/field-detector` : textarea, input text/search/email/url/tel et racines contenteditable. Password, number, readonly, disabled, îlots non éditables et UI Correctly exclus.
 - `content/observers` : enregistrement des champs initiaux et inspection des nœuds ajoutés. Les changements d’attributs permettent de retirer immédiatement un input devenu password.
 - `content/application` : cycle de vie, listeners, composition IME, scroll/resize, champs dynamiques, suppression des surcouches.
 - `content/field-state` : état propre à chaque champ dans une WeakMap. La Map des contrôleurs est nettoyée au retrait des champs.

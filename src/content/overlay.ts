@@ -1,3 +1,4 @@
+import { parentAcrossShadow } from './field-detector';
 import { effectiveZoom, synchronizeUiZoom } from './css-zoom';
 import type { CorrectionMatch } from '../correction/correction-types';
 const MIRROR_PROPERTIES = [
@@ -158,7 +159,7 @@ export function visibleFieldBox(field: HTMLElement): Box | undefined {
   for (
     let element: HTMLElement | null = field;
     element && clip;
-    element = element.parentElement
+    element = parentAcrossShadow(element)
   ) {
     const style = getComputedStyle(element);
     if (

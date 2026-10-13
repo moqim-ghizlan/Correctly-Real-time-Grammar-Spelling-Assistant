@@ -4,6 +4,8 @@ Extension Chrome/Brave gratuite : orthographe et grammaire en français, en angl
 
 La V1 est testée en DOM simulé et son parcours de correction a été vérifié dans Brave avec LanguageTool réel ([rapport](docs/BROWSER_VERIFICATION.md)). La compatibilité avec votre navigateur et vos sites reste à valider avec [la checklist manuelle](docs/MANUAL_TESTS.md).
 
+La V2 d?tecte uniquement l??diteur utilis?, par ?v?nements globaux, sans balayage des champs. Les tests automatis?s et les parcours locaux dans Brave avec LanguageTool r?el passent ; la validation V2 sur les sites authentifi?s reste ? effectuer. Voir [le suivi V2](docs/V2.md).
+
 ## Installation
 
 Prérequis : Node.js **22.13+** ou **24+**, npm, et Java compatible avec la distribution LanguageTool utilisée.
@@ -31,7 +33,7 @@ Le mode Auto est limité au français et à l’anglais : quelques mots courants
 
 ## Utilisation
 
-Écrivez dans un textarea, un input texte/recherche ou un contenteditable simple. Après une pause de 100 ms par défaut, les erreurs sont soulignées en rouge (orthographe) ou en orange (grammaire). Cliquez sur une erreur pour choisir une suggestion ou l’ignorer. Le clic droit prépare la meilleure suggestion dans le menu natif.
+Écrivez dans un textarea, un input texte/recherche/email/url/t?l?phone ou un contenteditable. Après une pause de 100 ms par défaut, les erreurs sont soulignées en rouge (orthographe) ou en orange (grammaire). Cliquez sur une erreur pour choisir une suggestion ou l’ignorer. Le clic droit prépare la meilleure suggestion dans le menu natif.
 
 L’icône de l’extension permet de changer la langue, désactiver la correction globalement ou sur le domaine courant, ouvrir les paramètres et vérifier la disponibilité du moteur. Les paramètres ajoutent le délai, les catégories et un dictionnaire personnel sensible à la casse.
 
@@ -49,7 +51,7 @@ npm run fixture
 
 `dev` compile d’abord, puis surveille séparément les pages/service worker et le content script. Rechargez l’extension après les modifications. `fixture` sert une page de test à `http://127.0.0.1:8080`.
 
-## Limites de la V1
+## Limites de la V2
 
 - Champs de plus de 5 000 caractères ignorés ; pas encore d’analyse de paragraphe ciblé.
 - Contenteditable simple : extraction des retours à la ligne et surcouche Range sans réécriture du DOM. Les remplacements modifient les caractères du nœud de texte existant pour préserver le contenu des éditeurs contrôlés. Les corrections traversant plusieurs nœuds de texte ou des séparateurs de paragraphes synthétiques sont refusées ; elles doivent être réalisées manuellement.

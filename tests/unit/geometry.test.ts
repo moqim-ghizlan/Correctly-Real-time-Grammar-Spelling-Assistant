@@ -224,3 +224,22 @@ it('scales the mirror viewport, typography and border offsets with the field zoo
   expect(mirror.style.width).toBe('200px');
   expect(mirror.style.zoom).toBe('0.9');
 });
+
+it('clips a shadow editor to the scrollable host and its outside ancestors', () => {
+  const host = document.createElement('div');
+  host.style.overflow = 'hidden';
+  document.body.append(host);
+  const shadow = host.attachShadow({ mode: 'open' });
+  const field = document.createElement('textarea');
+  shadow.append(field);
+  setBox(host, new DOMRect(0, 0, 50, 50));
+  setBox(field, new DOMRect(10, 10, 100, 100));
+  expect(visibleFieldBox(field)).toEqual({
+    left: 10,
+    top: 10,
+    width: 40,
+    height: 40,
+  });
+  host.style.opacity = '0';
+  expect(visibleFieldBox(field)).toBeUndefined();
+});

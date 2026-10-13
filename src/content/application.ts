@@ -4,11 +4,15 @@ import {
   visibleMatches,
   type FieldState,
 } from './field-state';
-import { isEditableField, type EditableField } from './field-detector';
+import {
+  findEditableElement,
+  isInsideCorrectlyUI,
+  isEditableField,
+  type EditableField,
+} from './field-detector';
 import { observeFields } from './observers';
 import { Highlighter, type Annotation } from './highlighter';
 import { SuggestionPopup } from './suggestion-popup';
-import { applyReplacement } from './replacement';
 import { enabledOnSite, type Settings } from '../shared/storage';
 import type { CorrectionMatch } from '../correction/correction-types';
 import { sendMessage } from '../shared/messages';
@@ -19,9 +23,12 @@ interface Entry {
   dispose: () => void;
 }
 export class Application {
+  private activeEditor: EditableField | null = null;
   private entries = new Map<EditableField, Entry>();
   private states = new WeakMap<EditableField, FieldState>();
-  private popup = new SuggestionPopup();
+  private popup = new SuggestionPopup(() => {
+    this.popupField = undefined;
+  });
   private popupField: EditableField | undefined;
   private stopObserver: (() => void) | undefined;
   private resizeObserver: ResizeObserver | undefined;
@@ -36,10 +43,9 @@ export class Application {
   start(root: HTMLElement = document.body) {
     if (!enabledOnSite(this.settings, location.hostname)) return;
     this.stopObserver = observeFields(
-      root,
-      (field) => this.register(field),
+      root === document.body ? document.documentElement : root,
       () => this.prune(),
-      this.refreshGeometry,
+      this.refresh,
     );
     if (typeof ResizeObserver !== 'undefined') {
       this.resizeObserver = new ResizeObserver(this.refresh);
@@ -50,7 +56,19 @@ export class Application {
     window.addEventListener('resize', this.refresh);
     document.addEventListener('pointermove', this.pointer, true);
     document.addEventListener('contextmenu', this.contextMenu, true);
-    document.addEventListener('focusin', this.focus, true);
+    for (const type of [
+      'focusin',
+      'beforeinput',
+      'input',
+      'compositionstart',
+      'compositionend',
+    ])
+      document.addEventListener(type, this.interaction, true);
+    document.addEventListener('selectionchange', this.selectionChanged);
+    let focused = document.activeElement;
+    while (focused?.shadowRoot?.activeElement)
+      focused = focused.shadowRoot.activeElement;
+    this.activate(findEditableElement(focused ?? document.body));
   }
   getState(field: EditableField) {
     return this.states.get(field);
@@ -77,44 +95,46 @@ export class Application {
       render,
     );
     const input = () => controller.changed();
-    const compositionStart = () => {
-      state.composing = true;
-      controller.dispose();
-      highlighter.render(field, '', []);
-      this.closePopup();
-      this.setContext(undefined);
-    };
-    const compositionEnd = () => {
-      state.composing = false;
-      controller.changed();
-      controller.schedule();
-    };
     const click = (event: Event) => {
       if (!(event instanceof MouseEvent)) return;
       const annotation = highlighter.hit(event.clientX, event.clientY);
       if (annotation) this.open(field, annotation);
     };
-    field.addEventListener('input', input);
-    field.addEventListener('compositionstart', compositionStart);
-    field.addEventListener('compositionend', compositionEnd);
     field.addEventListener('click', click);
-    const mutation =
-      field instanceof HTMLInputElement || field instanceof HTMLTextAreaElement
-        ? undefined
-        : new MutationObserver(input);
-    mutation?.observe(field, {
+    const tree = field.getRootNode();
+    if (tree instanceof ShadowRoot)
+      tree.addEventListener('scroll', this.refresh, true);
+    if (tree instanceof ShadowRoot)
+      tree.addEventListener('selectionchange', this.selectionChanged);
+    const mutation = new MutationObserver(() => {
+      this.prune();
+      if (this.activeEditor === field) input();
+      this.refresh();
+    });
+    mutation.observe(tree instanceof ShadowRoot ? tree : field, {
       childList: true,
       subtree: true,
       characterData: true,
+      attributes: true,
+      attributeFilter: [
+        'contenteditable',
+        'type',
+        'disabled',
+        'readonly',
+        'class',
+        'style',
+        'hidden',
+      ],
     });
     const dispose = () => {
       controller.dispose();
       highlighter.dispose();
-      mutation?.disconnect();
+      mutation.disconnect();
+      if (tree instanceof ShadowRoot)
+        tree.removeEventListener('scroll', this.refresh, true);
+      if (tree instanceof ShadowRoot)
+        tree.removeEventListener('selectionchange', this.selectionChanged);
       this.resizeObserver?.unobserve(field);
-      field.removeEventListener('input', input);
-      field.removeEventListener('compositionstart', compositionStart);
-      field.removeEventListener('compositionend', compositionEnd);
       field.removeEventListener('click', click);
     };
     this.entries.set(field, { state, controller, highlighter, dispose });
@@ -125,13 +145,13 @@ export class Application {
   open(field: EditableField, annotation: Annotation) {
     const entry = this.entries.get(field);
     if (!entry) return;
-    this.popupField = field;
     this.popup.show(
       annotation.match,
       annotation.rect,
       (replacement) => this.correct(entry, annotation.match, replacement),
       () => entry.controller.ignore(annotation.match.id),
     );
+    this.popupField = field;
   }
   private closePopup() {
     this.popup.close();
@@ -139,10 +159,8 @@ export class Application {
   }
   private correct(entry: Entry, match: CorrectionMatch, replacement: string) {
     this.setContext(undefined);
-    if (!applyReplacement(entry.state.element, match, replacement)) {
-      entry.controller.changed();
-      entry.controller.schedule();
-    }
+    this.closePopup();
+    entry.controller.replaceMatch(match, replacement);
   }
   applyContext() {
     const target = this.context;
@@ -156,28 +174,87 @@ export class Application {
     if (replacement !== undefined)
       this.correct(target.entry, target.match, replacement);
   }
-  private focus = (event: FocusEvent) => {
+  private activate(field: EditableField | null) {
+    if (field === this.activeEditor) return;
+    this.closePopup();
+    this.setContext(undefined);
+    if (this.activeEditor) {
+      this.entries.get(this.activeEditor)?.dispose();
+      this.entries.delete(this.activeEditor);
+      this.states.delete(this.activeEditor);
+    }
+    this.activeEditor = field;
+    if (field) this.register(field);
+  }
+  private interaction = (event: Event) => {
     if (
       event
         .composedPath()
-        .some(
-          (node) =>
-            node instanceof HTMLElement &&
-            node.hasAttribute('data-correctly-ui'),
-        )
+        .some((node) => node instanceof Node && isInsideCorrectlyUI(node))
     )
       return;
-    this.closePopup();
-    this.setContext(undefined);
-    if (event.target instanceof HTMLElement)
-      this.entries.get(event.target)?.controller.changed();
+    const field = findEditableElement(event);
+    this.activate(field);
+    if (!field) return;
+    const entry = this.entries.get(field)!;
+    if (event.type === 'compositionstart') {
+      entry.state.composing = true;
+      entry.controller.dispose();
+      entry.highlighter.render(field, '', []);
+      this.closePopup();
+    } else if (event.type === 'compositionend') {
+      entry.state.composing = false;
+      entry.controller.changed();
+      entry.controller.schedule();
+    } else if (event.type === 'input') {
+      if (event instanceof InputEvent && event.isComposing) {
+        entry.state.composing = true;
+        entry.controller.dispose();
+      }
+      entry.controller.changed();
+    }
+  };
+  private selectionChanged = () => {
+    const tree = this.activeEditor?.getRootNode();
+    const selection =
+      (
+        tree as
+          (ShadowRoot & { getSelection?: () => Selection | null }) | undefined
+      )?.getSelection?.() ?? document.getSelection();
+    const node = selection?.anchorNode;
+    if (node && isInsideCorrectlyUI(node)) return;
+    if (this.popupField) return;
+    let focused = document.activeElement;
+    while (focused?.shadowRoot?.activeElement)
+      focused = focused.shadowRoot.activeElement;
+    if (focused && isInsideCorrectlyUI(focused)) return;
+    const field =
+      focused instanceof HTMLInputElement ||
+      focused instanceof HTMLTextAreaElement
+        ? findEditableElement(focused)
+        : node
+          ? findEditableElement(node)
+          : null;
+    if (field) {
+      this.activate(field);
+      this.entries.get(field)?.controller.selectionChanged();
+    }
+    this.refreshGeometry();
   };
   private pointer = (event: PointerEvent) => {
-    this.findContext(event.target, event.clientX, event.clientY);
+    this.findContext(
+      event.composedPath()[0] ?? event.target,
+      event.clientX,
+      event.clientY,
+    );
   };
   private contextMenu = (event: MouseEvent) => {
     this.menuSignature = 'refresh';
-    this.findContext(event.target, event.clientX, event.clientY);
+    this.findContext(
+      event.composedPath()[0] ?? event.target,
+      event.clientX,
+      event.clientY,
+    );
   };
   private findContext(target: EventTarget | null, x: number, y: number) {
     for (const [field, entry] of this.entries) {
@@ -207,6 +284,7 @@ export class Application {
     this.refreshGeometry();
   };
   private refreshGeometry = () => {
+    this.setContext(undefined);
     if (this.frame) return;
     this.frame = requestAnimationFrame(() => {
       this.frame = 0;
@@ -224,6 +302,7 @@ export class Application {
       if (!field.isConnected || !isEditableField(field)) {
         if (this.context?.entry === entry) this.setContext(undefined);
         entry.dispose();
+        if (this.activeEditor === field) this.activeEditor = null;
         this.entries.delete(field);
         this.states.delete(field);
         this.closePopup();
@@ -242,6 +321,15 @@ export class Application {
     window.removeEventListener('resize', this.refresh);
     document.removeEventListener('pointermove', this.pointer, true);
     document.removeEventListener('contextmenu', this.contextMenu, true);
-    document.removeEventListener('focusin', this.focus, true);
+    for (const type of [
+      'focusin',
+      'beforeinput',
+      'input',
+      'compositionstart',
+      'compositionend',
+    ])
+      document.removeEventListener(type, this.interaction, true);
+    document.removeEventListener('selectionchange', this.selectionChanged);
+    this.activeEditor = null;
   }
 }

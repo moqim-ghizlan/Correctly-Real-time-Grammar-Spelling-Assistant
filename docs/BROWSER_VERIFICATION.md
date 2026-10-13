@@ -41,3 +41,15 @@ Un autre défaut a été reproduit à 90 % : les rectangles des mots incluent d�
 Dans la reproduction Lexical, alignement des soulignements, popup, correction et nouvelle saisie vérifiés à 90 %, 100 % et 125 %, sans erreur ni avertissement. Les parcours textarea Auto, Français et Anglais passent également à 90 %. Cette vérification porte sur des pages locales contrôlées, pas sur une session ChatGPT ou WhatsApp authentifiée.
 
 Le délai de 100 ms choisi dans `constants.ts` est conservé. La validation et le champ des paramètres acceptent désormais ce minimum, pour éviter sa conversion automatique en 200 ms à l’enregistrement.
+
+## Audit V2 ? 5 octobre 2026
+
+Audit des modules de d?tection, cycle de vie, texte/offsets, s?lection/remplacement, rendu, worker, ?changes, param?tres et langue. Corrections apport?es : ?tat du popup remis ? z?ro apr?s Escape/clic ext?rieur ; offsets de s?lection aux fronti?res des paragraphes ; masquage des ?diteurs transparents/inertes ; clipping et zoom des anc?tres hors Shadow DOM ; suivi apr?s remplacement du body ; garde contre les corrections devenues readonly/disabled ; respect de beforeinput annul? ; suppression du second input lorsqu?il a d?j? ?t? ?mis par l?insertion du navigateur.
+
+Validation r?elle de dist dans Brave headless, Chromium 154.0.8037.98, avec profil temporaire isol? et serveur LanguageTool existant sur 8081. Les parcours passent : d?tection sans balayage initial, soulignements, popup cliqu?e via ?v?nements souris r?els, remplacement dans textarea, correction riche entre plusieurs feuilles inline, correction dans un Shadow Root ouvert, champ email sans API de s?lection, iframe autoris?e, pause/reprise IME, suppression d??diteur et correction cibl?e dans un texte d?passant 5 000 caract?res. Les requ?tes du service worker ont ?t? observ?es : aucun texte du champ password transmis, aucune fen?tre d?analyse sup?rieure ? 5 000 caract?res. Aucune exception JavaScript observ?e dans la page.
+
+Script reproductible : npm run test:browser. N?cessite Node 24+, Brave install? (ou CORRECTLY_BROWSER_PATH). Le serveur r?el est utilis? s?il est pr?sent sur 8081 ; sinon le script d?marre une fixture d?terministe et le signale explicitement. La fixture valide le parcours, pas la qualit? linguistique. Le navigateur temporaire et les serveurs de test sont ferm?s ; le profil temporaire est supprim? ; le serveur LanguageTool pr?existant reste ouvert.
+
+Les sites authentifi?s Gmail, WhatsApp, ChatGPT, LinkedIn et Reddit n?ont pas ?t? test?s dans cette session. Le menu natif, les frameworks riches propres ? chaque site et les Shadow Roots ferm?s ne sont pas valid?s par ces parcours. Il n?est donc pas possible de garantir un fonctionnement parfait sur tous les sites.
+
+Contr?les finaux : **149 tests Vitest r?ussis**, lint, compilation TypeScript et build de distribution r?ussis. Les tests ajout?s couvrent notamment Escape/r?ouverture du popup, remplacement du body, offsets apr?s s?parateurs synth?tiques, clipping Shadow DOM, champs readonly, beforeinput annul? et absence de double input.

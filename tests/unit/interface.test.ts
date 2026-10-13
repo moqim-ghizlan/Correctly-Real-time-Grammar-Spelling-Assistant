@@ -101,7 +101,7 @@ describe('replacement', () => {
   });
   it('preserves surrounding rich markup and selection', () => {
     const field = document.createElement('div');
-    field.contentEditable = 'true';
+    field.setAttribute('contenteditable', 'true');
     field.innerHTML = '<b>je </b><i>sui</i> ici';
     document.body.append(field);
     const model = getEditableTextModel(field),

@@ -48,7 +48,7 @@ describe('field detection', () => {
     ['input type="search"', true],
     ['input type="password"', false],
     ['input type="number"', false],
-    ['input type="email"', false],
+    ['input type="email"', true],
     ['div', false],
     ['div contenteditable="true"', true],
     ['div contenteditable="true" role="textbox"', true],
@@ -74,12 +74,12 @@ describe('field detection', () => {
   it('detects dynamic containers and cleans up removal', async () => {
     const register = vi.fn(),
       prune = vi.fn();
-    const stop = observeFields(document.body, register, prune);
+    const stop = observeFields(document.body, prune);
     const container = document.createElement('div');
     container.innerHTML = '<textarea></textarea><input>';
     document.body.append(container);
     await Promise.resolve();
-    expect(register).toHaveBeenCalledTimes(2);
+    expect(register).not.toHaveBeenCalled();
     container.remove();
     await Promise.resolve();
     expect(prune).toHaveBeenCalled();
@@ -246,6 +246,55 @@ describe('controller', () => {
     expect(state.ignoredMatches.size).toBe(0);
     controller.dispose();
   });
+  it('optimistically shifts remaining matches and triggers immediate analysis on replacement', () => {
+    const { state, field } = setup();
+    field.value = 'je sui venut';
+    state.currentText = 'je sui venut';
+    state.sourceText = 'je sui venut';
+    const match1 = {
+      id: 'm1',
+      offset: 3,
+      length: 3,
+      originalFragment: 'sui',
+      sourceText: 'je sui venut',
+      category: 'spelling' as const,
+      replacements: ['suis'],
+      message: 'Faute',
+      ruleId: 'RULE1',
+    };
+    const match2 = {
+      id: 'm2',
+      offset: 7,
+      length: 5,
+      originalFragment: 'venut',
+      sourceText: 'je sui venut',
+      category: 'spelling' as const,
+      replacements: ['venu'],
+      message: 'Faute',
+      ruleId: 'RULE2',
+    };
+    state.matches = [match1, match2];
+    const render = vi.fn();
+    const check = vi.fn().mockResolvedValue({
+      status: 'ready',
+      matches: [{ ...match2, offset: 8, sourceText: 'je suis venut' }],
+    });
+    const controller = new CorrectionController(
+      state,
+      DEFAULT_SETTINGS,
+      check,
+      render,
+    );
+    const success = controller.replaceMatch(match1, 'suis');
+    expect(success).toBe(true);
+    expect(field.value).toBe('je suis venut');
+    expect(state.currentText).toBe('je suis venut');
+    expect(state.matches).toHaveLength(1);
+    expect(state.matches[0]?.offset).toBe(8);
+    expect(render).toHaveBeenCalled();
+    expect(check).toHaveBeenCalledTimes(1);
+    controller.dispose();
+  });
   it('keeps fields independent and handles rejected checks', async () => {
     const a = setup(),
       b = setup();
@@ -266,7 +315,7 @@ it('validates language and settings', () => {
   expect(isLanguage('de')).toBe(false);
   expect(
     normalizeSettings({ language: 'invalid', debounceMs: -4, enabled: 'no' }),
-  ).toMatchObject({ language: 'auto', debounceMs: 100, enabled: true });
+  ).toMatchObject({ language: 'auto', debounceMs: 0, enabled: true });
   expect(
     enabledOnSite(
       { ...DEFAULT_SETTINGS, disabledSites: ['example.com'] },
