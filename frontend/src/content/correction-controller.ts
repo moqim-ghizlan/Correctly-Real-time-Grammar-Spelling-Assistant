@@ -1,6 +1,9 @@
 import { debounce } from '../shared/debounce';
 import type { Settings } from '../shared/storage';
-import type { CheckResult, CorrectionMatch } from '../correction/correction-types';
+import type {
+  CheckResult,
+  CorrectionMatch,
+} from '../correction/correction-types';
 import type { Language } from '../correction/language';
 import { createEditorAdapter } from './editor-adapter';
 import { analysisWindow } from './analysis-window';

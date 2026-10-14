@@ -6,7 +6,7 @@ const server = createServer((request, response) => {
   const fixture =
     request.url?.split('?')[0] === '/compose' ? 'compose' : 'fields';
   void readFile(
-    new URL('../tests/fixtures/' + fixture + '.html', import.meta.url),
+    new URL('../frontend/tests/fixtures/' + fixture + '.html', import.meta.url),
   )
     .then((html) => {
       response.writeHead(200, {

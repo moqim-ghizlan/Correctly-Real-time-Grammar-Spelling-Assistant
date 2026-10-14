@@ -1,0 +1,18 @@
+{
+  "executed_at": "2026-10-14T21:14:57.132411+00:00",
+  "test_mode": true,
+  "windows": "Windows-10-10.0.19045-SP0",
+  "elevated": false,
+  "install_path": "C:\\Users\\moqim\\AppData\\Local\\Temp\\Correctly essai été fvxpqptd\\Correctly",
+  "passed": [
+    "initial per-user installation: all 2350 bundle checksums, registry, uninstaller",
+    "setup ran under a non-elevated Windows token"
+  ],
+  "not_tested": [],
+  "ok": false,
+  "failure": {
+    "type": "AssertionError",
+    "detail": ""
+  },
+  "cleanup_exit": 0
+}

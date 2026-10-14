@@ -1,0 +1,18 @@
+{
+  "passed": [
+    "EXE uses Windows GUI subsystem (no console)",
+    "packaged FR/EN matches V2 baseline",
+    "duplicate EXE exits without second JVM",
+    "runs with no Java/Python on PATH and hostile JVM environment removed",
+    "packaged child stops on exit",
+    "copied bundle runs from Unicode/spaces path and unrelated cwd",
+    "package-missing-runtime",
+    "package-missing-jar",
+    "corrupted packaged JAR cannot report ready",
+    "unrelated occupied port is preserved",
+    "all original and relocated runtime/engine checksums preserved",
+    "existing V2 listener on 8081 preserved"
+  ],
+  "startup_seconds": 11.22,
+  "ok": true
+}

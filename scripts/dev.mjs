@@ -1,6 +1,9 @@
 import { spawn } from 'node:child_process';
 import process from 'node:process';
-const children = ['vite.config.ts', 'vite.content.config.ts'].map((config) =>
+const children = [
+  'frontend/vite.config.ts',
+  'frontend/vite.content.config.ts',
+].map((config) =>
   spawn(
     process.execPath,
     [

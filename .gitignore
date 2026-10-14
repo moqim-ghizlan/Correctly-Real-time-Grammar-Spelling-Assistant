@@ -2,3 +2,10 @@ node_modules/
 dist/
 coverage/
 *.log
+__pycache__/
+*.py[cod]
+.pytest_cache/
+backend/.venv/
+backend/vendor/
+backend/build/
+artifacts/
