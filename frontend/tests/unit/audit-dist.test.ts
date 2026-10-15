@@ -119,3 +119,19 @@ it('rejects eval and permissive CSP', () => {
   expect(text).toMatch(/eval\(\)/);
   expect(text).toMatch(/CSP/);
 });
+
+it('V5.7: exactly the two provider hosts, in permissions and CSP; key shapes are caught', () => {
+  writeManifest({
+    ...manifest,
+    host_permissions: ['https://generativelanguage.googleapis.com/*'],
+    content_security_policy: {
+      extension_pages:
+        "default-src 'self'; script-src 'self'; connect-src 'self' https://generativelanguage.googleapis.com https://api.example.com",
+    },
+  });
+  put('chunks/k.js', 'const k = "sk-proj-abcdefghijklmnopqrstuvwxyz012345";');
+  const text = auditDist(dir).errors.join('\n');
+  expect(text).toMatch(/host_permissions must be exactly/);
+  expect(text).toMatch(/connect-src/);
+  expect(text).toMatch(/OpenAI API key/);
+});

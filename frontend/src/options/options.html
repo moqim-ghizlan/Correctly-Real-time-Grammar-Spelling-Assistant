@@ -3,7 +3,7 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <title>Correctly V5.6 — Settings</title>
+    <title>Correctly V5.7 — Settings</title>
     <link rel="icon" href="/icons/icon-48.png" />
     <link rel="stylesheet" href="./settings-ui.css" />
   </head>
@@ -18,7 +18,7 @@
           height="40"
         />
         <div>
-          <h1>Correctly V5.6</h1>
+          <h1>Correctly V5.7</h1>
           <p class="subtitle">Personal AI writing assistant</p>
         </div>
       </header>
@@ -27,100 +27,133 @@
         request only, and expands your personal text shortcuts locally.
       </p>
 
-      <section class="card" aria-labelledby="gemini-title">
-        <div class="card-head">
-          <h2 id="gemini-title">Gemini API key</h2>
-          <p
-            id="status"
-            class="status"
-            data-tone="neutral"
-            role="status"
-            aria-live="polite"
+      <section class="card" aria-labelledby="providers-title">
+        <h2 id="providers-title">AI providers</h2>
+        <p class="hint">
+          Use your own API keys from Google Gemini and/or OpenAI. You can save
+          several keys and choose below which key and model each action uses.
+          API keys use the provider's API billing:
+          <strong
+            >ChatGPT and Gemini consumer subscriptions are separate and do not
+            pay for API calls.</strong
           >
-            <span class="dot" aria-hidden="true"></span
-            ><span id="status-label">Not configured</span>
-          </p>
-        </div>
-        <p id="status-detail" class="hint"></p>
+        </p>
+        <p id="providers-status" class="message" aria-live="polite"></p>
+        <p id="profile-empty" class="hint">
+          No API key saved yet. Add one to use AI correction, rewriting and
+          translation. Text shortcuts work without any key.
+        </p>
+        <ul
+          id="profile-list"
+          class="shortcut-list"
+          aria-label="Saved API keys"
+        ></ul>
 
-        <form id="key-form" novalidate>
-          <label for="api-key">Paste your personal Gemini API key</label>
+        <form id="profile-form" novalidate aria-labelledby="profile-form-title">
+          <h3 id="profile-form-title">Add an API key</h3>
+          <div class="key-row">
+            <label class="stack" for="profile-provider"
+              >Provider
+              <select id="profile-provider" disabled>
+                <option value="gemini">Google Gemini</option>
+                <option value="openai">OpenAI</option>
+              </select>
+            </label>
+            <label class="stack" for="profile-label"
+              >Name (only shown here)
+              <input
+                id="profile-label"
+                type="text"
+                maxlength="40"
+                autocomplete="off"
+                disabled
+              />
+            </label>
+          </div>
+          <label for="profile-key">API key</label>
           <div class="key-row">
             <input
-              id="api-key"
-              name="api-key"
+              id="profile-key"
               type="password"
               autocomplete="off"
               autocapitalize="off"
               spellcheck="false"
-              aria-describedby="key-warning key-message"
+              aria-describedby="key-warning profile-message"
               disabled
             />
             <button
-              id="toggle-key"
+              id="profile-toggle"
               type="button"
               class="ghost"
-              aria-controls="api-key"
+              aria-controls="profile-key"
               aria-pressed="false"
+              aria-label="Show the API key being typed"
               disabled
             >
               Show
             </button>
           </div>
+          <p class="hint">
+            Spaces before or after the key are removed. Saving sends nothing.
+            <a
+              id="profile-help-link"
+              href="https://aistudio.google.com/apikey"
+              target="_blank"
+              rel="noopener noreferrer"
+              >Create a key in Google AI Studio</a
+            >.
+          </p>
           <div class="actions">
-            <button id="save-key" type="submit" class="primary" disabled>
+            <button id="profile-save" type="submit" class="primary" disabled>
               Save key
             </button>
-            <button id="remove-key" type="button" class="danger" disabled>
-              Remove key
+            <button id="profile-cancel" type="button" class="ghost" hidden>
+              Cancel
             </button>
           </div>
-          <p id="key-message" class="message" aria-live="polite"></p>
+          <p id="profile-message" class="message" aria-live="polite"></p>
         </form>
         <p id="key-warning" class="warning">
-          Personal-use API key, stored locally in this browser profile (not
-          synced). It is not guaranteed secure against someone with access to
-          your computer or this extension. Do not share this extension/profile
-          or put a key in source code.
+          Personal-use keys are stored locally in this browser profile (not
+          synced, never exported, never shown again). This is not server-grade
+          secret storage: anyone with access to this profile or computer may
+          read them. Do not share this profile or publish keys; set spending
+          limits at your provider and rotate a key if in doubt.
         </p>
+      </section>
+
+      <section class="card" aria-labelledby="routing-title">
+        <h2 id="routing-title">Which key and model each action uses</h2>
         <p class="hint">
-          No key yet?
+          Each action uses exactly the key and model chosen here (or the default
+          route). If that key is missing, disabled or refused, the action stops
+          with a message:
+          <strong
+            >Correctly never switches to another key, model or provider by
+            itself</strong
+          >
+          and never retries on its own. Gemini and OpenAI are different
+          companies: the selected text goes only to the provider of the route
+          used. “Check key” is free; “Test” sends one tiny prompt and may be
+          billed.
+        </p>
+        <div id="route-list"></div>
+        <p class="hint">
+          Prices:
           <a
-            href="https://aistudio.google.com/apikey"
+            href="https://ai.google.dev/gemini-api/docs/pricing"
             target="_blank"
             rel="noopener noreferrer"
-            >Create one in Google AI Studio</a
-          >.
+            >Gemini pricing</a
+          >,
+          <a
+            href="https://openai.com/api/pricing/"
+            target="_blank"
+            rel="noopener noreferrer"
+            >OpenAI pricing</a
+          >. Correctly does not show prices: they change and depend on your
+          account.
         </p>
-      </section>
-
-      <section class="card" aria-labelledby="model-title">
-        <h2 id="model-title">Model</h2>
-        <label for="model">Gemini model</label>
-        <select id="model" aria-describedby="model-note" disabled></select>
-        <p id="model-note" class="hint">
-          Availability and billing depend on your Google project.
-        </p>
-        <p id="model-message" class="message" aria-live="polite"></p>
-      </section>
-
-      <section class="card" aria-labelledby="test-title">
-        <h2 id="test-title">Connection test</h2>
-        <p class="hint" id="test-notice">
-          This test sends a short prompt to Gemini and may use quota or incur
-          charges. It sends no text from websites.
-        </p>
-        <button
-          id="test"
-          type="button"
-          class="primary"
-          aria-describedby="test-notice"
-          disabled
-        >
-          <span class="spinner" aria-hidden="true"></span
-          ><span id="test-label">Test connection</span>
-        </button>
-        <div id="test-result" class="result" aria-live="polite" hidden></div>
       </section>
 
       <section class="card" aria-labelledby="correction-title">
@@ -128,7 +161,8 @@
         <label class="check" for="correction-consent">
           <input id="correction-consent" type="checkbox" disabled />
           <span
-            >Send the text I select to Google Gemini when I ask Correctly to
+            >Send the text I select to the AI provider of that action's route
+            (Google Gemini or OpenAI, see above) when I ask Correctly to
             correct, rewrite or translate it.</span
           >
         </label>
@@ -139,7 +173,8 @@
           which is available in plain text boxes; elsewhere, copy the
           suggestion. Password, email, phone, URL, number and search fields are
           never read. Each correction counts toward the daily limit below and
-          may incur Gemini charges. Suggestions can be wrong: check them.
+          may incur charges from your provider. Suggestions can be wrong: check
+          them.
         </p>
         <p id="consent-message" class="message" aria-live="polite"></p>
       </section>
@@ -148,7 +183,7 @@
         <h2 id="triggers-title">Correction shortcuts &amp; entry points</h2>
         <p class="hint">
           AI is called only after you activate Correctly. Each call may count
-          against your Gemini usage. The toolbar button always works.
+          against your provider usage. The toolbar button always works.
         </p>
         <label class="check" for="trigger-keyboard">
           <input id="trigger-keyboard" type="checkbox" disabled />
@@ -191,11 +226,10 @@
         </fieldset>
         <p class="hint">
           You can change the styles each time before generating. All chosen
-          styles are produced by <strong>one</strong> Gemini request (one
-          request in the daily limit), in the language of your text — no
-          translation. Rewrites need an internet connection and may incur
-          charges; they are suggestions to review, and nothing changes until you
-          click Apply.
+          styles are produced by <strong>one</strong> AI request (one request in
+          the daily limit), in the language of your text — no translation.
+          Rewrites need an internet connection and may incur charges; they are
+          suggestions to review, and nothing changes until you click Apply.
         </p>
         <p id="rewrite-message" class="message" aria-live="polite"></p>
       </section>
@@ -227,10 +261,10 @@
           </label>
         </div>
         <p class="hint">
-          One Gemini request per translation (language detection included).
-          Syrian colloquial is everyday spoken Arabic; Modern Standard Arabic is
-          the formal written standard. Machine translation can be wrong: review
-          it before sending anything important.
+          One AI request per translation (language detection included). Syrian
+          colloquial is everyday spoken Arabic; Modern Standard Arabic is the
+          formal written standard. Machine translation can be wrong: review it
+          before sending anything important.
         </p>
         <p id="translation-message" class="message" aria-live="polite"></p>
       </section>
@@ -372,7 +406,8 @@
         <h2 id="limit-title">Local safety limit</h2>
         <form id="limit-form" novalidate>
           <label for="daily-limit"
-            >Maximum Gemini requests per day (tests and corrections)</label
+            >Maximum AI requests per day (all providers and keys
+            together)</label
           >
           <div class="key-row">
             <input
@@ -401,18 +436,31 @@
             <dd id="usage-remaining">20</dd>
           </div>
         </dl>
+        <ul
+          id="usage-routes"
+          class="hint"
+          aria-label="Today by key and model"
+        ></ul>
         <p id="limit-note" class="hint">
           Counted in this browser profile and reset at local midnight. This is a
-          safety brake, not a billing limit: it does not see other browsers,
-          profiles or apps using the same Google project. Set a spend cap in
-          your
+          safety brake, not a billing limit: one limit for all keys, and it does
+          not see other browsers, profiles or apps using the same accounts. Set
+          spend caps at
           <a
             href="https://ai.google.dev/gemini-api/docs/billing"
             target="_blank"
             rel="noopener noreferrer"
-            >Google billing settings</a
+            >Google</a
           >
-          (enforcement may lag).
+          and
+          <a
+            href="https://platform.openai.com/settings/organization/limits"
+            target="_blank"
+            rel="noopener noreferrer"
+            >OpenAI</a
+          >
+          (enforcement may lag). A request whose answer was lost (timeout) may
+          still be billed.
         </p>
       </section>
 
@@ -423,18 +471,11 @@
             Correctly reads a page only when you click its toolbar button, and
             changes it only when you click Apply.
           </li>
+          <li>Future versions add advanced limits and full statistics.</li>
           <li>
-            Future versions add rewriting, translation, shortcuts, more
-            providers and full statistics.
-          </li>
-          <li>
-            Prices:
-            <a
-              href="https://ai.google.dev/gemini-api/docs/pricing"
-              target="_blank"
-              rel="noopener noreferrer"
-              >Gemini pricing</a
-            >. Documentation: <code>docs/v5.2/</code> in the project repository.
+            OpenAI requests are sent with <code>store: false</code> (not kept
+            for later retrieval); this is not a zero-retention guarantee.
+            Documentation: <code>docs/v5.7/</code> in the project repository.
           </li>
         </ul>
       </section>

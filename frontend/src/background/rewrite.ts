@@ -6,6 +6,7 @@ import {
   type RewriteStyleId,
 } from '../shared/rewrite';
 import { protectedTokens } from './correction';
+import type { TaskRequest } from './transport';
 
 export const REWRITE_TIMEOUT_MS = 60_000;
 
@@ -31,28 +32,42 @@ export function rewriteInstruction(
   ].join('\n');
 }
 
-export function rewriteBody(
+/** `[{"styleId","text"}]` limited to the requested IDs. */
+export const candidatesSchema = (ids: readonly string[]) => ({
+  type: 'array',
+  items: {
+    type: 'object',
+    additionalProperties: false,
+    required: ['styleId', 'text'],
+    properties: {
+      styleId: { type: 'string', enum: [...ids] },
+      text: { type: 'string' },
+    },
+  },
+});
+
+export function rewriteTask(
   text: string,
   styleIds: readonly RewriteStyleId[],
   note = '',
-): string {
-  return JSON.stringify({
-    systemInstruction: {
-      parts: [
-        {
-          text: [rewriteInstruction(styleIds), note].filter(Boolean).join('\n'),
-        },
-      ],
+): TaskRequest {
+  return {
+    name: 'correctly_rewrite',
+    instruction: [rewriteInstruction(styleIds), note]
+      .filter(Boolean)
+      .join('\n'),
+    text,
+    temperature: 0.7,
+    // Per style: room for a rewrite up to 2× the source plus JSON; plus a
+    // shared allowance for minimal thinking. Bounds tokens, not money.
+    maxOutputTokens: 512 + styleIds.length * (2 * codePoints(text) + 64),
+    schema: {
+      type: 'object',
+      additionalProperties: false,
+      required: ['candidates'],
+      properties: { candidates: candidatesSchema(styleIds) },
     },
-    contents: [{ role: 'user', parts: [{ text }] }],
-    generationConfig: {
-      temperature: 0.7,
-      responseMimeType: 'application/json',
-      // Per style: room for a rewrite up to 2× the source plus JSON; plus a
-      // shared allowance for minimal thinking. Bounds tokens, not money.
-      maxOutputTokens: 512 + styleIds.length * (2 * codePoints(text) + 64),
-    },
-  });
+  };
 }
 
 /** Strict parser for `{"candidates":[…]}` (see parseCandidateList). */

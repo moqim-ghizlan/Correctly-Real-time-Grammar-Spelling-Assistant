@@ -1,10 +1,7 @@
-import {
-  CORRECT_COMMAND,
-  SMART_BUTTON_OFF,
-  TEST_CONNECTION,
-} from '../shared/contracts';
+import { CORRECT_COMMAND, SMART_BUTTON_OFF } from '../shared/contracts';
 import { loadShortcuts } from '../shared/shortcuts';
 import { browserStorage, loadSettings } from '../shared/storage';
+import { ProvidersSection } from './providers-ui';
 import { SettingsPage } from './settings-ui';
 import { ShortcutsSection } from './shortcuts-ui';
 
@@ -22,7 +19,6 @@ const releaseSiteAccess = async () => {
 
 const page = new SettingsPage(document, {
   area,
-  sendTest: () => chrome.runtime.sendMessage({ type: TEST_CONNECTION }),
   confirm: (question) => window.confirm(question),
   getShortcut: async () =>
     (await chrome.commands.getAll()).find(
@@ -41,6 +37,13 @@ const page = new SettingsPage(document, {
           .catch(() => undefined);
     await releaseSiteAccess();
   },
+});
+
+// Messages carry a route slot or profile ID, never a key.
+const providers = new ProvidersSection(document, {
+  area,
+  confirm: (question) => window.confirm(question),
+  send: (message) => chrome.runtime.sendMessage(message),
 });
 
 const shortcuts = new ShortcutsSection(document, {
@@ -65,17 +68,19 @@ const shortcuts = new ShortcutsSection(document, {
 chrome.storage.onChanged.addListener((changes, areaName) => {
   if (areaName !== 'local') return;
   page.onStorageChanged(Object.keys(changes));
+  providers.onStorageChanged(Object.keys(changes));
   shortcuts.onStorageChanged(Object.keys(changes));
 });
 
 // Never leave a revealed key on screen when the tab is hidden or left.
 document.addEventListener('visibilitychange', () => {
-  if (document.visibilityState === 'hidden') page.hideKey();
+  if (document.visibilityState === 'hidden') providers.hideKey();
 });
-window.addEventListener('pagehide', () => page.hideKey(true));
+window.addEventListener('pagehide', () => providers.hideKey(true));
 
 // Local midnight rollover: re-render the counter without any network access.
 setInterval(() => page.renderUsage(), 60_000);
 
 void page.init();
+void providers.init();
 void shortcuts.init();

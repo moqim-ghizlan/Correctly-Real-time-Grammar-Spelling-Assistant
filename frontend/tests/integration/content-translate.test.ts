@@ -88,7 +88,7 @@ describe('translation picker (no network until Translate)', () => {
     change(from!, 'fr');
     expect(send).not.toHaveBeenCalled();
     expect(panel.root.textContent).toContain(
-      'sent to Gemini only when you click Translate',
+      'sent to your AI provider only when you click Translate',
     );
   });
 

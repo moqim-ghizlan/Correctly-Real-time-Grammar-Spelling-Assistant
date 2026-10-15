@@ -1,8 +1,12 @@
 export type ErrorCode =
   | 'NOT_CONFIGURED'
+  | 'ROUTE_BROKEN'
+  | 'PROFILE_DISABLED'
+  | 'ROUTE_CHANGED'
   | 'INVALID_KEY'
   | 'PERMISSION_DENIED'
   | 'MODEL_UNAVAILABLE'
+  | 'MODEL_INCOMPATIBLE'
   | 'RATE_LIMITED'
   | 'LOCAL_DAILY_LIMIT'
   | 'CONSENT_REQUIRED'
@@ -10,33 +14,51 @@ export type ErrorCode =
   | 'TIMEOUT'
   | 'PROVIDER_ERROR'
   | 'INVALID_RESPONSE'
+  | 'RESPONSE_REFUSED'
   | 'STORAGE_ERROR'
   | 'UNKNOWN_ERROR';
+
+const SETTINGS = 'Correctly settings → AI providers';
 
 // Fixed, user-facing copy. Provider text is never shown verbatim.
 const COPY: Record<ErrorCode, { message: string; retryable: boolean }> = {
   NOT_CONFIGURED: {
-    message: 'No Gemini API key is saved. Paste and save a key first.',
+    message: `No AI provider is set up for this action. Add an API key and choose a model in ${SETTINGS}.`,
+    retryable: false,
+  },
+  ROUTE_BROKEN: {
+    message: `The API key chosen for this action was deleted or is incomplete. Choose another one in ${SETTINGS}. No other key was used.`,
+    retryable: false,
+  },
+  PROFILE_DISABLED: {
+    message: `The API key chosen for this action is disabled. Enable it or choose another one in ${SETTINGS}. No other key was used.`,
+    retryable: false,
+  },
+  ROUTE_CHANGED: {
+    message:
+      'The API key for this request was changed or deleted while it was running, so the request was stopped. It may still count toward provider billing.',
     retryable: false,
   },
   INVALID_KEY: {
-    message:
-      'Invalid key — create or paste a valid key in Google AI Studio, then save it again.',
+    message: `The provider rejected this API key. Replace or check it in ${SETTINGS}.`,
     retryable: false,
   },
   PERMISSION_DENIED: {
     message:
-      'Google refused this request for your key or project (API disabled, key restrictions, region or billing). Check your project in Google AI Studio.',
+      'The provider refused this request for your key or project (API disabled, key restrictions, region or billing). Check your provider dashboard.',
     retryable: false,
   },
   MODEL_UNAVAILABLE: {
-    message:
-      'Model not available for this key/project. Choose another model below and test again.',
+    message: `This model is not available for this key. Choose another model in ${SETTINGS}. No other model was used.`,
+    retryable: false,
+  },
+  MODEL_INCOMPATIBLE: {
+    message: `This model does not accept the options Correctly needs (structured JSON output). Choose another model in ${SETTINGS}.`,
     retryable: false,
   },
   RATE_LIMITED: {
     message:
-      'Quota exceeded or rate limited by Google — check usage and limits in Google AI Studio, then retry later.',
+      'The provider is rate-limiting requests, or your quota or billing limit is reached. No automatic switch was made; retry later.',
     retryable: true,
   },
   LOCAL_DAILY_LIMIT: {
@@ -46,7 +68,7 @@ const COPY: Record<ErrorCode, { message: string; retryable: boolean }> = {
   },
   CONSENT_REQUIRED: {
     message:
-      'Allow sending selected text to Gemini in the Correctly settings first.',
+      'Allow sending selected text to your AI provider in the Correctly settings first.',
     retryable: false,
   },
   NETWORK_ERROR: {
@@ -55,18 +77,22 @@ const COPY: Record<ErrorCode, { message: string; retryable: boolean }> = {
   },
   TIMEOUT: {
     message:
-      'Gemini did not answer in time. The attempt was counted; retry manually if needed.',
+      'The provider did not answer in time. The request may still count toward provider billing; retry only if you want to make another request.',
     retryable: true,
   },
   PROVIDER_ERROR: {
     message:
-      'Gemini returned an error. Try again later; if it persists, check Google AI Studio.',
+      'The provider returned an error. Try again later; if it persists, check your provider dashboard.',
     retryable: true,
   },
   INVALID_RESPONSE: {
     message:
-      'Gemini answered, but the response was not usable. Nothing was confirmed or changed.',
+      'The provider answered, but the response was not usable (incomplete or malformed). Nothing was confirmed or changed.',
     retryable: true,
+  },
+  RESPONSE_REFUSED: {
+    message: 'The provider declined to process this text. Nothing was changed.',
+    retryable: false,
   },
   STORAGE_ERROR: {
     message:
@@ -82,7 +108,7 @@ const COPY: Record<ErrorCode, { message: string; retryable: boolean }> = {
 export const ERROR_CODES = Object.keys(COPY) as ErrorCode[];
 
 export function isErrorCode(value: unknown): value is ErrorCode {
-  return typeof value === 'string' && value in COPY;
+  return typeof value === 'string' && Object.hasOwn(COPY, value);
 }
 
 export function errorMessage(code: ErrorCode): string {

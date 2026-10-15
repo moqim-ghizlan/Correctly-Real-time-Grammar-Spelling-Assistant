@@ -310,7 +310,7 @@ export class CorrectionPanel {
       make(
         'p',
         'missing',
-        'All chosen styles are generated in ONE Gemini request, which may count against your quota.',
+        'All chosen styles are generated in ONE AI request, which may count against your quota.',
       ),
     );
     picker.hidden = true;
@@ -407,7 +407,7 @@ export class CorrectionPanel {
     this.snapshot = snapshot;
     this.watch(snapshot.field, true);
     this.busy = true;
-    this.show('Checking with Gemini…', 'info');
+    this.show('Checking with your AI provider…', 'info');
     this.ui.close.textContent = 'Cancel';
     let result: CorrectionResult;
     try {
@@ -504,7 +504,7 @@ export class CorrectionPanel {
     );
   }
 
-  /** Restores the original only if nothing was typed since Apply; never calls Gemini. */
+  /** Restores the original only if nothing was typed since Apply; never calls the AI provider. */
   undo(): void {
     const field = this.snapshot?.field;
     const applied = this.applied;
@@ -664,7 +664,7 @@ export class CorrectionPanel {
       );
     };
     this.show(
-      'Choose the languages, then Translate. Selected text is sent to Gemini only when you click Translate.',
+      'Choose the languages, then Translate. Selected text is sent to your AI provider only when you click Translate.',
       'info',
       ['generate'],
     );

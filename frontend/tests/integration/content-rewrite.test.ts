@@ -204,7 +204,7 @@ describe('results', () => {
       code: 'RATE_LIMITED',
       message: '<b>raw provider text</b>',
     });
-    expect(status(panel)).toContain('Quota exceeded or rate limited');
+    expect(status(panel)).toContain('The provider is rate-limiting requests');
     expect(panel.root.textContent).not.toContain('<b>');
     expect(el.value).toBe('Bonjour');
     expect(send).toHaveBeenCalledTimes(1);

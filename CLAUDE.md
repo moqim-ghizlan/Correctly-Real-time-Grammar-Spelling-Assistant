@@ -1,8 +1,8 @@
 # Correctly — règles du projet
 
 Extension personnelle Chrome/Brave, **Manifest V3, TypeScript strict**, qui
-deviendra un assistant d'écriture IA à la demande (Gemini, clé personnelle de
-l'utilisateur). État actuel : **V5.6** = page de paramètres, service worker,
+deviendra un assistant d'écriture IA à la demande (Gemini et OpenAI, clés
+personnelles de l'utilisateur). État actuel : **V5.7** = page de paramètres, service worker,
 correction, réécriture (7 styles), traduction (6 langues, arabe standard ou
 syrien) à la demande, et raccourcis de texte locaux (`shared/shortcuts.ts`,
 expansion dans `smart.js`, protection IA par marqueurs dans
@@ -11,8 +11,11 @@ raccourcis et menu clic droit passent par `correctInTab()` du worker, qui
 injecte `content.js` (`activeTab` + `scripting`) puis appelle
 `correctlyRun(intent, styles)` ; le bouton intelligent optionnel (`smart.js`,
 accès à tous les sites demandé seulement à l'activation) appelle le même
-`runInPage()`. Une seule requête Gemini par action (`generate()` du
-contrôleur), aperçu, puis Apply explicite.
+`runInPage()`. Une seule requête IA par action (`generate()` du
+contrôleur), aperçu, puis Apply explicite. V5.7 : plusieurs clés
+(profils) Gemini/OpenAI et une route clé + modèle par action
+(`shared/providers.ts`), résolue et figée par requête, sans jamais de
+repli vers une autre clé, un autre modèle ou fournisseur.
 
 ## Ce qui n'existe plus
 
@@ -27,13 +30,19 @@ Les documents `plans/` et l'historique V4 sont du contexte, pas l'état du code.
 
 - `frontend/manifest.json` — seul manifeste (copié dans `dist/` par Vite).
 - `frontend/src/background/` — service worker, **seul appelant réseau** :
-  `index.ts` (expéditeur de confiance + forme exacte du message),
-  `connection-controller.ts`, `usage-guard.ts`, `gemini-client.ts`.
+  `index.ts` (expéditeur de confiance + forme exacte du message,
+  `storage.local` restreint aux contextes de confiance),
+  `connection-controller.ts` (route figée, un appel), `usage-guard.ts`
+  (limite commune + attribution par route), `transport.ts`,
+  `gemini-client.ts`, `openai-client.ts` (API Responses, `store:false`).
 - `frontend/src/content/` — script injecté au clic : capture de la sélection,
   aperçu (shadow root fermé), Apply/Undo sur plage exacte.
-- `frontend/src/options/` — page de paramètres (`settings-ui.ts`).
-- `frontend/src/shared/` — contrats de messages, erreurs, modèles autorisés,
-  schémas/normalisation des réglages, adaptateur `chrome.storage.local`.
+- `frontend/src/options/` — page de paramètres (`settings-ui.ts`,
+  `providers-ui.ts` pour clés et routes, `shortcuts-ui.ts`).
+- `frontend/src/shared/` — contrats de messages, erreurs, catalogue de
+  modèles (`models.ts`), profils/routes/secrets et migration V5.1
+  (`providers.ts`), schémas/normalisation des réglages, adaptateur
+  `chrome.storage.local`.
 - `frontend/tests/` — Vitest + jsdom (`unit/`, `integration/`,
   `helpers/fake-storage.ts`).
 - `scripts/` — audit de `dist/`, packaging ZIP, watch, smoke test navigateur.

@@ -1,3 +1,11 @@
+import type { ProviderId } from '../../src/shared/models';
+import {
+  PROVIDERS_KEY,
+  SECRETS_KEY,
+  type ProviderProfile,
+  type Route,
+  type RouteSlot,
+} from '../../src/shared/providers';
 import type { StorageArea } from '../../src/shared/storage';
 
 /**
@@ -56,4 +64,83 @@ export function jsonResponse(status: number, body: unknown): Response {
     status,
     headers: { 'Content-Type': 'application/json' },
   });
+}
+
+// ---- V5.7 provider fixtures (synthetic keys only, never real ones) --------
+
+export const OPENAI_KEY = 'CORRECTLY_TEST_SENTINEL_KEY_openai_456789';
+export const GEMINI_ID = 'gemini-profile-1';
+export const OPENAI_ID = 'openai-profile-1';
+const AT = '2026-10-15T08:00:00.000Z';
+
+export function profile(
+  id: string,
+  provider: ProviderId,
+  extra: Partial<ProviderProfile> = {},
+): ProviderProfile {
+  return {
+    id,
+    provider,
+    label: id,
+    enabled: true,
+    revision: 1,
+    createdAt: AT,
+    updatedAt: AT,
+    ...extra,
+  };
+}
+
+/** Writes profiles, their keys and routes the way the settings page would. */
+export function seedProviders(
+  area: FakeStorage,
+  profiles: ProviderProfile[],
+  routes: Partial<Record<RouteSlot, Route | null>>,
+  keys: Record<string, string> = {},
+): void {
+  area.data.set(PROVIDERS_KEY, {
+    schemaVersion: 1,
+    revision: 1,
+    profiles,
+    routes: {
+      default: null,
+      correction: null,
+      rewrite: null,
+      translation: null,
+      translateRewrite: null,
+      ...routes,
+    },
+  });
+  area.data.set(SECRETS_KEY, {
+    schemaVersion: 1,
+    secrets: Object.fromEntries(
+      profiles.map((p) => [
+        p.id,
+        {
+          provider: p.provider,
+          revision: p.revision,
+          key: keys[p.id] ?? (p.provider === 'openai' ? OPENAI_KEY : FAKE_KEY),
+        },
+      ]),
+    ),
+  });
+}
+
+/** A Responses API body: a reasoning item, then the assistant message. */
+export function openaiOk(text = 'OK', usage?: Record<string, unknown>) {
+  return {
+    id: 'resp_test',
+    object: 'response',
+    status: 'completed',
+    output: [
+      { type: 'reasoning', id: 'rs_1', summary: [] },
+      {
+        type: 'message',
+        id: 'msg_1',
+        role: 'assistant',
+        status: 'completed',
+        content: [{ type: 'output_text', text, annotations: [] }],
+      },
+    ],
+    ...(usage ? { usage } : {}),
+  };
 }

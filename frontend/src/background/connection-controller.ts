@@ -2,6 +2,7 @@ import type {
   ConnectionResult,
   CorrectionResult,
   FailureResult,
+  KeyCheckResult,
 } from '../shared/contracts';
 import type {
   CandidatesResult,
@@ -19,32 +20,44 @@ import {
   isRetryable,
   type ErrorCode,
 } from '../shared/errors';
-import { isAllowedModelId } from '../shared/models';
+import type { ProviderId } from '../shared/models';
 import { shield, type Shield } from '../shared/protection';
+import {
+  CHECKS_KEY,
+  loadProviders,
+  migrateLegacyKey,
+  parseChecks,
+  resolveRoute,
+  sameRoute,
+  type RouteSlot,
+  type RouteSnapshot,
+  type TaskKind,
+} from '../shared/providers';
 import type { Candidate } from '../shared/rewrite';
 import { loadShortcuts } from '../shared/shortcuts';
-import {
-  loadConnection,
-  loadSettings,
-  saveConnection,
-  type StorageArea,
-} from '../shared/storage';
+import { loadSettings, type StorageArea } from '../shared/storage';
 import {
   CORRECTION_TIMEOUT_MS,
-  correctionBody,
+  correctionTask,
   parseCorrection,
   splitEdges,
 } from './correction';
+import { geminiAdapter, sanitizeSample, smokeTask } from './gemini-client';
+import { openaiAdapter } from './openai-client';
+import { REWRITE_TIMEOUT_MS, parseRewrite, rewriteTask } from './rewrite';
+import { parseTranslation, translationTask } from './translate';
 import {
-  candidateText,
-  postGemini,
-  testGemini,
-  type GeminiReply,
-  type GeminiResult,
-} from './gemini-client';
-import { REWRITE_TIMEOUT_MS, parseRewrite, rewriteBody } from './rewrite';
-import { parseTranslation, translationBody } from './translate';
-import { UsageGuard } from './usage-guard';
+  REQUEST_TIMEOUT_MS,
+  type Generation,
+  type ProviderAdapter,
+  type TaskRequest,
+} from './transport';
+import { UsageGuard, type Outcome } from './usage-guard';
+
+export const ADAPTERS: Record<ProviderId, ProviderAdapter> = {
+  gemini: geminiAdapter,
+  openai: openaiAdapter,
+};
 
 export interface ControllerDeps {
   area: StorageArea;
@@ -55,6 +68,8 @@ export interface ControllerDeps {
   isOnline?: () => boolean;
   /** Tests only: deterministic placeholder namespace. */
   placeholderTag?: () => string;
+  /** Tests only: deterministic operation IDs. */
+  operationId?: () => string;
 }
 
 const failure = (code: ErrorCode, httpStatus?: number): FailureResult => ({
@@ -67,22 +82,32 @@ const failure = (code: ErrorCode, httpStatus?: number): FailureResult => ({
 
 type Ready = {
   ok: true;
-  apiKey: string;
-  modelId: string;
-  keyRevision: number;
+  route: RouteSnapshot;
+  key: string;
+  operationId: string;
   localDate: string;
 };
 
+/** Daily-usage key: provider|profile|revision|model|task. No text, no key. */
+export const routeKey = (route: RouteSnapshot, task: TaskKind | 'test') =>
+  `${route.provider}|${route.credentialId}|${route.revision}|${route.modelId}|${task}`;
+
 /**
- * Handles TEST_CONNECTION, CORRECT_TEXT, REWRITE_TEXT and TRANSLATE_TEXT. Requests run one at a time; each
- * one is reserved in the usage ledger before the network is touched and is
- * never retried.
+ * Handles TEST_CONNECTION, TEST_KEY, CORRECT_TEXT, REWRITE_TEXT and
+ * TRANSLATE_TEXT. Requests run one at a time; each generation is bound to
+ * one frozen route (profile, key revision, model), reserved in the usage
+ * ledger before the network is touched, sent once and never retried or
+ * rerouted to another key, model or provider.
  */
 export class ConnectionController {
   private readonly guard: UsageGuard;
   private queue: Promise<unknown> = Promise.resolve();
   private readonly now: () => Date;
   private readonly isOnline: () => boolean;
+  /** The one request in flight (requests are serialized). */
+  private active: { route: RouteSnapshot; abort: AbortController } | null =
+    null;
+  private checks: Promise<unknown> = Promise.resolve();
 
   constructor(private readonly deps: ControllerDeps) {
     this.guard = new UsageGuard(deps.area, deps.today);
@@ -98,16 +123,48 @@ export class ConnectionController {
     );
   }
 
-  testConnection(): Promise<ConnectionResult> {
-    return this.enqueue(() => this.run());
+  /** At worker start: settle requests a stopped worker left pending. Never replays. */
+  reconcile(): Promise<void> {
+    return this.guard.reconcile();
   }
 
-  /** One Gemini request that both detects and corrects errors in `text`. */
+  /**
+   * Profiles changed: a request whose key was deleted or replaced is stopped
+   * locally (it may already have reached the provider). Disabling a key only
+   * affects later requests.
+   */
+  async onProvidersChanged(): Promise<void> {
+    const active = this.active;
+    if (!active) return;
+    const { store, secrets } = await loadProviders(this.deps.area);
+    const profile = store.profiles.find(
+      (p) => p.id === active.route.credentialId,
+    );
+    const secret = secrets.secrets[active.route.credentialId];
+    if (
+      !profile ||
+      profile.revision !== active.route.revision ||
+      secret?.revision !== active.route.revision
+    )
+      active.abort.abort();
+  }
+
+  /** One tiny, possibly billed generation through the route saved for `slot`. */
+  testConnection(slot: RouteSlot): Promise<ConnectionResult> {
+    return this.enqueue(() => this.runTest(slot));
+  }
+
+  /** Free key check: lists models; never counted as a generation. */
+  testKey(credentialId: string): Promise<KeyCheckResult> {
+    return this.enqueue(() => this.runKeyCheck(credentialId));
+  }
+
+  /** One request that both detects and corrects errors in `text`. */
   correct(text: string): Promise<CorrectionResult> {
     return this.enqueue(() => this.runCorrection(text));
   }
 
-  /** One Gemini request returning one rewrite per requested style. */
+  /** One request returning one rewrite per requested style. */
   rewrite(
     text: string,
     styleIds: readonly RewriteStyleId[],
@@ -115,120 +172,215 @@ export class ConnectionController {
     return this.enqueue(() => this.runRewrite(text, styleIds));
   }
 
-  /** One Gemini request: detection, translation and any styles together. */
+  /** One request: detection, translation and any styles together. */
   translate(
     request: TranslateTextRequest,
   ): Promise<CandidatesResult<TranslationKey>> {
     return this.enqueue(() => this.runTranslate(request));
   }
 
-  /** Guards that must not consume an attempt, then the reservation. */
-  private async begin(needsConsent: boolean): Promise<Ready | FailureResult> {
+  private async resolve(slot: RouteSlot) {
+    const loaded = await loadProviders(this.deps.area);
+    if (loaded.damaged)
+      return { ok: false as const, code: 'STORAGE_ERROR' as const };
+    return resolveRoute(loaded.store, loaded.secrets, slot);
+  }
+
+  /**
+   * Guards that must not consume an attempt, the reservation, then a final
+   * check that the route did not change meanwhile (nothing is sent then).
+   */
+  private async begin(
+    slot: RouteSlot,
+    task: TaskKind | 'test',
+    needsConsent: boolean,
+  ): Promise<Ready | FailureResult> {
+    // A V5.1 key is moved to a profile first (local only, idempotent).
+    await migrateLegacyKey(this.deps.area).catch(() => undefined);
     const settings = await loadSettings(this.deps.area);
-    const { apiKey, modelId, keyRevision } = settings.gemini;
-    if (!apiKey) return failure('NOT_CONFIGURED');
     if (needsConsent && !settings.correction.consent)
       return failure('CONSENT_REQUIRED');
-    if (!isAllowedModelId(modelId)) return failure('MODEL_UNAVAILABLE');
+    const resolved = await this.resolve(slot);
+    if (!resolved.ok) return failure(resolved.code);
     if (!this.isOnline()) return failure('NETWORK_ERROR');
+    const operationId = (
+      this.deps.operationId ?? (() => crypto.randomUUID())
+    )();
     const reservation = await this.guard.reserve(
       settings.safety.dailyTestAttemptLimit,
+      routeKey(resolved.route, task),
+      operationId,
     );
     if (!reservation.ok) return failure('LOCAL_DAILY_LIMIT');
+    const again = await this.resolve(slot).catch(() => null);
+    if (!again?.ok || !sameRoute(again.route, resolved.route)) {
+      await this.guard
+        .release(reservation.localDate, operationId)
+        .catch(() => undefined);
+      return failure(again && !again.ok ? again.code : 'ROUTE_CHANGED');
+    }
     return {
       ok: true,
-      apiKey,
-      modelId,
-      keyRevision,
+      route: resolved.route,
+      key: resolved.key,
+      operationId,
       localDate: reservation.localDate,
     };
   }
 
-  private async run(): Promise<ConnectionResult> {
-    const start = await this.begin(false);
-    if (!start.ok) return start;
-    const { apiKey, modelId, keyRevision } = start;
-
-    let result: GeminiResult;
+  /** Exactly ONE call to the adapter of the frozen route. */
+  private async dispatch(
+    start: Ready,
+    task: TaskRequest,
+    timeoutMs: number,
+  ): Promise<Generation> {
+    const abort = new AbortController();
+    this.active = { route: start.route, abort };
     try {
-      result = await testGemini({
-        apiKey,
-        modelId,
+      return await ADAPTERS[start.route.provider].generate(
+        {
+          key: start.key,
+          modelId: start.route.modelId,
+          fetchImpl: this.deps.fetchImpl,
+          timeoutMs: this.deps.timeoutMs ?? timeoutMs,
+          signal: abort.signal,
+        },
+        task,
+      );
+    } catch {
+      return { ok: false, code: 'UNKNOWN_ERROR', answered: false };
+    } finally {
+      this.active = null;
+    }
+  }
+
+  private settle(start: Ready, outcome: Outcome): Promise<void> {
+    return this.guard
+      .complete(start.localDate, outcome, start.operationId)
+      .catch(() => undefined);
+  }
+
+  private async runTest(slot: RouteSlot): Promise<ConnectionResult> {
+    const start = await this.begin(slot, 'test', false);
+    if (!start.ok) return start;
+    const reply = await this.dispatch(start, smokeTask(), REQUEST_TIMEOUT_MS);
+    const sample = reply.ok ? sanitizeSample(reply.text, start.key) : '';
+    await this.settle(start, {
+      state: sample
+        ? 'completed'
+        : reply.ok || reply.answered
+          ? 'failed'
+          : 'unknown',
+      usage: reply.ok ? reply.usage : undefined,
+    });
+    if (!reply.ok) return failure(reply.code, reply.httpStatus);
+    if (!sample) return failure('INVALID_RESPONSE');
+    return {
+      ok: true,
+      provider: start.route.provider,
+      model: start.route.modelId,
+      checkedAt: this.now().toISOString(),
+      sample,
+      ...(reply.usage ? { usage: reply.usage } : {}),
+    };
+  }
+
+  private async runKeyCheck(credentialId: string): Promise<KeyCheckResult> {
+    await migrateLegacyKey(this.deps.area).catch(() => undefined);
+    const { store, secrets } = await loadProviders(this.deps.area);
+    const profile = store.profiles.find((p) => p.id === credentialId);
+    const secret = secrets.secrets[credentialId];
+    if (!profile || !secret || secret.revision !== profile.revision)
+      return failure('ROUTE_BROKEN');
+    if (!this.isOnline()) return failure('NETWORK_ERROR');
+    let reply;
+    try {
+      reply = await ADAPTERS[profile.provider].listModels({
+        key: secret.key,
         fetchImpl: this.deps.fetchImpl,
         timeoutMs: this.deps.timeoutMs,
       });
     } catch {
-      result = { ok: false, code: 'UNKNOWN_ERROR' };
+      reply = { ok: false as const, code: 'UNKNOWN_ERROR' as const };
     }
-    const checkedAt = this.now().toISOString();
-    // The attempt is already counted; failing to store the outcome must not
-    // hide the real provider result from the user.
-    await this.guard.complete(start.localDate, result).catch(() => undefined);
-    await this.record(result, modelId, keyRevision, checkedAt).catch(
+    await this.recordCheck(credentialId, profile.revision, reply).catch(
       () => undefined,
     );
+    return reply.ok
+      ? { ok: true, models: reply.models.length }
+      : failure(reply.code, reply.httpStatus);
+  }
 
-    if (!result.ok) return failure(result.code, result.httpStatus);
-    return {
-      ok: true,
-      provider: 'gemini',
-      model: modelId,
-      checkedAt,
-      sample: result.sample,
-      ...(result.usage ? { usage: result.usage } : {}),
+  /** The worker is the only writer of key checks; writes are serialized. */
+  private recordCheck(
+    id: string,
+    revision: number,
+    reply: { ok: true; models: string[] } | { ok: false; code: ErrorCode },
+  ): Promise<void> {
+    const run = async () => {
+      const { area } = this.deps;
+      const checks = parseChecks((await area.get([CHECKS_KEY]))[CHECKS_KEY]);
+      // Drop checks of deleted profiles and of replaced keys.
+      const { store } = await loadProviders(area);
+      const kept = Object.fromEntries(
+        Object.entries(checks).filter(([key, check]) =>
+          store.profiles.some(
+            (p) => p.id === key && p.revision === check.revision,
+          ),
+        ),
+      );
+      if (!store.profiles.some((p) => p.id === id && p.revision === revision))
+        return;
+      kept[id] = {
+        revision,
+        checkedAt: this.now().toISOString(),
+        ok: reply.ok,
+        errorCode: reply.ok ? null : reply.code,
+        // A failed check keeps the last known list (shown as not verified).
+        models: reply.ok ? reply.models : (checks[id]?.models ?? []),
+      };
+      await area.set({ [CHECKS_KEY]: { schemaVersion: 1, profiles: kept } });
     };
+    const next = this.checks.then(run, run);
+    this.checks = next.catch(() => undefined);
+    return next;
   }
 
   /**
-   * The shared text path: consent and quota checks, exactly ONE Gemini call,
-   * strict parsing, usage settled once. Edge whitespace never reaches the
-   * model and is put back by the caller.
+   * The shared text path for every provider: consent, route and quota
+   * checks, exactly ONE call, strict parsing, usage settled once. Edge
+   * whitespace never reaches the model and is put back by the caller.
    */
   private async generate<T>(
     core: string,
-    body: string,
+    slot: TaskKind,
+    task: TaskRequest,
     timeoutMs: number,
     parse: (raw: string) => T | null,
   ): Promise<{ ok: true; parsed: T } | FailureResult> {
     if (!core) return failure('UNKNOWN_ERROR');
-    const start = await this.begin(true);
+    const start = await this.begin(slot, slot, true);
     if (!start.ok) return start;
-
-    let reply: GeminiReply;
-    try {
-      reply = await postGemini(
-        {
-          apiKey: start.apiKey,
-          modelId: start.modelId,
-          fetchImpl: this.deps.fetchImpl,
-          timeoutMs: this.deps.timeoutMs ?? timeoutMs,
-        },
-        body,
-      );
-    } catch {
-      reply = { ok: false, code: 'UNKNOWN_ERROR' };
-    }
-    const candidate = reply.ok ? candidateText(reply.body) : null;
-    // A truncated (MAX_TOKENS) or refused (SAFETY…) answer is never parsed.
-    const parsed =
-      candidate && (candidate.finishReason ?? 'STOP') === 'STOP'
-        ? parse(candidate.text)
-        : null;
-    await this.guard
-      .complete(start.localDate, {
-        ok: parsed !== null,
-        usage: candidate?.usage,
-      })
-      .catch(() => undefined);
-
+    const reply = await this.dispatch(start, task, timeoutMs);
+    const parsed = reply.ok ? parse(reply.text) : null;
+    await this.settle(start, {
+      state:
+        parsed !== null
+          ? 'completed'
+          : reply.ok || reply.answered
+            ? 'failed'
+            : 'unknown',
+      usage: reply.ok ? reply.usage : undefined,
+    });
     if (!reply.ok) return failure(reply.code, reply.httpStatus);
     if (parsed === null) return failure('INVALID_RESPONSE');
     return { ok: true, parsed };
   }
 
   /**
-   * V5.6: masks protected shortcut text in the request copy only. Uses the
-   * dictionary as it is now; the map lives for this one request.
+   * V5.6: masks protected shortcut text in the request copy only, for every
+   * provider. Uses the dictionary as it is now; the map lives for this one
+   * request.
    */
   private async protect(core: string): Promise<Shield> {
     const loaded = await loadShortcuts(this.deps.area).catch(() => null);
@@ -259,7 +411,8 @@ export class ConnectionController {
     const guard = await this.protect(core);
     const result = await this.generate(
       core,
-      correctionBody(guard.text, guard.note),
+      'correction',
+      correctionTask(guard.text, guard.note),
       CORRECTION_TIMEOUT_MS,
       (raw) => {
         const parsed = parseCorrection(raw, guard.text);
@@ -290,7 +443,8 @@ export class ConnectionController {
     const guard = await this.protect(core);
     const result = await this.generate(
       core,
-      rewriteBody(guard.text, styleIds, guard.note),
+      'rewrite',
+      rewriteTask(guard.text, styleIds, guard.note),
       REWRITE_TIMEOUT_MS,
       (raw) => {
         const parsed = parseRewrite(raw, guard.text, styleIds);
@@ -308,32 +462,6 @@ export class ConnectionController {
     };
   }
 
-  private async record(
-    result: GeminiResult,
-    modelId: string,
-    keyRevision: number,
-    checkedAt: string,
-  ): Promise<void> {
-    const { area } = this.deps;
-    // The key may have been replaced or removed while the request was in
-    // flight; never attach this outcome to a different key.
-    const current = await loadSettings(area);
-    if (!current.gemini.apiKey || current.gemini.keyRevision !== keyRevision)
-      return;
-    const previous = await loadConnection(area);
-    await saveConnection(area, {
-      ...previous,
-      lastCheckAt: checkedAt,
-      lastCheckOk: result.ok,
-      lastCheckModelId: modelId,
-      lastCheckKeyRevision: keyRevision,
-      lastErrorCode: result.ok ? null : result.code,
-      ...(result.ok
-        ? { lastSuccessfulCheckAt: checkedAt, lastSuccessfulModelId: modelId }
-        : {}),
-    });
-  }
-
   private async runTranslate({
     text,
     ...options
@@ -343,7 +471,9 @@ export class ConnectionController {
     const guard = await this.protect(core);
     const result = await this.generate(
       core,
-      translationBody(guard.text, options, guard.note),
+      // Translate & rewrite has its own route (it may inherit the default).
+      options.styleIds.length ? 'translateRewrite' : 'translation',
+      translationTask(guard.text, options, guard.note),
       REWRITE_TIMEOUT_MS,
       (raw) => {
         const parsed = parseTranslation(raw, guard.text, keys);

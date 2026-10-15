@@ -1,15 +1,26 @@
 import type { ErrorCode } from '../shared/errors';
 import type { TokenUsage } from '../shared/contracts';
-import { isAllowedModelId } from '../shared/models';
+import { isModelId } from '../shared/models';
+import { MAX_LISTED_MODELS } from '../shared/providers';
+import {
+  object,
+  requestJson,
+  tokenCount,
+  type CallOptions,
+  type Generation,
+  type ModelList,
+  type ProviderAdapter,
+  type TaskRequest,
+} from './transport';
 
+export { REQUEST_TIMEOUT_MS } from './transport';
 export const GEMINI_API_ORIGIN = 'https://generativelanguage.googleapis.com';
 export const SMOKE_TEST_PROMPT = 'Reply with OK only.';
-export const REQUEST_TIMEOUT_MS = 15_000;
 // Room for minimal model "thinking" on Flash-Lite models; still a tiny
 // request. This bounds tokens, it is not an exact cost cap.
 export const MAX_OUTPUT_TOKENS = 128;
 const MAX_SAMPLE_LENGTH = 40;
-const MAX_BODY_CHARS = 256 * 1024;
+const MAX_LIST_PAGES = 5;
 
 export type GeminiResult =
   | { ok: true; sample: string; usage?: TokenUsage }
@@ -20,30 +31,44 @@ export interface GeminiRequest {
   modelId: string;
   fetchImpl?: typeof fetch;
   timeoutMs?: number;
+  signal?: AbortSignal;
 }
 
-/** Only allowlisted model IDs reach the URL; anything else throws. */
+/** Only a strictly validated model ID reaches the URL path; anything else throws. */
 export function generateContentUrl(modelId: string): string {
-  if (!isAllowedModelId(modelId)) throw new Error('Model not allowlisted');
+  if (!isModelId(modelId)) throw new Error('Invalid model ID');
   return `${GEMINI_API_ORIGIN}/v1beta/models/${modelId}:generateContent`;
 }
 
-export function smokeTestBody(): string {
+/** The smoke test: one fixed prompt, plain text, no page text. */
+export const smokeTask = (): TaskRequest => ({
+  name: 'correctly_smoke_test',
+  instruction: '',
+  text: SMOKE_TEST_PROMPT,
+  temperature: 0,
+  maxOutputTokens: MAX_OUTPUT_TOKENS,
+});
+
+/**
+ * The generateContent body, unchanged since V5.2: instructions as the system
+ * instruction, the text as its own part, JSON mode when the task has a
+ * contract (the shape itself is enforced by the task parsers).
+ */
+export function geminiBody(task: TaskRequest): string {
   return JSON.stringify({
-    contents: [{ role: 'user', parts: [{ text: SMOKE_TEST_PROMPT }] }],
-    generationConfig: { temperature: 0, maxOutputTokens: MAX_OUTPUT_TOKENS },
+    ...(task.instruction
+      ? { systemInstruction: { parts: [{ text: task.instruction }] } }
+      : {}),
+    contents: [{ role: 'user', parts: [{ text: task.text }] }],
+    generationConfig: {
+      temperature: task.temperature,
+      ...(task.schema ? { responseMimeType: 'application/json' } : {}),
+      maxOutputTokens: task.maxOutputTokens,
+    },
   });
 }
 
-const object = (value: unknown): Record<string, unknown> | null =>
-  value && typeof value === 'object' && !Array.isArray(value)
-    ? (value as Record<string, unknown>)
-    : null;
-
-const tokenCount = (value: unknown): number | undefined =>
-  typeof value === 'number' && Number.isSafeInteger(value) && value >= 0
-    ? value
-    : undefined;
+export const smokeTestBody = (): string => geminiBody(smokeTask());
 
 function parseUsage(value: unknown): TokenUsage | undefined {
   const usage = object(value);
@@ -62,7 +87,7 @@ function parseUsage(value: unknown): TokenUsage | undefined {
   return Object.keys(result).length ? result : undefined;
 }
 
-function sanitizeSample(text: string, apiKey: string): string {
+export function sanitizeSample(text: string, apiKey: string): string {
   const safe = text
     .split(apiKey)
     .join('[redacted]')
@@ -106,6 +131,38 @@ export function candidateText(body: unknown): CandidateText | null {
   };
 }
 
+const REFUSALS = new Set([
+  'SAFETY',
+  'PROHIBITED_CONTENT',
+  'BLOCKLIST',
+  'SPII',
+  'RECITATION',
+  'IMAGE_SAFETY',
+]);
+
+/** A complete (STOP) answer, an explicit refusal, or an unusable body. */
+export function parseGeneration(body: unknown): Generation {
+  const data = object(body);
+  const usage = parseUsage(data?.usageMetadata);
+  const refused = (): Generation => ({
+    ok: false,
+    code: 'RESPONSE_REFUSED',
+    answered: true,
+  });
+  if (object(data?.promptFeedback)?.blockReason) return refused();
+  const candidate = candidateText(body);
+  if (candidate?.finishReason && REFUSALS.has(candidate.finishReason))
+    return refused();
+  // A truncated (MAX_TOKENS) or otherwise unfinished answer is never parsed.
+  if (
+    !candidate ||
+    (candidate.finishReason ?? 'STOP') !== 'STOP' ||
+    !candidate.text
+  )
+    return { ok: false, code: 'INVALID_RESPONSE', answered: true };
+  return { ok: true, text: candidate.text, ...(usage ? { usage } : {}) };
+}
+
 /** Success requires a non-empty, non-thought text part in the first candidate. */
 export function parseSuccess(body: unknown, apiKey: string): GeminiResult {
   const candidate = candidateText(body);
@@ -136,15 +193,6 @@ export function classifyHttpError(status: number, body: unknown): ErrorCode {
   return 'PROVIDER_ERROR';
 }
 
-async function readJson(response: Response): Promise<unknown> {
-  try {
-    const text = await response.text();
-    return text.length > MAX_BODY_CHARS ? null : (JSON.parse(text) as unknown);
-  } catch {
-    return null;
-  }
-}
-
 export type GeminiReply =
   | { ok: true; body: unknown }
   | { ok: false; code: ErrorCode; httpStatus?: number };
@@ -154,45 +202,26 @@ export type GeminiReply =
  * consume quota, so retrying is always an explicit user action.
  */
 export async function postGemini(
-  {
-    apiKey,
-    modelId,
-    fetchImpl = fetch,
-    timeoutMs = REQUEST_TIMEOUT_MS,
-  }: GeminiRequest,
+  { apiKey, modelId, fetchImpl, timeoutMs, signal }: GeminiRequest,
   body: string,
 ): Promise<GeminiReply> {
-  const url = generateContentUrl(modelId);
-  const controller = new AbortController();
-  let timedOut = false;
-  const timer = setTimeout(() => {
-    timedOut = true;
-    controller.abort();
-  }, timeoutMs);
-  try {
-    const response = await fetchImpl(url, {
+  const reply = await requestJson(
+    generateContentUrl(modelId),
+    {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', 'x-goog-api-key': apiKey },
       body,
-      signal: controller.signal,
-      credentials: 'omit',
-      redirect: 'error',
-      cache: 'no-store',
-      referrerPolicy: 'no-referrer',
-    });
-    const json = await readJson(response);
-    if (!response.ok)
-      return {
-        ok: false,
-        code: classifyHttpError(response.status, json),
-        httpStatus: response.status,
-      };
-    return { ok: true, body: json };
-  } catch {
-    return { ok: false, code: timedOut ? 'TIMEOUT' : 'NETWORK_ERROR' };
-  } finally {
-    clearTimeout(timer);
-  }
+    },
+    { fetchImpl, timeoutMs, signal },
+  );
+  if (!reply.ok) return reply;
+  if (reply.status < 200 || reply.status > 299)
+    return {
+      ok: false,
+      code: classifyHttpError(reply.status, reply.json),
+      httpStatus: reply.status,
+    };
+  return { ok: true, body: reply.json };
 }
 
 /** Sends the fixed smoke-test prompt once. */
@@ -202,3 +231,70 @@ export async function testGemini(
   const reply = await postGemini(request, smokeTestBody());
   return reply.ok ? parseSuccess(reply.body, request.apiKey) : reply;
 }
+
+// Writing tasks need generateContent and text; these families are not text models.
+const NOT_TEXT =
+  /(embedding|imagen|veo|tts|image|aqa|native-audio|live|robotics|computer-use|lyria)/;
+
+/** `models/<id>` entries that support generateContent, across pages. */
+export function parseGeminiModels(body: unknown): string[] {
+  const models = object(body)?.models;
+  if (!Array.isArray(models)) return [];
+  return models.flatMap((raw) => {
+    const model = object(raw);
+    const name = typeof model?.name === 'string' ? model.name : '';
+    const id = name.startsWith('models/') ? name.slice(7) : '';
+    const methods = Array.isArray(model?.supportedGenerationMethods)
+      ? model.supportedGenerationMethods
+      : [];
+    return isModelId(id) &&
+      methods.includes('generateContent') &&
+      !NOT_TEXT.test(id)
+      ? [id]
+      : [];
+  });
+}
+
+export const geminiAdapter: ProviderAdapter = {
+  async generate(
+    { key, modelId, fetchImpl, timeoutMs, signal }: CallOptions,
+    task: TaskRequest,
+  ): Promise<Generation> {
+    const reply = await postGemini(
+      { apiKey: key, modelId, fetchImpl, timeoutMs, signal },
+      geminiBody(task),
+    );
+    if (!reply.ok)
+      return { ...reply, answered: reply.httpStatus !== undefined };
+    return parseGeneration(reply.body);
+  },
+
+  async listModels({ key, fetchImpl, timeoutMs, signal }): Promise<ModelList> {
+    const found = new Set<string>();
+    let pageToken = '';
+    for (let page = 0; page < MAX_LIST_PAGES; page++) {
+      const url = new URL(`${GEMINI_API_ORIGIN}/v1beta/models`);
+      url.searchParams.set('pageSize', '1000');
+      if (pageToken) url.searchParams.set('pageToken', pageToken);
+      const reply = await requestJson(
+        url.href,
+        { method: 'GET', headers: { 'x-goog-api-key': key } },
+        { fetchImpl, timeoutMs, signal },
+      );
+      if (!reply.ok) return reply;
+      if (reply.status < 200 || reply.status > 299)
+        return {
+          ok: false,
+          code: classifyHttpError(reply.status, reply.json),
+          httpStatus: reply.status,
+        };
+      if (!Array.isArray(object(reply.json)?.models))
+        return { ok: false, code: 'INVALID_RESPONSE' };
+      for (const id of parseGeminiModels(reply.json)) found.add(id);
+      const next = object(reply.json)?.nextPageToken;
+      if (typeof next !== 'string' || !next || next.length > 512) break;
+      pageToken = next;
+    }
+    return { ok: true, models: [...found].sort().slice(0, MAX_LISTED_MODELS) };
+  },
+};

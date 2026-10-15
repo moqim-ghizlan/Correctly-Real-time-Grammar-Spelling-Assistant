@@ -6,15 +6,23 @@ import {
   PAGE_CONFIG,
   REWRITE_TEXT,
   TEST_CONNECTION,
+  TEST_KEY,
   TRANSLATE_TEXT,
 } from '../../src/shared/contracts';
+import { PROVIDERS_KEY, SECRETS_KEY } from '../../src/shared/providers';
 import { normalizeSettings } from '../../src/shared/settings';
 import { saveSettings, STORAGE_KEYS } from '../../src/shared/storage';
 import {
   FakeStorage,
   FAKE_KEY,
+  GEMINI_ID,
+  OPENAI_ID,
+  OPENAI_KEY,
   geminiOk,
   jsonResponse,
+  openaiOk,
+  profile,
+  seedProviders,
 } from '../helpers/fake-storage';
 
 type Listener = (
@@ -93,6 +101,7 @@ const configure = (consent: boolean, triggers: object = {}) =>
 const correctionReply = (hasErrors: boolean, correctedText: string) =>
   jsonResponse(200, geminiOk(JSON.stringify({ hasErrors, correctedText })));
 const consoleSpies: ReturnType<typeof vi.spyOn>[] = [];
+const setAccessLevel = vi.fn(() => Promise.resolve());
 
 beforeEach(async () => {
   vi.resetModules();
@@ -136,7 +145,7 @@ beforeEach(async () => {
       unregisterContentScripts,
     },
     storage: {
-      local: area,
+      local: Object.assign(area, { setAccessLevel }),
       onChanged: listen(
         (callback: typeof onStorageChanged) => (onStorageChanged = callback),
       ),
@@ -163,7 +172,10 @@ const send = (message: unknown, sender = optionsSender) =>
 
 it('answers TEST_CONNECTION from the options page through the real worker', async () => {
   await saveSettings(area, normalizeSettings({ gemini: { apiKey: FAKE_KEY } }));
-  const { handled, reply } = await send({ type: TEST_CONNECTION });
+  const { handled, reply } = await send({
+    type: TEST_CONNECTION,
+    slot: 'default',
+  });
   expect(handled).toBe(true);
   expect(reply).toMatchObject({ ok: true, provider: 'gemini', sample: 'OK' });
   expect(fetcher).toHaveBeenCalledTimes(1);
@@ -181,6 +193,12 @@ it('S10: unknown actions and malformed payloads are ignored without network', as
   for (const message of [
     { type: 'check', text: 'hello' },
     { type: 'health' },
+    { type: TEST_CONNECTION },
+    { type: TEST_CONNECTION, slot: 'default', apiKey: 'x' },
+    { type: TEST_CONNECTION, slot: '../../evil' },
+    { type: TEST_KEY, credentialId: '../x' },
+    { type: TEST_KEY },
+    { type: 'correctly.v5.getApiKey' },
     { type: TEST_CONNECTION, apiKey: 'x' },
     { type: TEST_CONNECTION, modelId: '../../evil' },
     { type: TEST_CONNECTION, url: 'https://evil.example' },
@@ -208,7 +226,10 @@ it('S11: forged senders get nothing back, and no key', async () => {
     { id: ID },
     { id: ID, url: 'chrome-extension://otherid/src/options/options.html' },
   ]) {
-    const { handled, reply } = await send({ type: TEST_CONNECTION }, sender);
+    const { handled, reply } = await send(
+      { type: TEST_CONNECTION, slot: 'default' },
+      sender,
+    );
     expect(handled).toBe(false);
     expect(reply).toBeUndefined();
   }
@@ -301,7 +322,9 @@ describe('CORRECT_TEXT', () => {
       [{ type: CORRECT_TEXT, text: 'é'.repeat(2001) }, contentSender],
       [{ type: CORRECT_TEXT, text: 'x', model: 'evil' }, contentSender],
       [{ type: CORRECT_TEXT, text: 42 }, contentSender],
-      [{ type: TEST_CONNECTION }, contentSender],
+      [{ type: TEST_CONNECTION, slot: 'default' }, contentSender],
+      // KEY-22: a content script can never check, read or change a key.
+      [{ type: TEST_KEY, credentialId: GEMINI_ID }, contentSender],
     ] as [unknown, chrome.runtime.MessageSender][]) {
       const { handled } = await send(message, sender);
       expect(handled).toBe(false);
@@ -699,5 +722,186 @@ describe('V5.6 text shortcuts', () => {
     onStorageChanged({ 'correctly.v5.shortcuts': {} }, 'local');
     await vi.waitFor(() => expect(registerContentScripts).toHaveBeenCalled());
     expect(fetcher).not.toHaveBeenCalled();
+  });
+});
+
+describe('V5.7 providers and routes', () => {
+  it('KEY-29: storage.local is restricted to trusted extension contexts at startup', () => {
+    expect(setAccessLevel).toHaveBeenCalledWith({
+      accessLevel: 'TRUSTED_CONTEXTS',
+    });
+  });
+
+  it('MIG-02/MIG-07: a V5.1 key is migrated once at startup, without network', async () => {
+    await saveSettings(
+      area,
+      normalizeSettings({
+        gemini: { apiKey: FAKE_KEY, modelId: 'gemini-3.5-flash-lite' },
+      }),
+    );
+    onInstalled();
+    await vi.waitFor(() =>
+      expect(
+        (area.data.get(PROVIDERS_KEY) as { profiles: unknown[] } | undefined)
+          ?.profiles,
+      ).toHaveLength(1),
+    );
+    await vi.waitFor(() =>
+      expect(
+        (
+          area.data.get(STORAGE_KEYS.settings) as {
+            gemini: { apiKey: unknown };
+          }
+        ).gemini.apiKey,
+      ).toBeNull(),
+    );
+    const store = area.data.get(PROVIDERS_KEY) as {
+      profiles: { id: string; label: string }[];
+      routes: { default: unknown };
+    };
+    expect(store.profiles[0]!.label).toBe('Gemini — Migrated');
+    expect(store.routes.default).toEqual({
+      credentialId: store.profiles[0]!.id,
+      modelId: 'gemini-3.5-flash-lite',
+    });
+    expect(area.dump().match(new RegExp(FAKE_KEY, 'g'))).toHaveLength(1);
+    expect(fetcher).not.toHaveBeenCalled();
+  });
+
+  it('RT-05/RT-06: correction goes to its OpenAI route only; Gemini sees nothing', async () => {
+    await saveSettings(
+      area,
+      normalizeSettings({ correction: { consent: true } }),
+    );
+    seedProviders(
+      area,
+      [profile(GEMINI_ID, 'gemini'), profile(OPENAI_ID, 'openai')],
+      {
+        default: { credentialId: GEMINI_ID, modelId: 'gemini-3.1-flash-lite' },
+        correction: { credentialId: OPENAI_ID, modelId: 'gpt-5.6-luna' },
+      },
+    );
+    fetcher.mockResolvedValueOnce(
+      jsonResponse(
+        200,
+        openaiOk(
+          JSON.stringify({ hasErrors: true, correctedText: 'Fixed text' }),
+        ),
+      ),
+    );
+    const { reply } = await send(
+      { type: CORRECT_TEXT, text: 'Fixd text' },
+      contentSender,
+    );
+    expect(reply).toEqual({
+      ok: true,
+      hasErrors: true,
+      correctedText: 'Fixed text',
+      suspicious: false,
+    });
+    expect(fetcher).toHaveBeenCalledTimes(1);
+    const [url, init] = fetcher.mock.calls[0]!;
+    expect(url).toBe('https://api.openai.com/v1/responses');
+    expect((init!.headers as Record<string, string>).Authorization).toBe(
+      `Bearer ${OPENAI_KEY}`,
+    );
+    expect(init!.body as string).not.toContain(OPENAI_KEY);
+    expect(JSON.stringify(reply)).not.toContain(OPENAI_KEY);
+    for (const spy of consoleSpies) expect(spy).not.toHaveBeenCalled();
+  });
+
+  it('RT-11/INV-08: a disabled route is blocked; the other key is never used', async () => {
+    await saveSettings(
+      area,
+      normalizeSettings({ correction: { consent: true } }),
+    );
+    seedProviders(
+      area,
+      [
+        profile(GEMINI_ID, 'gemini', { enabled: false }),
+        profile('gemini-backup-1', 'gemini'),
+      ],
+      {
+        default: { credentialId: GEMINI_ID, modelId: 'gemini-3.1-flash-lite' },
+      },
+    );
+    const { reply } = await send(
+      { type: CORRECT_TEXT, text: 'Fixd text' },
+      contentSender,
+    );
+    expect(reply).toMatchObject({ ok: false, code: 'PROFILE_DISABLED' });
+    expect(fetcher).not.toHaveBeenCalled();
+  });
+
+  it('Scenario A: without a usable route the toolbar opens the settings, injects nothing', async () => {
+    await saveSettings(
+      area,
+      normalizeSettings({ correction: { consent: true } }),
+    );
+    actionClick({ id: 7 } as chrome.tabs.Tab);
+    await vi.waitFor(() => expect(openOptionsPage).toHaveBeenCalledTimes(1));
+    expect(executeScript).not.toHaveBeenCalled();
+    expect(fetcher).not.toHaveBeenCalled();
+  });
+
+  it('KEY-21: PAGE_CONFIG never carries a key, a profile or a route', async () => {
+    seedProviders(area, [profile(OPENAI_ID, 'openai')], {
+      default: { credentialId: OPENAI_ID, modelId: 'gpt-5-nano' },
+    });
+    const { reply } = await send({ type: PAGE_CONFIG }, contentSender);
+    const textReply = JSON.stringify(reply);
+    for (const secret of [OPENAI_KEY, FAKE_KEY, OPENAI_ID, 'gpt-5-nano'])
+      expect(textReply).not.toContain(secret);
+  });
+
+  it('TEST_KEY from the settings page lists models with the profile key (GET, free)', async () => {
+    seedProviders(area, [profile(OPENAI_ID, 'openai')], {});
+    fetcher.mockResolvedValueOnce(
+      jsonResponse(200, {
+        object: 'list',
+        data: [{ id: 'gpt-5-nano' }, { id: 'text-embedding-3-small' }],
+      }),
+    );
+    const { reply } = await send({ type: TEST_KEY, credentialId: OPENAI_ID });
+    expect(reply).toEqual({ ok: true, models: 1 });
+    const [url, init] = fetcher.mock.calls[0]!;
+    expect(url).toBe('https://api.openai.com/v1/models');
+    expect(init!.method).toBe('GET');
+    expect(JSON.stringify(reply)).not.toContain(OPENAI_KEY);
+  });
+
+  it('deleting the key of a running request stops it locally (no other key is tried)', async () => {
+    await saveSettings(
+      area,
+      normalizeSettings({ correction: { consent: true } }),
+    );
+    seedProviders(area, [profile(OPENAI_ID, 'openai')], {
+      default: { credentialId: OPENAI_ID, modelId: 'gpt-5-nano' },
+    });
+    fetcher.mockImplementationOnce(
+      (_url, init) =>
+        new Promise((_, reject) => {
+          init!.signal!.addEventListener('abort', () =>
+            reject(new DOMException('aborted', 'AbortError')),
+          );
+          // The user deletes the profile in the settings page meanwhile.
+          area.data.set(PROVIDERS_KEY, {
+            schemaVersion: 1,
+            revision: 2,
+            profiles: [],
+            routes: {
+              default: { credentialId: OPENAI_ID, modelId: 'gpt-5-nano' },
+            },
+          });
+          area.data.set(SECRETS_KEY, { schemaVersion: 1, secrets: {} });
+          onStorageChanged({ [PROVIDERS_KEY]: {}, [SECRETS_KEY]: {} }, 'local');
+        }),
+    );
+    const { reply } = await send(
+      { type: CORRECT_TEXT, text: 'Fixd text' },
+      contentSender,
+    );
+    expect(reply).toMatchObject({ ok: false, code: 'ROUTE_CHANGED' });
+    expect(fetcher).toHaveBeenCalledTimes(1);
   });
 });

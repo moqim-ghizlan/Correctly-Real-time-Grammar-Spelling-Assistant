@@ -1,5 +1,6 @@
 import { describe, expect, it, vi } from 'vitest';
 import {
+  geminiAdapter,
   generateContentUrl,
   SMOKE_TEST_PROMPT,
   testGemini,
@@ -53,9 +54,22 @@ describe('request contract', () => {
     });
   });
 
-  it('S09: refuses to build a URL for a non-allowlisted model', () => {
-    expect(() => generateContentUrl('../../evil')).toThrow();
-    expect(() => generateContentUrl('gemini-2.0-flash')).toThrow();
+  it('S09/RT-02: only a strictly shaped model ID reaches the URL path', () => {
+    for (const bad of [
+      '../../evil',
+      'gemini..x',
+      'models/x',
+      'x?key=1',
+      'x#y',
+      'X%2F',
+      '',
+      'a'.repeat(81),
+    ])
+      expect(() => generateContentUrl(bad)).toThrow();
+    // V5.7: a manually entered model ID is allowed when well-formed.
+    expect(generateContentUrl('gemini-2.0-flash')).toBe(
+      'https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent',
+    );
   });
 });
 
@@ -226,5 +240,77 @@ describe('response handling', () => {
     ).result;
     expect(result.ok && result.sample.length).toBe(40);
     expect(result.ok && result.sample).not.toMatch(/\p{Cc}/u);
+  });
+});
+
+describe('V5.7 model list (GE-14)', () => {
+  it('follows pages, keeps only generateContent text models, key in the header only', async () => {
+    const pages = [
+      {
+        models: [
+          {
+            name: 'models/gemini-3.1-flash-lite',
+            supportedGenerationMethods: ['generateContent', 'countTokens'],
+          },
+          {
+            name: 'models/text-embedding-004',
+            supportedGenerationMethods: ['embedContent'],
+          },
+          {
+            name: 'models/imagen-4.0-generate',
+            supportedGenerationMethods: ['generateContent'],
+          },
+        ],
+        nextPageToken: 'page-2',
+      },
+      {
+        models: [
+          {
+            name: 'models/gemini-3.5-flash-lite',
+            supportedGenerationMethods: ['generateContent'],
+          },
+          {
+            name: 'tunedModels/mine',
+            supportedGenerationMethods: ['generateContent'],
+          },
+        ],
+      },
+    ];
+    const fetchImpl = vi.fn<typeof fetch>(() =>
+      Promise.resolve(jsonResponse(200, pages.shift())),
+    );
+    expect(
+      await geminiAdapter.listModels({ key: FAKE_KEY, fetchImpl }),
+    ).toEqual({
+      ok: true,
+      models: ['gemini-3.1-flash-lite', 'gemini-3.5-flash-lite'],
+    });
+    expect(fetchImpl).toHaveBeenCalledTimes(2);
+    const [second, init] = fetchImpl.mock.calls[1]!;
+    expect(second as string).toBe(
+      'https://generativelanguage.googleapis.com/v1beta/models?pageSize=1000&pageToken=page-2',
+    );
+    expect(second as string).not.toContain(FAKE_KEY);
+    expect(init!.headers).toEqual({ 'x-goog-api-key': FAKE_KEY });
+  });
+
+  it('a refused key is reported with a fixed code', async () => {
+    const fetchImpl = vi.fn<typeof fetch>(() =>
+      Promise.resolve(
+        jsonResponse(400, {
+          error: {
+            status: 'INVALID_ARGUMENT',
+            details: [{ reason: 'API_KEY_INVALID' }],
+          },
+        }),
+      ),
+    );
+    expect(
+      await geminiAdapter.listModels({ key: FAKE_KEY, fetchImpl }),
+    ).toEqual({
+      ok: false,
+      code: 'INVALID_KEY',
+      httpStatus: 400,
+    });
   });
 });

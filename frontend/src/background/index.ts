@@ -7,9 +7,18 @@ import {
   TRANSLATE_COMMAND,
   isCorrectTextRequest,
   isTestConnectionRequest,
+  isTestKeyRequest,
   type ConnectionResult,
 } from '../shared/contracts';
 import { errorMessage, isRetryable } from '../shared/errors';
+import {
+  PROVIDERS_KEY,
+  SECRETS_KEY,
+  loadProviders,
+  migrateLegacyKey,
+  resolveRoute,
+  type TaskKind,
+} from '../shared/providers';
 import { isRewriteTextRequest } from '../shared/rewrite';
 import { SHORTCUTS_KEY, loadShortcuts } from '../shared/shortcuts';
 import { isTranslateTextRequest } from '../shared/translate';
@@ -81,6 +90,19 @@ const OPEN_ACTIONS: Record<string, Action> = {
   [OPEN_REWRITE]: 'rewrite',
   [OPEN_TRANSLATE]: 'translate',
 };
+const ACTION_TASKS: Record<Action, TaskKind> = {
+  correct: 'correction',
+  rewrite: 'rewrite',
+  translate: 'translation',
+  translateRewrite: 'translateRewrite',
+};
+
+/** True when this action's saved route is usable now (no network). */
+async function routeReady(area: StorageArea, action: Action): Promise<boolean> {
+  await migrateLegacyKey(area).catch(() => undefined);
+  const { store, secrets, damaged } = await loadProviders(area);
+  return !damaged && resolveRoute(store, secrets, ACTION_TASKS[action]).ok;
+}
 
 /**
  * Loads content.js into one frame, then runs it with the intent and the
@@ -116,7 +138,8 @@ async function inject(
  * The one path used by every trigger: inject content.js into the frame the
  * user acted in (activeTab is granted by the gesture, or site access by the
  * smart button) and run correction or open a picker. A disabled trigger
- * does nothing. Without a key or consent, or on pages Chrome does not let
+ * does nothing. Without consent or a usable route for that action (no
+ * other key or provider is ever tried), or on pages Chrome does not let
  * extensions script (chrome://, Web Store, PDF viewer), the settings open.
  */
 export async function correctInTab(
@@ -140,7 +163,11 @@ export async function correctInTab(
       styles = settings.rewrite.defaultStyles;
       translation = settings.translation;
     }
-    if (settings.gemini.apiKey && settings.correction.consent) tabId = tab?.id;
+    if (
+      settings.correction.consent &&
+      (intent === 'rewriteOff' || (await routeReady(area, requested)))
+    )
+      tabId = tab?.id;
   } catch {
     // Fall through to the settings page.
   }
@@ -257,14 +284,22 @@ export function registerServiceWorker(
   controller = new ConnectionController({ area }),
 ): void {
   const extensionOrigin = chrome.runtime.getURL('');
+  // Keys are in storage.local, which Chrome exposes to content scripts by
+  // default. Ours never read it (they ask the worker via PAGE_CONFIG), so
+  // the whole area is restricted to extension pages and this worker.
+  void chrome.storage.local
+    .setAccessLevel?.({ accessLevel: 'TRUSTED_CONTEXTS' })
+    .catch(() => undefined);
+  void migrateLegacyKey(area).catch(() => undefined);
+  void controller.reconcile().catch(() => undefined);
 
   chrome.runtime.onMessage.addListener((message: unknown, sender, reply) => {
     let task: Promise<unknown>;
-    if (
-      isTrustedSender(sender, chrome.runtime.id, extensionOrigin) &&
-      isTestConnectionRequest(message)
-    )
-      task = controller.testConnection();
+    const trusted = isTrustedSender(sender, chrome.runtime.id, extensionOrigin);
+    if (trusted && isTestConnectionRequest(message))
+      task = controller.testConnection(message.slot);
+    else if (trusted && isTestKeyRequest(message))
+      task = controller.testKey(message.credentialId);
     else if (
       isContentScriptSender(sender, chrome.runtime.id) &&
       isCorrectTextRequest(message)
@@ -334,10 +369,16 @@ export function registerServiceWorker(
       ).catch(() => undefined);
   });
   chrome.runtime.onInstalled.addListener(() => {
+    void migrateLegacyKey(area).catch(() => undefined);
     void installMenu(area).catch(() => undefined);
     void syncSmartScript(area).catch(() => undefined);
   });
   chrome.storage.onChanged.addListener((changes, areaName) => {
+    if (
+      areaName === 'local' &&
+      (PROVIDERS_KEY in changes || SECRETS_KEY in changes)
+    )
+      void controller.onProvidersChanged().catch(() => undefined);
     if (
       areaName !== 'local' ||
       !(STORAGE_KEYS.settings in changes || SHORTCUTS_KEY in changes)

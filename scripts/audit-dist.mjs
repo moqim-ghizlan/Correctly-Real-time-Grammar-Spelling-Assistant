@@ -1,11 +1,17 @@
 // Static audit of the built extension (checks B01–B04 of the V5.1 plan,
-// updated for V5.2's on-click content script and V5.3's triggers).
+// updated for V5.2's on-click content script, V5.3's triggers and V5.7's
+// second provider).
 // Pure function so tests can run it against synthetic directories.
 import { existsSync, readdirSync, readFileSync, statSync } from 'node:fs';
 import { dirname, extname, join, relative, resolve, sep } from 'node:path';
 
 export const GEMINI_HOST_PERMISSION =
   'https://generativelanguage.googleapis.com/*';
+export const OPENAI_HOST_PERMISSION = 'https://api.openai.com/*';
+// The only network destinations: the two official provider APIs.
+const HOSTS = [GEMINI_HOST_PERMISSION, OPENAI_HOST_PERMISSION];
+const CONNECT_SRC =
+  "connect-src 'self' https://generativelanguage.googleapis.com https://api.openai.com";
 export const TEST_KEY_SENTINEL = 'CORRECTLY_TEST_SENTINEL_KEY';
 const PERMISSIONS = ['activeTab', 'contextMenus', 'scripting', 'storage'];
 // Requested at runtime only when the user turns the smart button on.
@@ -52,6 +58,10 @@ const FORBIDDEN_TEXT = [
   [/\beval\s*\(/, 'eval()'],
   [/\bnew\s+Function\s*\(/, 'new Function()'],
   [/AIza[0-9A-Za-z_-]{35}/, 'something shaped like a Google API key'],
+  [
+    /\bsk-(proj-)?[A-Za-z0-9_-]{20,}/,
+    'something shaped like an OpenAI API key',
+  ],
   [new RegExp(TEST_KEY_SENTINEL), 'test key sentinel'],
   [/http:\/\/(?!www\.w3\.org\/)/, 'plain http:// URL'],
 ];
@@ -101,13 +111,13 @@ export function auditDist(distDir) {
 
   // B01 — manifest shape and minimal permissions.
   if (manifest.manifest_version !== 3) fail('manifest_version must be 3');
-  if (manifest.version !== '5.6.0') fail('version must be 5.6.0');
-  if (!String(manifest.name ?? '').includes('V5.6')) fail('name must say V5.6');
+  if (manifest.version !== '5.7.0') fail('version must be 5.7.0');
+  if (!String(manifest.name ?? '').includes('V5.7')) fail('name must say V5.7');
   // activeTab + scripting: inject content.js into the clicked tab only.
   if (!same(manifest.permissions, PERMISSIONS))
     fail(`permissions must be exactly ${JSON.stringify(PERMISSIONS)}`);
-  if (!same(manifest.host_permissions, [GEMINI_HOST_PERMISSION]))
-    fail(`host_permissions must be exactly ["${GEMINI_HOST_PERMISSION}"]`);
+  if (!same(manifest.host_permissions, HOSTS))
+    fail(`host_permissions must be exactly ${JSON.stringify(HOSTS)}`);
   for (const key of [
     'content_scripts',
     'optional_permissions',
@@ -115,7 +125,7 @@ export function auditDist(distDir) {
     'web_accessible_resources',
   ])
     if (key in manifest) fail(`unexpected manifest key: ${key}`); // B04
-  if (manifest.action?.default_popup) fail('no popup is expected in V5.6');
+  if (manifest.action?.default_popup) fail('no popup is expected in V5.7');
   if (!same(manifest.optional_host_permissions ?? [], OPTIONAL_HOSTS))
     fail(
       `optional_host_permissions must be exactly ${JSON.stringify(OPTIONAL_HOSTS)}`,
@@ -134,6 +144,8 @@ export function auditDist(distDir) {
     fail("CSP must be script-src 'self'");
   if (/unsafe-eval|unsafe-inline|https?:\/\/[^ ;]*\*/.test(csp))
     fail('CSP is too permissive');
+  if (!csp.split(';').some((part) => part.trim() === CONNECT_SRC))
+    fail(`CSP must contain exactly "${CONNECT_SRC}"`);
 
   const optionsPath = manifest.options_page ?? manifest.options_ui?.page;
   const optionsFull = needFile(optionsPath, 'options page');

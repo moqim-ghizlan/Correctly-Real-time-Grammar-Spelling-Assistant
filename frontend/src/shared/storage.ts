@@ -1,19 +1,18 @@
 import { CorrectlyError } from './errors';
 import { localDate } from './local-date';
 import {
-  normalizeConnection,
   normalizeSettings,
   normalizeUsage,
-  type ConnectionRecord,
   type DailyUsageRecord,
   type V51Settings,
 } from './settings';
 
 // Namespaced keys: V5 never reads, rewrites or clears V4 data such as the
 // `settings` or shortcut entries a previous version left in this profile.
+// (V5.1–V5.6 also wrote `correctly.v5.connection`; V5.7 no longer uses it.)
+// Provider profiles and secrets: see shared/providers.ts.
 export const STORAGE_KEYS = {
   settings: 'correctly.v5.settings',
-  connection: 'correctly.v5.connection',
   usage: 'correctly.v5.usage',
 } as const;
 
@@ -58,19 +57,6 @@ export async function saveSettings(
   const normalized = normalizeSettings(settings);
   await write(area, STORAGE_KEYS.settings, normalized);
   return normalized;
-}
-
-export async function loadConnection(
-  area: StorageArea,
-): Promise<ConnectionRecord> {
-  return normalizeConnection(await read(area, STORAGE_KEYS.connection));
-}
-
-export async function saveConnection(
-  area: StorageArea,
-  connection: ConnectionRecord,
-): Promise<void> {
-  await write(area, STORAGE_KEYS.connection, normalizeConnection(connection));
 }
 
 export async function loadUsage(

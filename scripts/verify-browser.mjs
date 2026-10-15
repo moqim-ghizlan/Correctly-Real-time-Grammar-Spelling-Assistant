@@ -1,13 +1,14 @@
-// Real-browser smoke test for V5.3 (V5.1 checklist steps 3–6, 8, 9, 11, 15,
-// the V5.2 content script, V5.3 shortcut/smart button, V5.4 rewrite and
-// V5.5 translation and V5.6 text shortcuts).
+// Real-browser smoke test (V5.1 checklist steps 3–6, 8, 9, 11, 15, the V5.2
+// content script, V5.3 shortcut/smart button, V5.4 rewrite, V5.5
+// translation, V5.6 text shortcuts and V5.7 provider keys and routes).
 // Loads dist/ unpacked in a throwaway profile, drives the settings page over
 // the Chrome DevTools Protocol and records network/console evidence.
 //
 //   node scripts/verify-browser.mjs [--browser=brave|chrome|<path>] [--offline]
 //
-// Without --offline, ONE request is sent to Google with a dummy key (expected
-// answer: invalid key). It cannot succeed or cost anything. No real key is used.
+// Without --offline, three requests are sent with dummy keys (expected answer:
+// invalid key): a model list and one test prompt to Google, a model list to
+// OpenAI. They cannot succeed or cost anything. No real key is used.
 import { Buffer } from 'node:buffer';
 import { spawn } from 'node:child_process';
 import { mkdtemp, mkdir, readFile, rm, writeFile } from 'node:fs/promises';
@@ -32,7 +33,8 @@ const browserPath = BROWSERS[browserName] ?? browserName;
 const offline = Boolean(args.offline);
 const extensionPath = resolve('dist');
 const DUMMY_KEY = 'CORRECTLY_TEST_SENTINEL_KEY_dummy_000000';
-const profile = await mkdtemp(join(tmpdir(), 'correctly-v56-'));
+const DUMMY_OPENAI_KEY = 'CORRECTLY_TEST_SENTINEL_KEY_openai_dummy_0';
+const profile = await mkdtemp(join(tmpdir(), 'correctly-v57-'));
 const delay = (ms) => new Promise((done) => setTimeout(done, ms));
 
 const evidence = {
@@ -168,16 +170,58 @@ async function openOptions() {
   await page.call('Page.reload', { ignoreCache: true });
   await page.until(`!window.__beforeReload && ${loaded}`);
 }
-async function clickTest() {
-  const before = await page.evaluate(
-    `document.getElementById('test-result').textContent`,
+/** "Test" of one saved route (the page auto-confirms the billing prompt). */
+async function clickTest(slot = 'default') {
+  const message = `route-message-${slot}`;
+  await page.evaluate(
+    `document.getElementById(${JSON.stringify(message)}).textContent = ''`,
   );
-  await page.evaluate(`document.getElementById('test').click()`);
+  await page.evaluate(
+    `document.getElementById(${JSON.stringify(`route-test-${slot}`)}).click()`,
+  );
+  await page.until(`${text(message)} !== ''`, 30000);
+  return page.evaluate(text(message));
+}
+/** The worker's answer to a TEST_CONNECTION sent like the page sends it. */
+const sendTest = (slot = 'default') =>
+  page.evaluate(
+    `chrome.runtime.sendMessage({ type: 'correctly.v5.testConnection', slot: ${JSON.stringify(slot)} })`,
+  );
+async function addKey(provider, label, key) {
+  await page.evaluate(`(() => {
+    document.getElementById('profile-provider').value = ${JSON.stringify(provider)};
+    document.getElementById('profile-label').value = ${JSON.stringify(label)};
+    document.getElementById('profile-key').value = ${JSON.stringify(key)};
+    document.getElementById('profile-save').click();
+  })()`);
   await page.until(
-    `!document.getElementById('test').disabled && !document.getElementById('test-result').hidden && document.getElementById('test-result').textContent !== ${JSON.stringify(before)}`,
-    30000,
+    `document.getElementById('profile-list').textContent.includes(${JSON.stringify(label)})`,
   );
-  return page.evaluate(text('test-result'));
+}
+async function chooseRoute(slot, label, model) {
+  await page.evaluate(`(() => {
+    const select = document.getElementById('route-key-${slot}');
+    select.value = [...select.options].find((o) => o.textContent.startsWith(${JSON.stringify(label)})).value;
+    select.dispatchEvent(new Event('change'));
+    const input = document.getElementById('route-model-${slot}');
+    input.value = ${JSON.stringify(model)};
+    input.dispatchEvent(new Event('input'));
+    document.getElementById('route-save-${slot}').click();
+  })()`);
+  await page.until(
+    `${text(`route-summary-${slot}`)}.includes(${JSON.stringify(model)})`,
+  );
+}
+/** "Check key" of one profile row; returns the profile message. */
+async function checkKey(label) {
+  await page.evaluate(
+    `document.getElementById('profile-message').textContent = ''`,
+  );
+  await page.evaluate(`[...document.querySelectorAll('#profile-list li')]
+    .find((li) => li.textContent.includes(${JSON.stringify(label)}))
+    .querySelector('button').click()`);
+  await page.until(`${text('profile-message')} !== ''`, 30000);
+  return page.evaluate(text('profile-message'));
 }
 // An ignored message wakes an idle worker so its network can be recorded.
 async function wakeWorker(extensionId) {
@@ -190,6 +234,11 @@ const googleRequests = () =>
   evidence.networkRequests.filter((request) =>
     request.url.startsWith('https://generativelanguage.googleapis.com/'),
   );
+const openaiRequests = () =>
+  evidence.networkRequests.filter((request) =>
+    request.url.startsWith('https://api.openai.com/'),
+  );
+const providerRequests = () => [...googleRequests(), ...openaiRequests()];
 
 let exitCode = 0;
 try {
@@ -305,8 +354,12 @@ try {
   await openOptions();
   await wakeWorker(extensionId);
   const manifest = await page.evaluate('chrome.runtime.getManifest()');
-  assert.equal(manifest.version, '5.6.0');
-  assert.equal(manifest.name, 'Correctly V5.6');
+  assert.equal(manifest.version, '5.7.0');
+  assert.equal(manifest.name, 'Correctly V5.7');
+  assert.deepEqual(manifest.host_permissions, [
+    'https://generativelanguage.googleapis.com/*',
+    'https://api.openai.com/*',
+  ]);
   const command = (
     await page.evaluate(
       `chrome.commands.getAll().then((all) => all.map(({ name, shortcut }) => ({ name, shortcut })))`,
@@ -320,85 +373,133 @@ try {
   );
 
   // Step 4.
-  assert.equal(await page.evaluate(text('status-label')), 'Not configured');
+  assert.equal(
+    await page.evaluate(`!document.getElementById('profile-empty').hidden`),
+    true,
+  );
+  assert.match(
+    await page.evaluate(text('route-summary-default')),
+    /No default route/,
+  );
   assert.equal(
     await page.evaluate(`document.getElementById('daily-limit').value`),
     '20',
   );
   assert.equal(await page.evaluate(text('usage-attempted')), '0 of 20');
-  step('M4', 'PASS', 'settings open: Not configured, daily cap 20');
+  step('M4', 'PASS', 'settings open: no key, no route, daily cap 20');
 
-  // Step 6: no key → blocked before any network access.
-  const noKey = await clickTest();
-  assert.match(noKey, /No Gemini API key is saved/);
-  assert.equal(googleRequests().length, 0);
-  step('M6', 'PASS', 'Test without key refused locally, zero network requests');
-
-  // Step 5: dummy key save → reopen → masked "Configured".
-  await page.evaluate(`(() => {
-    const input = document.getElementById('api-key');
-    input.value = ${JSON.stringify(DUMMY_KEY)};
-    document.getElementById('save-key').click();
-  })()`);
-  await page.until(`${text('status-label')} === 'Configured'`);
-  await openOptions();
-  assert.equal(await page.evaluate(text('status-label')), 'Configured');
-  assert.equal(
-    await page.evaluate(`document.getElementById('api-key').type`),
-    'password',
-  );
-  assert.equal(
-    await page.evaluate(`document.getElementById('api-key').value`),
-    '',
-  );
+  // Step 6 / Scenario A: no route → blocked before any network access.
   assert.equal(
     await page.evaluate(
-      `document.documentElement.outerHTML.includes(${JSON.stringify(DUMMY_KEY)})`,
+      `document.getElementById('route-test-default').disabled`,
     ),
-    false,
+    true,
   );
+  const noKey = await sendTest();
+  assert.equal(noKey.code, 'NOT_CONFIGURED');
+  assert.equal(providerRequests().length, 0);
+  step(
+    'M6',
+    'PASS',
+    'no route: Test disabled and refused by the worker, zero network',
+  );
+
+  // Step 5 / Scenarios B–C: two dummy keys, reopen, masked; no request.
+  await addKey('gemini', 'Gemini Test', DUMMY_KEY);
+  await addKey('openai', 'OpenAI Test', DUMMY_OPENAI_KEY);
+  await openOptions();
+  const listed = await page.evaluate(text('profile-list'));
+  assert.match(listed, /Gemini Test.*Google Gemini/);
+  assert.match(listed, /OpenAI Test.*OpenAI/);
+  assert.equal(
+    await page.evaluate(`document.getElementById('profile-key').type`),
+    'password',
+  );
+  for (const key of [DUMMY_KEY, DUMMY_OPENAI_KEY])
+    assert.equal(
+      await page.evaluate(
+        `document.documentElement.outerHTML.includes(${JSON.stringify(key)})`,
+      ),
+      false,
+    );
+  assert.equal(providerRequests().length, 0);
   step(
     'M5a',
     'PASS',
-    'dummy key saved; after reopen shows Configured, key not in DOM',
+    'two dummy keys (Gemini, OpenAI) saved; after reopen listed, keys not in DOM, zero network',
+  );
+
+  // Scenario D: split routes persist; saving routes sends nothing.
+  await chooseRoute('default', 'Gemini Test', 'gemini-3.1-flash-lite');
+  await chooseRoute('correction', 'OpenAI Test', 'gpt-5-nano');
+  await openOptions();
+  assert.match(
+    await page.evaluate(text('route-summary-correction')),
+    /^Correction → OpenAI Test \(OpenAI\) • gpt-5-nano$/,
+  );
+  assert.match(
+    await page.evaluate(text('route-summary-rewrite')),
+    /Gemini Test .* \(default\)$/,
+  );
+  assert.equal(providerRequests().length, 0);
+  step(
+    'M5c',
+    'PASS',
+    'routes saved and persisted (Correction → OpenAI, Rewrite → default Gemini), zero network',
   );
 
   if (!offline) {
-    const result = await clickTest();
-    const requests = googleRequests();
-    assert.equal(requests.length, 1, 'exactly one request to Google expected');
-    const [request] = requests;
-    assert.equal(
-      request.source,
-      'service-worker',
-      'request must come from the worker',
-    );
+    // Free key checks: one GET per provider, key in a header only.
+    const geminiCheck = await checkKey('Gemini Test');
+    const openaiCheck = await checkKey('OpenAI Test');
+    const [listGoogle] = googleRequests();
+    const [listOpenAi] = openaiRequests();
+    assert.equal(googleRequests().length, 1);
+    assert.equal(openaiRequests().length, 1);
     assert.match(
-      request.url,
+      listGoogle.url,
+      /^https:\/\/generativelanguage\.googleapis\.com\/v1beta\/models\?pageSize=1000$/,
+    );
+    assert.equal(listOpenAi.url, 'https://api.openai.com/v1/models');
+    for (const request of [listGoogle, listOpenAi]) {
+      assert.equal(request.source, 'service-worker');
+      assert.equal(request.method, 'GET');
+      assert(!request.url.includes('SENTINEL'), 'key must not be in the URL');
+    }
+    assert(
+      listGoogle.headerNames.some((n) => n.toLowerCase() === 'x-goog-api-key'),
+    );
+    assert(
+      listOpenAi.headerNames.some((n) => n.toLowerCase() === 'authorization'),
+    );
+    assert.equal(await page.evaluate(text('usage-attempted')), '0 of 20');
+    step(
+      'M5d',
+      'PASS',
+      `key checks: one GET each, not counted; UI: ${geminiCheck} | ${openaiCheck}`,
+    );
+
+    const result = await clickTest('default');
+    const posts = googleRequests().filter((r) => r.method === 'POST');
+    assert.equal(posts.length, 1, 'exactly one test prompt expected');
+    assert.equal(posts[0].source, 'service-worker');
+    assert.match(
+      posts[0].url,
       /^https:\/\/generativelanguage\.googleapis\.com\/v1beta\/models\/gemini-3\.1-flash-lite:generateContent$/,
     );
-    assert(!request.url.includes(DUMMY_KEY), 'key must not be in the URL');
-    assert(
-      request.headerNames.some(
-        (name) => name.toLowerCase() === 'x-goog-api-key',
-      ),
-    );
-    assert.match(result, /Invalid key|Offline|network/i);
-    assert.equal(
-      await page.evaluate(text('status-label')),
-      'Connection failed',
-    );
+    assert.equal(openaiRequests().length, 1, 'no switch to OpenAI on failure');
+    assert.match(result, /rejected this API key|Offline|network/i);
     assert.equal(await page.evaluate(text('usage-attempted')), '1 of 20');
     step(
       'M5b',
       'PASS',
-      `dummy key → one worker request to Google; UI shows: ${result}`,
+      `dummy key → one worker POST to Google, no fallback; UI shows: ${result}`,
     );
-  } else
-    step('M5b', 'SKIPPED', '--offline: dummy-key request to Google not sent');
+  } else step('M5b', 'SKIPPED', '--offline: dummy-key requests not sent');
 
   // Step 8: cap 1 → blocked; reload → still blocked.
   const used = offline ? 0 : 1;
+  const sentBefore = providerRequests().length;
   await page.evaluate(`(() => {
     document.getElementById('daily-limit').value = '1';
     document.getElementById('save-limit').click();
@@ -407,19 +508,18 @@ try {
   if (offline) {
     step('M8', 'SKIPPED', '--offline: cap test needs one dispatched attempt');
   } else {
-    const blocked = await clickTest();
-    assert.match(blocked, /Daily local limit reached/);
+    assert.match(await clickTest('correction'), /Daily local limit reached/);
     await openOptions();
-    assert.match(await clickTest(), /Daily local limit reached/);
+    assert.match(await clickTest('default'), /Daily local limit reached/);
     assert.equal(
-      googleRequests().length,
-      1,
+      providerRequests().length,
+      sentBefore,
       'blocked tests must not hit the network',
     );
     step(
       'M8',
       'PASS',
-      'cap 1: second test refused locally, also after reload; still 1 request',
+      'cap 1 shared by both providers: OpenAI and Gemini tests refused locally, also after reload',
     );
   }
 
@@ -428,24 +528,27 @@ try {
   await page.call('ServiceWorker.stopAllWorkers');
   await delay(500);
   await openOptions();
-  assert.equal(
-    await page.evaluate(text('status-label')),
-    offline ? 'Configured' : 'Connection failed',
+  assert.match(
+    await page.evaluate(text('route-summary-correction')),
+    /OpenAI Test/,
   );
   assert.equal(
     await page.evaluate(`document.getElementById('daily-limit').value`),
     '1',
   );
   await wakeWorker(extensionId);
-  const afterRestart = await clickTest();
+  // Offline: the worker is only woken; a test would reach the provider.
+  const afterRestart = offline
+    ? { code: 'not sent (--offline)' }
+    : await sendTest('correction');
   if (!offline) {
-    assert.match(afterRestart, /Daily local limit reached/);
-    assert.equal(googleRequests().length, 1);
+    assert.equal(afterRestart.code, 'LOCAL_DAILY_LIMIT');
+    assert.equal(providerRequests().length, sentBefore);
   }
   step(
     'M9',
     'PASS',
-    `worker stopped and woken by message; persisted settings/count respected (${afterRestart})`,
+    `worker stopped and woken by message; keys, routes and count persisted (${afterRestart.code ?? 'ok'})`,
   );
 
   // Step 14: narrow width, keyboard order, screenshots (no key is on screen).
@@ -465,16 +568,16 @@ try {
       format: 'png',
       captureBeyondViewport: true,
     });
-    await mkdir('docs/v5.6/evidence', { recursive: true });
+    await mkdir('docs/v5.7/evidence', { recursive: true });
     await writeFile(
-      `docs/v5.6/evidence/options-${browserName}-${width}.png`,
+      `docs/v5.7/evidence/options-${browserName}-${width}.png`,
       Buffer.from(shot.data, 'base64'),
     );
   }
   await page.call('Emulation.clearDeviceMetricsOverride');
   const focusOrder = [];
   await page.evaluate('document.activeElement?.blur()');
-  for (let i = 0; i < 9; i++) {
+  for (let i = 0; i < 16; i++) {
     await page.call('Input.dispatchKeyEvent', {
       type: 'keyDown',
       key: 'Tab',
@@ -489,13 +592,13 @@ try {
     });
     focusOrder.push(
       await page.evaluate(
-        'document.activeElement.id || document.activeElement.tagName',
+        'document.activeElement.id || document.activeElement.textContent.trim() || document.activeElement.tagName',
       ),
     );
   }
   assert(
-    focusOrder.includes('api-key') && focusOrder.includes('test'),
-    'keyboard reaches key field and Test',
+    focusOrder.includes('profile-key') && focusOrder.includes('Check key'),
+    'keyboard reaches key actions and the key field',
   );
   step(
     'M14',
@@ -503,10 +606,21 @@ try {
     `no horizontal overflow at 360/900px; Tab order: ${focusOrder.join(' → ')}`,
   );
 
-  // Remove key → Not configured.
-  await page.evaluate(`document.getElementById('remove-key').click()`);
-  await page.until(`${text('status-label')} === 'Not configured'`);
-  step('M6b', 'PASS', 'Remove key → Not configured');
+  // Scenario E: delete the default key → routes block, nothing else is used.
+  await page.evaluate(`[...document.querySelectorAll('#profile-list li')]
+    .find((li) => li.textContent.includes('Gemini Test'))
+    .querySelector('button[aria-label^="Delete"]').click()`);
+  await page.until(
+    `${text('route-summary-default')}.startsWith('Needs configuration')`,
+  );
+  const blocked = await sendTest('rewrite');
+  assert.equal(blocked.code, 'ROUTE_BROKEN');
+  assert.equal(providerRequests().length, sentBefore);
+  step(
+    'M6b',
+    'PASS',
+    'deleting the default key blocks inheriting actions (ROUTE_BROKEN); the OpenAI key is not used',
+  );
 
   // Step 11: a regular page gets nothing injected.
   await page.call('Page.navigate', {
@@ -750,21 +864,23 @@ try {
   );
 
   // Step 15: no console output containing the key; only approved hosts.
-  const leaked = evidence.consoleMessages.filter((item) =>
-    item.text.includes(DUMMY_KEY),
+  const leaked = evidence.consoleMessages.filter(
+    (item) =>
+      item.text.includes(DUMMY_KEY) || item.text.includes(DUMMY_OPENAI_KEY),
   );
   assert.equal(leaked.length, 0);
   const external = evidence.networkRequests.filter(
     (request) =>
       !request.url.startsWith('chrome-extension://') &&
       !request.url.startsWith('data:') &&
-      !request.url.startsWith('https://generativelanguage.googleapis.com/'),
+      !request.url.startsWith('https://generativelanguage.googleapis.com/') &&
+      !request.url.startsWith('https://api.openai.com/'),
   );
   assert.deepEqual(external, [], 'unexpected hosts contacted');
   step(
     'M15',
     'PASS',
-    `${evidence.consoleMessages.length} console messages, none with the key; only Google API contacted`,
+    `${evidence.consoleMessages.length} console messages, none with a key; only the Gemini and OpenAI APIs contacted`,
   );
 } catch (error) {
   exitCode = 1;
@@ -784,8 +900,8 @@ try {
   browser?.kill();
   await delay(500);
   await rm(profile, { recursive: true, force: true }).catch(() => {});
-  await mkdir('docs/v5.6/evidence', { recursive: true });
-  const out = `docs/v5.6/evidence/browser-${browserName}.json`;
+  await mkdir('docs/v5.7/evidence', { recursive: true });
+  const out = `docs/v5.7/evidence/browser-${browserName}.json`;
   await writeFile(out, JSON.stringify(evidence, null, 2) + '\n');
   console.log('Evidence written to ' + out);
   process.exit(exitCode);

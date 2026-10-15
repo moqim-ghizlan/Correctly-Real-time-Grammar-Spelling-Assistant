@@ -1,5 +1,6 @@
 // V5.2 single-request correction: one prompt both detects and corrects.
 // Model output is untrusted data; everything here is pure and tested.
+import type { TaskRequest } from './transport';
 
 export const CORRECTION_TIMEOUT_MS = 30_000;
 
@@ -16,24 +17,31 @@ export const SYSTEM_INSTRUCTION = [
 
 const codePoints = (text: string) => [...text].length;
 
+export const CORRECTION_SCHEMA = {
+  type: 'object',
+  additionalProperties: false,
+  required: ['hasErrors', 'correctedText'],
+  properties: {
+    hasErrors: { type: 'boolean' },
+    correctedText: { type: 'string' },
+  },
+};
+
 /**
- * The user's text travels as its own content part, never inside the system
- * instruction. JSON mode is requested; the shape is enforced by parseCorrection.
+ * The user's text travels as its own message, never inside the instructions.
+ * The provider is asked for this exact JSON; parseCorrection enforces it.
  */
-export function correctionBody(text: string, note = ''): string {
-  return JSON.stringify({
-    systemInstruction: {
-      parts: [{ text: [SYSTEM_INSTRUCTION, note].filter(Boolean).join('\n') }],
-    },
-    contents: [{ role: 'user', parts: [{ text }] }],
-    generationConfig: {
-      temperature: 0,
-      responseMimeType: 'application/json',
-      // Room for the echoed text, JSON escaping and minimal thinking; bounds
-      // tokens, it is not a money cap.
-      maxOutputTokens: 512 + 2 * codePoints(text),
-    },
-  });
+export function correctionTask(text: string, note = ''): TaskRequest {
+  return {
+    name: 'correctly_correction',
+    instruction: [SYSTEM_INSTRUCTION, note].filter(Boolean).join('\n'),
+    text,
+    temperature: 0,
+    // Room for the echoed text, JSON escaping and minimal thinking; bounds
+    // tokens, it is not a money cap.
+    maxOutputTokens: 512 + 2 * codePoints(text),
+    schema: CORRECTION_SCHEMA,
+  };
 }
 
 /** Splits edge whitespace so it is kept locally and never "corrected". */

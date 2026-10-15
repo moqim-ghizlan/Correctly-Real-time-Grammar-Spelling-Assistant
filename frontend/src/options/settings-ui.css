@@ -45,6 +45,11 @@
   box-sizing: border-box;
 }
 
+/* `display` rules below (buttons, stacked labels) must not show hidden items. */
+[hidden] {
+  display: none !important;
+}
+
 body {
   margin: 0;
   padding: 24px 16px 48px;
@@ -123,6 +128,23 @@ fieldset.styles {
   padding: 6px 12px 10px;
   border: 1px solid var(--border);
   border-radius: 8px;
+}
+
+fieldset.route {
+  margin: 12px 0 0;
+  padding: 6px 12px 10px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+}
+
+fieldset.route legend {
+  padding: 0 4px;
+  font-weight: 600;
+}
+
+fieldset.route input {
+  width: 100%;
+  box-sizing: border-box;
 }
 
 fieldset.styles legend {
@@ -273,7 +295,7 @@ select {
   min-height: 36px;
 }
 
-#api-key {
+#profile-key {
   flex: 1 1 240px;
   min-width: 0;
   font-family: ui-monospace, 'Cascadia Mono', Consolas, monospace;

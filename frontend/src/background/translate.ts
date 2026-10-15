@@ -10,7 +10,12 @@ import {
   type TranslateTextRequest,
   type TranslationKey,
 } from '../shared/translate';
-import { parseCandidateList, parseJsonObject } from './rewrite';
+import {
+  candidatesSchema,
+  parseCandidateList,
+  parseJsonObject,
+} from './rewrite';
+import type { TaskRequest } from './transport';
 
 const codePoints = (text: string) => [...text].length;
 
@@ -50,31 +55,32 @@ export function translationInstruction(
   ].join('\n');
 }
 
-export function translationBody(
+export function translationTask(
   text: string,
   request: Omit<TranslateTextRequest, 'type' | 'text'>,
   note = '',
-): string {
-  const count = translationKeys(request.styleIds).length;
-  return JSON.stringify({
-    systemInstruction: {
-      parts: [
-        {
-          text: [translationInstruction(request), note]
-            .filter(Boolean)
-            .join('\n'),
-        },
-      ],
+): TaskRequest {
+  const keys = translationKeys(request.styleIds);
+  return {
+    name: 'correctly_translation',
+    instruction: [translationInstruction(request), note]
+      .filter(Boolean)
+      .join('\n'),
+    text,
+    temperature: request.styleIds.length ? 0.7 : 0.2,
+    // Scripts like Arabic can need more tokens than the source: room for
+    // 3× the source per version, plus minimal thinking. Not a money cap.
+    maxOutputTokens: 512 + keys.length * (3 * codePoints(text) + 64),
+    schema: {
+      type: 'object',
+      additionalProperties: false,
+      required: ['status', 'candidates'],
+      properties: {
+        status: { type: 'string', enum: ['translated', 'same_language'] },
+        candidates: candidatesSchema(keys),
+      },
     },
-    contents: [{ role: 'user', parts: [{ text }] }],
-    generationConfig: {
-      temperature: request.styleIds.length ? 0.7 : 0.2,
-      responseMimeType: 'application/json',
-      // Scripts like Arabic can need more tokens than the source: room for
-      // 3× the source per version, plus minimal thinking. Not a money cap.
-      maxOutputTokens: 512 + count * (3 * codePoints(text) + 64),
-    },
-  });
+  };
 }
 
 export type ParsedTranslation =

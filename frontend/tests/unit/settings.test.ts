@@ -1,12 +1,11 @@
 import { describe, expect, it } from 'vitest';
 import { localDate } from '../../src/shared/local-date';
 import { DEFAULT_MODEL_ID, isAllowedModelId } from '../../src/shared/models';
+import { ProviderError, validateKey } from '../../src/shared/providers';
 import {
-  normalizeConnection,
   normalizeSettings,
   normalizeUsage,
   parseDailyLimit,
-  validateApiKey,
 } from '../../src/shared/settings';
 import {
   loadSettings,
@@ -68,17 +67,27 @@ describe('settings defaults and validation', () => {
     ).toBe(true);
   });
 
-  it('S03: empty, blank or malformed keys are rejected', () => {
-    expect(validateApiKey('').ok).toBe(false);
-    expect(validateApiKey('    ').ok).toBe(false);
-    expect(validateApiKey('abc def ghi jkl mno pqr').ok).toBe(false);
-    expect(validateApiKey('short').ok).toBe(false);
-    expect(validateApiKey('x'.repeat(201)).ok).toBe(false);
-    expect(validateApiKey('<script>alert(1)</script>xxxxxxxx').ok).toBe(false);
-    expect(validateApiKey(`  ${FAKE_KEY}  `)).toEqual({
-      ok: true,
-      key: FAKE_KEY,
-    });
+  it('S03/KEY-04/KEY-05: empty, blank or malformed keys are rejected', () => {
+    for (const bad of [
+      '',
+      '    ',
+      'abc def ghi jkl mno pqr',
+      'short',
+      'x'.repeat(301),
+      '<script>alert(1)</script>xxxxxxxx',
+      `${FAKE_KEY}\n${FAKE_KEY}`,
+      `${FAKE_KEY}\u0000`,
+    ])
+      for (const provider of ['gemini', 'openai'] as const)
+        expect(() => validateKey(provider, bad)).toThrow(ProviderError);
+    expect(validateKey('gemini', `  ${FAKE_KEY}  `)).toBe(FAKE_KEY);
+    // Provider mismatch is caught; the message never echoes the key.
+    expect(() => validateKey('openai', 'AIza' + 'q'.repeat(35))).toThrow(
+      /^This looks like a Google key\. Choose Google Gemini as the provider\.$/,
+    );
+    expect(() => validateKey('gemini', 'sk-proj-' + 'q'.repeat(40))).toThrow(
+      /^This looks like an OpenAI key\. Choose OpenAI as the provider\.$/,
+    );
   });
 
   it('S07/S09: corrupt or injected model IDs never survive normalization', () => {
@@ -119,20 +128,41 @@ describe('settings defaults and validation', () => {
     expect(normalizeSettings('garbage').gemini.apiKey).toBe(null);
   });
 
-  it('normalizes corrupt connection records', () => {
-    expect(
-      normalizeConnection({
-        lastCheckOk: 'yes',
-        lastErrorCode: 'HACKED',
-        lastCheckAt: 'not a date',
-        lastSuccessfulModelId: '../x',
-      }),
-    ).toMatchObject({
-      lastCheckOk: null,
-      lastErrorCode: null,
-      lastCheckAt: null,
-      lastSuccessfulModelId: null,
+  it('V5.7: usage keeps only well-formed route keys and pending IDs', () => {
+    const good = 'openai|openai-profile-1|2|gpt-5-nano|correction';
+    const usage = normalizeUsage(
+      {
+        localDate: '2026-10-15',
+        testAttempts: 3,
+        unknown: 1,
+        routes: {
+          [good]: { attempts: 2, completed: 'x', inputTokens: 9 },
+          'gemini|<script>|1|m|correction': { attempts: 1 },
+          'gemini|gemini-profile-1|1|gemini-3.1-flash-lite|steal': {},
+        },
+        pending: { 'op-123456': good, 'op-bad': 'x', '../evil': good },
+      },
+      '2026-10-15',
+    );
+    expect(usage.routes).toEqual({
+      [good]: {
+        attempts: 2,
+        completed: 0,
+        failed: 0,
+        unknown: 0,
+        inputTokens: 9,
+        outputTokens: 0,
+      },
     });
+    expect(usage.pending).toEqual({ 'op-123456': good });
+    expect(usage.unknown).toBe(1);
+    // MIG-03: a V5.6 record (no routes) keeps its counters.
+    expect(
+      normalizeUsage(
+        { localDate: '2026-10-15', testAttempts: 7, completed: 6, failed: 1 },
+        '2026-10-15',
+      ),
+    ).toMatchObject({ testAttempts: 7, completed: 6, failed: 1, routes: {} });
   });
 
   it('saves under a namespaced key and leaves V4 data alone', async () => {
