@@ -2,7 +2,9 @@
 
 Extension personnelle Chrome/Brave, **Manifest V3, TypeScript strict**, qui
 deviendra un assistant d'écriture IA à la demande (Gemini et OpenAI, clés
-personnelles de l'utilisateur). État actuel : **V5.9** = page de paramètres, service worker,
+personnelles de l'utilisateur). État actuel : **V5.10** (audit final, aucune fonctionnalité nouvelle ; rapport
+`docs/v5.10/V5.10_REPORT.md`, décision NO-GO en attente de la checklist
+propriétaire) = page de paramètres, service worker,
 correction, réécriture (7 styles), traduction (6 langues, arabe standard ou
 syrien) à la demande, et raccourcis de texte locaux (`shared/shortcuts.ts`,
 expansion dans `smart.js`, protection IA par marqueurs dans

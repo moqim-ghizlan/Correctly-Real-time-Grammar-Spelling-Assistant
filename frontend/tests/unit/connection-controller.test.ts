@@ -186,7 +186,7 @@ describe('usage limits (V5.8 store)', () => {
       retryable: true,
     });
     expect(await c.testConnection('default')).toMatchObject({
-      code: 'NETWORK_ERROR',
+      code: 'RESPONSE_LOST',
     });
     expect(fetchImpl).toHaveBeenCalledTimes(2);
     // 429 = the provider answered (failed); a network error = billing unknown.

@@ -15,6 +15,7 @@ export type ErrorCode =
   | 'CONSENT_REQUIRED'
   | 'NETWORK_ERROR'
   | 'TIMEOUT'
+  | 'RESPONSE_LOST'
   | 'PROVIDER_ERROR'
   | 'INVALID_RESPONSE'
   | 'RESPONSE_REFUSED'
@@ -96,6 +97,13 @@ const COPY: Record<ErrorCode, { message: string; retryable: boolean }> = {
   TIMEOUT: {
     message:
       'The provider did not answer in time. The request may still count toward provider billing; retry only if you want to make another request.',
+    retryable: true,
+  },
+  // V5.10: the connection failed after the "sent" mark (offline before
+  // sending stays NETWORK_ERROR and is not counted).
+  RESPONSE_LOST: {
+    message:
+      'The connection was lost after the request was sent. The provider may have received it, so it may count toward provider billing; retry only if you want to make another request.',
     retryable: true,
   },
   PROVIDER_ERROR: {

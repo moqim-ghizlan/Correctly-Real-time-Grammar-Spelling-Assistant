@@ -1036,6 +1036,26 @@ describe('V5.8 usage limits', () => {
     }
     expect(fetcher).not.toHaveBeenCalled();
   });
+
+  it('V5.10 SEC-005/006/007: a content script cannot run settings-only actions, read a key, fetch a URL or reset usage', async () => {
+    await limit(1);
+    const stored = area.dump();
+    for (const message of [
+      { type: TEST_CONNECTION, slot: 'default' },
+      { type: TEST_KEY, credentialId: OPENAI_ID },
+      { type: 'correctly.v5.getApiKey' },
+      { type: 'correctly.v5.getSecret', credentialId: OPENAI_ID },
+      { type: 'correctly.v5.fetchUrl', url: 'https://evil.example/' },
+      { type: 'correctly.v5.resetQuota' },
+      { type: 'correctly.v5.writeStorage', key: 'x', value: 1 },
+    ]) {
+      const { handled, reply } = await send(message, contentSender);
+      expect(handled).toBe(false);
+      expect(reply).toBeUndefined();
+    }
+    expect(fetcher).not.toHaveBeenCalled();
+    expect(area.dump()).toBe(stored);
+  });
 });
 
 describe('V5.9 statistics', () => {

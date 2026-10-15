@@ -73,12 +73,14 @@ const SENSITIVE =
   /(?:password|one-time|otp|credit|cc-|card|cvc|cvv|secret|token|verification|security.?code)/iu;
 const CODE_OR_RICH_EDITOR =
   '.monaco-editor, .CodeMirror, .cm-editor, .ace_editor, pre, code, [data-slate-editor], .ProseMirror, .ql-editor, [data-lexical-editor]';
-const isSensitiveField = (el: Element) =>
+const hasSensitiveLabel = (el: Element) =>
   SENSITIVE.test(
     ['autocomplete', 'name', 'id', 'aria-label']
       .map((name) => el.getAttribute(name) ?? '')
       .join(' '),
-  ) || !!el.closest(CODE_OR_RICH_EDITOR);
+  );
+const isSensitiveField = (el: Element) =>
+  hasSensitiveLabel(el) || !!el.closest(CODE_OR_RICH_EDITOR);
 
 /** Only textareas and type=text inputs are ever read or written. */
 const isTextField = (el: Element | null): el is TextField =>
@@ -136,6 +138,8 @@ export function capture(doc: Document): Snapshot | string {
     const editor = (
       anchor instanceof Element ? anchor : anchor?.parentElement
     )?.closest('[contenteditable]:not([contenteditable="false"])');
+    // V5.10: a secret-labelled editor is never read, like such an input.
+    if (editor && hasSensitiveLabel(editor)) return NOTICES.sensitive;
     const text = selection?.toString() ?? '';
     if (
       text.trim() &&

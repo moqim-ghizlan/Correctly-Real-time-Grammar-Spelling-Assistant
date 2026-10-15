@@ -356,10 +356,19 @@ export class ConnectionController {
         task,
       );
     } catch {
-      return { ok: false, code: 'UNKNOWN_ERROR', answered: false };
+      return { ok: false, code: 'RESPONSE_LOST', answered: false };
     } finally {
       this.active = null;
     }
+  }
+
+  /** A failure after the "sent" mark without any answer may still be billed. */
+  private static sentFailure(
+    reply: Extract<Generation, { ok: false }>,
+  ): ErrorCode {
+    return !reply.answered && reply.code === 'NETWORK_ERROR'
+      ? 'RESPONSE_LOST'
+      : reply.code;
   }
 
   /** The attempt stays counted whatever happened; only its outcome is added. */
@@ -394,7 +403,10 @@ export class ConnectionController {
     });
     // Sent and counted: a crossed warning is shown even when it failed.
     if (!reply.ok)
-      return { ...failure(reply.code, reply.httpStatus), ...withNotice(start) };
+      return {
+        ...failure(ConnectionController.sentFailure(reply), reply.httpStatus),
+        ...withNotice(start),
+      };
     if (!sample)
       return { ...failure('INVALID_RESPONSE'), ...withNotice(start) };
     return {
@@ -505,7 +517,10 @@ export class ConnectionController {
     });
     // Sent and counted: a crossed warning is shown even when it failed.
     if (!reply.ok)
-      return { ...failure(reply.code, reply.httpStatus), ...withNotice(start) };
+      return {
+        ...failure(ConnectionController.sentFailure(reply), reply.httpStatus),
+        ...withNotice(start),
+      };
     if (parsed === null)
       return { ...failure('INVALID_RESPONSE'), ...withNotice(start) };
     return {

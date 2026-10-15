@@ -131,6 +131,25 @@ describe('selection and eligibility', () => {
     button(panel, 'Apply').click();
     expect(div.innerHTML).toBe('<b>Il a</b> oublier son dossier.');
   });
+
+  it('V5.10 INV-13: a secret-labelled contenteditable is never read', () => {
+    for (const attributes of [
+      'aria-label="Card number"',
+      'id="security-code"',
+      'name="otp"',
+    ]) {
+      document.body.innerHTML = `<div contenteditable="true" ${attributes}><span>4111 1111</span></div>`;
+      const span = document.querySelector('span')!;
+      const range = document.createRange();
+      range.selectNodeContents(span);
+      document.getSelection()!.removeAllRanges();
+      document.getSelection()!.addRange(range);
+      const panel = startCorrection(document, send);
+      expect(status(panel)).toBe(NOTICES.sensitive);
+      panel.close();
+    }
+    expect(send).not.toHaveBeenCalled();
+  });
 });
 
 describe('preview and Apply', () => {
@@ -178,6 +197,23 @@ describe('preview and Apply', () => {
     );
     button(panel, 'Apply').click();
     expect(el.value).toBe('il a oublier. il a oublié.');
+  });
+
+  it('V5.10 EDT-010/011/023: combining accents and Arabic keep exact bounds; a double Apply writes once', async () => {
+    const value = 'Café « مرحبا، كيفك؟ » café';
+    const { el, panel } = await correctIn(
+      value,
+      'مرحبا، كيفك؟',
+      'مرحباً، كيفك؟',
+    );
+    const inputs = vi.fn();
+    el.addEventListener('input', inputs);
+    const apply = button(panel, 'Apply');
+    apply.click();
+    apply.click();
+    panel.apply();
+    expect(el.value).toBe('Café « مرحباً، كيفك؟ » café');
+    expect(inputs).toHaveBeenCalledTimes(1);
   });
 
   it('E17/E18: emoji and newlines around the range are preserved', async () => {

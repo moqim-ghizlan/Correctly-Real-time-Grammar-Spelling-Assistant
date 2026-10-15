@@ -36,8 +36,8 @@ const offline = Boolean(args.offline);
 const extensionPath = resolve('dist');
 const DUMMY_KEY = 'CORRECTLY_TEST_SENTINEL_KEY_dummy_000000';
 const DUMMY_OPENAI_KEY = 'CORRECTLY_TEST_SENTINEL_KEY_openai_dummy_0';
-const profile = await mkdtemp(join(tmpdir(), 'correctly-v59-'));
-const EVIDENCE = 'docs/v5.9/evidence';
+const profile = await mkdtemp(join(tmpdir(), 'correctly-v510-'));
+const EVIDENCE = 'docs/v5.10/evidence';
 const delay = (ms) => new Promise((done) => setTimeout(done, ms));
 
 const evidence = {
@@ -382,8 +382,8 @@ try {
   await openOptions();
   await wakeWorker(extensionId);
   const manifest = await page.evaluate('chrome.runtime.getManifest()');
-  assert.equal(manifest.version, '5.9.0');
-  assert.equal(manifest.name, 'Correctly V5.9');
+  assert.equal(manifest.version, '5.10.0');
+  assert.equal(manifest.name, 'Correctly V5.10');
   assert.deepEqual(manifest.host_permissions, [
     'https://generativelanguage.googleapis.com/*',
     'https://api.openai.com/*',
