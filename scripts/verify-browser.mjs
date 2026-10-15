@@ -1,4 +1,5 @@
-// Real-browser smoke test for V5.1 (manual checklist steps 3–6, 8, 9, 11, 15).
+// Real-browser smoke test for V5.3 (V5.1 checklist steps 3–6, 8, 9, 11, 15,
+// the V5.2 content script and the V5.3 shortcut/smart button).
 // Loads dist/ unpacked in a throwaway profile, drives the settings page over
 // the Chrome DevTools Protocol and records network/console evidence.
 //
@@ -30,7 +31,7 @@ const browserPath = BROWSERS[browserName] ?? browserName;
 const offline = Boolean(args.offline);
 const extensionPath = resolve('dist');
 const DUMMY_KEY = 'CORRECTLY_TEST_SENTINEL_KEY_dummy_000000';
-const profile = await mkdtemp(join(tmpdir(), 'correctly-v51-'));
+const profile = await mkdtemp(join(tmpdir(), 'correctly-v53-'));
 const delay = (ms) => new Promise((done) => setTimeout(done, ms));
 
 const evidence = {
@@ -303,8 +304,19 @@ try {
   await openOptions();
   await wakeWorker(extensionId);
   const manifest = await page.evaluate('chrome.runtime.getManifest()');
-  assert.equal(manifest.version, '5.1.0');
-  assert.equal(manifest.name, 'Correctly V5.1');
+  assert.equal(manifest.version, '5.3.0');
+  assert.equal(manifest.name, 'Correctly V5.3');
+  const command = (
+    await page.evaluate(
+      `chrome.commands.getAll().then((all) => all.map(({ name, shortcut }) => ({ name, shortcut })))`,
+    )
+  ).find((item) => item.name === 'correct-selection');
+  assert(command, 'correct-selection command must be registered');
+  step(
+    'K05',
+    'PASS',
+    `command registered; shortcut reported: ${command.shortcut || 'none (automated profiles may not assign suggested keys; check chrome://extensions/shortcuts manually)'}`,
+  );
 
   // Step 4.
   assert.equal(await page.evaluate(text('status-label')), 'Not configured');
@@ -452,9 +464,9 @@ try {
       format: 'png',
       captureBeyondViewport: true,
     });
-    await mkdir('docs/v5.1/evidence', { recursive: true });
+    await mkdir('docs/v5.3/evidence', { recursive: true });
     await writeFile(
-      `docs/v5.1/evidence/options-${browserName}-${width}.png`,
+      `docs/v5.3/evidence/options-${browserName}-${width}.png`,
       Buffer.from(shot.data, 'base64'),
     );
   }
@@ -515,6 +527,84 @@ try {
   );
   step('M11', 'PASS', 'regular page: no injected UI, text unchanged');
 
+  // V5.2: the built content script on a real textarea. The toolbar click
+  // cannot be automated over CDP, so the worker reply is stubbed here.
+  const bundle = await readFile(join(extensionPath, 'content.js'), 'utf8');
+  const value = `document.getElementById('t').value`;
+  await page.evaluate(
+    `(() => { const t = document.getElementById('t'); t.value = 'Bonjour. Je suis aller a Lyon. Fin'; t.focus(); t.setSelectionRange(9, 30); })()`,
+  );
+  await page.evaluate(
+    `globalThis.chrome = { runtime: { sendMessage: async (message) => (globalThis.sentMessage = message, { ok: true, hasErrors: true, correctedText: 'Je suis allé à Lyon.', suspicious: false }) } }; ${bundle}; void 0`,
+  );
+  await page.until(`globalThis.correctlyPanel?.busy === false`);
+  assert.deepEqual(await page.evaluate('globalThis.sentMessage'), {
+    type: 'correctly.v5.correctText',
+    text: 'Je suis aller a Lyon.',
+  });
+  assert.equal(
+    await page.evaluate(value),
+    'Bonjour. Je suis aller a Lyon. Fin',
+    'nothing may change before Apply',
+  );
+  assert.equal(
+    await page.evaluate('globalThis.correctlyPanel.host.shadowRoot'),
+    null,
+    'panel shadow root must be closed',
+  );
+  await page.evaluate('globalThis.correctlyPanel.apply()');
+  assert.equal(await page.evaluate(value), 'Bonjour. Je suis allé à Lyon. Fin');
+  await page.evaluate('globalThis.correctlyPanel.undo()');
+  assert.equal(
+    await page.evaluate(value),
+    'Bonjour. Je suis aller a Lyon. Fin',
+  );
+  step(
+    'C01',
+    'PASS',
+    'content.js: exact selection sent, no change before Apply, Apply/Undo exact range, closed panel',
+  );
+
+  // V5.3: the built smart-button script with real layout (worker stubbed).
+  const smartBundle = await readFile(join(extensionPath, 'smart.js'), 'utf8');
+  await page.evaluate(`(() => {
+    globalThis.correctlyPanel?.close();
+    document.activeElement?.blur();
+    globalThis.chrome = { runtime: { id: 'test', onMessage: { addListener() {} },
+      sendMessage: async (message) => (globalThis.sentMessage = message, { ok: true, hasErrors: false }) } };
+  })()`);
+  await page.evaluate(`${smartBundle}; void 0`);
+  const buttons = `document.querySelectorAll('correctly-smart-button').length`;
+  assert.equal(await page.evaluate(buttons), 0, 'no button before focus');
+  await page.evaluate(`document.getElementById('t').focus()`);
+  await page.until(`${buttons} === 1`);
+  const inside = await page.evaluate(`(() => {
+    const b = globalThis.correctlySmartButton.button.getBoundingClientRect();
+    const t = document.getElementById('t').getBoundingClientRect();
+    return b.width > 0 && b.left >= t.left && b.right <= t.right && b.top >= t.top && b.bottom <= t.bottom;
+  })()`);
+  assert(inside, 'button must sit inside the focused field');
+  await page.evaluate(`document.getElementById('c').focus()`);
+  await page.until(`${buttons} === 0`);
+  await page.evaluate(
+    `(() => { const t = document.getElementById('t'); t.focus(); t.setSelectionRange(9, 30); globalThis.sentMessage = null; })()`,
+  );
+  await page.evaluate('globalThis.correctlySmartButton.correct()');
+  await page.until(`globalThis.correctlyPanel?.busy === false`);
+  assert.deepEqual(await page.evaluate('globalThis.sentMessage'), {
+    type: 'correctly.v5.correctText',
+    text: 'Je suis aller a Lyon.',
+  });
+  assert.match(
+    await page.evaluate('globalThis.correctlyPanel.root.textContent'),
+    /No corrections needed/,
+  );
+  step(
+    'C02',
+    'PASS',
+    'smart.js: one button on focus inside the field, hidden on blur, exact selection sent once',
+  );
+
   // Step 15: no console output containing the key; only approved hosts.
   const leaked = evidence.consoleMessages.filter((item) =>
     item.text.includes(DUMMY_KEY),
@@ -550,8 +640,8 @@ try {
   browser?.kill();
   await delay(500);
   await rm(profile, { recursive: true, force: true }).catch(() => {});
-  await mkdir('docs/v5.1/evidence', { recursive: true });
-  const out = `docs/v5.1/evidence/browser-${browserName}.json`;
+  await mkdir('docs/v5.3/evidence', { recursive: true });
+  const out = `docs/v5.3/evidence/browser-${browserName}.json`;
   await writeFile(out, JSON.stringify(evidence, null, 2) + '\n');
   console.log('Evidence written to ' + out);
   process.exit(exitCode);

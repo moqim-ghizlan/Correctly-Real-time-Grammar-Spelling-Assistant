@@ -22,7 +22,31 @@ describe('settings defaults and validation', () => {
       schemaVersion: 1,
       gemini: { apiKey: null, modelId: DEFAULT_MODEL_ID, keyRevision: 0 },
       safety: { dailyTestAttemptLimit: 20 },
+      correction: { consent: false },
+      triggers: { keyboard: true, contextMenu: true, smartButton: false },
     });
+  });
+
+  it('V5.3: shortcut and menu default on, smart button only when stored true', () => {
+    expect(
+      normalizeSettings({ triggers: { keyboard: 'no', smartButton: 1 } })
+        .triggers,
+    ).toEqual({ keyboard: true, contextMenu: true, smartButton: false });
+    expect(
+      normalizeSettings({
+        triggers: { keyboard: false, contextMenu: false, smartButton: true },
+      }).triggers,
+    ).toEqual({ keyboard: false, contextMenu: false, smartButton: true });
+  });
+
+  it('V5.2: correction consent is on only for a stored boolean true', () => {
+    for (const consent of [undefined, 'true', 1, null, {}])
+      expect(
+        normalizeSettings({ correction: { consent } }).correction.consent,
+      ).toBe(false);
+    expect(
+      normalizeSettings({ correction: { consent: true } }).correction.consent,
+    ).toBe(true);
   });
 
   it('S03: empty, blank or malformed keys are rejected', () => {

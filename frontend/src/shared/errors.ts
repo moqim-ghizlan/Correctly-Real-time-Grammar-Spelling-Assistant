@@ -5,6 +5,7 @@ export type ErrorCode =
   | 'MODEL_UNAVAILABLE'
   | 'RATE_LIMITED'
   | 'LOCAL_DAILY_LIMIT'
+  | 'CONSENT_REQUIRED'
   | 'NETWORK_ERROR'
   | 'TIMEOUT'
   | 'PROVIDER_ERROR'
@@ -43,6 +44,11 @@ const COPY: Record<ErrorCode, { message: string; retryable: boolean }> = {
       'Daily local limit reached. Try tomorrow or adjust your safety setting.',
     retryable: false,
   },
+  CONSENT_REQUIRED: {
+    message:
+      'Allow sending selected text to Gemini in the Correctly settings first.',
+    retryable: false,
+  },
   NETWORK_ERROR: {
     message: 'Offline or network error — check your internet connection.',
     retryable: true,
@@ -59,7 +65,7 @@ const COPY: Record<ErrorCode, { message: string; retryable: boolean }> = {
   },
   INVALID_RESPONSE: {
     message:
-      'Gemini answered, but the response contained no usable text. The connection is not confirmed.',
+      'Gemini answered, but the response was not usable. Nothing was confirmed or changed.',
     retryable: true,
   },
   STORAGE_ERROR: {

@@ -118,6 +118,20 @@ label {
   margin: 10px 0 6px;
 }
 
+label.check {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+}
+
+label.check input {
+  min-height: 0;
+  width: 18px;
+  height: 18px;
+  margin: 2px 0 0;
+  accent-color: var(--accent);
+}
+
 .key-row,
 .actions {
   display: flex;

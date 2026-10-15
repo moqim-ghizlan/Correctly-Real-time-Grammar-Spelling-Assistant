@@ -1,4 +1,5 @@
-// Static audit of the built extension (checks B01–B04 of the V5.1 plan).
+// Static audit of the built extension (checks B01–B04 of the V5.1 plan,
+// updated for V5.2's on-click content script and V5.3's triggers).
 // Pure function so tests can run it against synthetic directories.
 import { existsSync, readdirSync, readFileSync, statSync } from 'node:fs';
 import { dirname, extname, join, relative, resolve, sep } from 'node:path';
@@ -6,6 +7,10 @@ import { dirname, extname, join, relative, resolve, sep } from 'node:path';
 export const GEMINI_HOST_PERMISSION =
   'https://generativelanguage.googleapis.com/*';
 export const TEST_KEY_SENTINEL = 'CORRECTLY_TEST_SENTINEL_KEY';
+const PERMISSIONS = ['activeTab', 'contextMenus', 'scripting', 'storage'];
+// Requested at runtime only when the user turns the smart button on.
+const OPTIONAL_HOSTS = ['<all_urls>'];
+const COMMANDS = ['correct-selection'];
 
 const FORBIDDEN_EXTENSIONS = new Set([
   '.exe',
@@ -92,25 +97,32 @@ export function auditDist(distDir) {
 
   // B01 — manifest shape and minimal permissions.
   if (manifest.manifest_version !== 3) fail('manifest_version must be 3');
-  if (manifest.version !== '5.1.0') fail('version must be 5.1.0');
-  if (!String(manifest.name ?? '').includes('V5.1')) fail('name must say V5.1');
-  if (!same(manifest.permissions, ['storage']))
-    fail('permissions must be exactly ["storage"]');
+  if (manifest.version !== '5.3.0') fail('version must be 5.3.0');
+  if (!String(manifest.name ?? '').includes('V5.3')) fail('name must say V5.3');
+  // activeTab + scripting: inject content.js into the clicked tab only.
+  if (!same(manifest.permissions, PERMISSIONS))
+    fail(`permissions must be exactly ${JSON.stringify(PERMISSIONS)}`);
   if (!same(manifest.host_permissions, [GEMINI_HOST_PERMISSION]))
     fail(`host_permissions must be exactly ["${GEMINI_HOST_PERMISSION}"]`);
   for (const key of [
     'content_scripts',
     'optional_permissions',
-    'optional_host_permissions',
     'externally_connectable',
     'web_accessible_resources',
-    'commands',
   ])
     if (key in manifest) fail(`unexpected manifest key: ${key}`); // B04
-  if (manifest.action?.default_popup) fail('no popup is expected in V5.1');
+  if (manifest.action?.default_popup) fail('no popup is expected in V5.3');
+  if (!same(manifest.optional_host_permissions ?? [], OPTIONAL_HOSTS))
+    fail(
+      `optional_host_permissions must be exactly ${JSON.stringify(OPTIONAL_HOSTS)}`,
+    );
+  if (!same(Object.keys(manifest.commands ?? {}), COMMANDS))
+    fail(`commands must be exactly ${JSON.stringify(COMMANDS)}`);
   if (manifest.background?.type !== 'module')
     fail('background.type must be "module"');
   needFile(manifest.background?.service_worker, 'service worker');
+  needFile('content.js', 'content script');
+  needFile('smart.js', 'smart-button script');
   for (const path of Object.values(manifest.icons ?? {}))
     needFile(path, 'icon');
   const csp = String(manifest.content_security_policy?.extension_pages ?? '');

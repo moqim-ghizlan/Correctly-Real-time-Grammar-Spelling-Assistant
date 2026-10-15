@@ -33,6 +33,13 @@ export interface SettingsDeps {
   /** Sends TEST_CONNECTION to the service worker; carries no key. */
   sendTest: () => Promise<unknown>;
   confirm: (question: string) => boolean;
+  /** Actual shortcut assigned by the browser ('' when none). */
+  getShortcut?: () => Promise<string>;
+  openShortcuts?: () => void;
+  /** Requests all-sites access and registers the smart-button script. */
+  enableSmartButton?: () => Promise<boolean>;
+  /** Unregisters it, drops the access and removes open buttons. */
+  disableSmartButton?: () => Promise<void>;
   today?: () => string;
   uiTimeoutMs?: number;
 }
@@ -161,6 +168,7 @@ export class SettingsPage {
   async init(): Promise<void> {
     this.populateModels();
     this.bind();
+    void this.renderShortcut();
     try {
       await this.reload();
       this.setControlsEnabled(true);
@@ -237,6 +245,25 @@ export class SettingsPage {
     this.el<HTMLButtonElement>('test').addEventListener('click', () => {
       void this.testConnection();
     });
+    this.el<HTMLInputElement>('correction-consent').addEventListener(
+      'change',
+      () => {
+        void this.saveConsent();
+      },
+    );
+    for (const id of ['trigger-keyboard', 'trigger-menu'] as const)
+      this.el<HTMLInputElement>(id).addEventListener('change', () => {
+        void this.saveTriggers();
+      });
+    this.el<HTMLInputElement>('trigger-smart').addEventListener(
+      'change',
+      () => {
+        void this.saveSmartButton();
+      },
+    );
+    this.el<HTMLButtonElement>('open-shortcuts').addEventListener('click', () =>
+      this.deps.openShortcuts?.(),
+    );
     this.el<HTMLFormElement>('limit-form').addEventListener(
       'submit',
       (event) => {
@@ -254,6 +281,11 @@ export class SettingsPage {
       'model',
       'daily-limit',
       'save-limit',
+      'correction-consent',
+      'trigger-keyboard',
+      'trigger-menu',
+      'trigger-smart',
+      'open-shortcuts',
     ])
       this.el<HTMLInputElement>(id).disabled = !enabled;
     this.renderButtons(enabled);
@@ -312,6 +344,14 @@ export class SettingsPage {
     )?.note;
     this.el('model-note').textContent =
       `${note ? note + ' ' : ''}Availability and billing depend on your Google project.`;
+    this.el<HTMLInputElement>('correction-consent').checked =
+      settings.correction.consent;
+    this.el<HTMLInputElement>('trigger-keyboard').checked =
+      settings.triggers.keyboard;
+    this.el<HTMLInputElement>('trigger-menu').checked =
+      settings.triggers.contextMenu;
+    this.el<HTMLInputElement>('trigger-smart').checked =
+      settings.triggers.smartButton;
     const limitInput = this.el<HTMLInputElement>('daily-limit');
     if (this.doc.activeElement !== limitInput)
       limitInput.value = String(settings.safety.dailyTestAttemptLimit);
@@ -453,6 +493,84 @@ export class SettingsPage {
       this.message('limit-message', `Daily limit saved: ${limit}.`, 'ok');
     } catch {
       this.message('limit-message', errorMessage('STORAGE_ERROR'), 'error');
+    }
+    this.render();
+  }
+
+  async saveConsent(): Promise<void> {
+    const consent = this.el<HTMLInputElement>('correction-consent').checked;
+    try {
+      await this.update((settings) => ({
+        ...settings,
+        correction: { consent },
+      }));
+      this.message(
+        'consent-message',
+        consent
+          ? 'Correction enabled. Select text on a page, then click the Correctly button.'
+          : 'Correction disabled. No selected text will be sent.',
+        'ok',
+      );
+    } catch {
+      this.message('consent-message', errorMessage('STORAGE_ERROR'), 'error');
+    }
+    this.render();
+  }
+
+  async renderShortcut(): Promise<void> {
+    let shortcut = '';
+    try {
+      shortcut = (await this.deps.getShortcut?.()) ?? '';
+    } catch {
+      // Shown as "not set" below.
+    }
+    this.el('shortcut-label').textContent =
+      shortcut || 'not set (choose one with Change shortcut)';
+  }
+
+  async saveTriggers(): Promise<void> {
+    const keyboard = this.el<HTMLInputElement>('trigger-keyboard').checked;
+    const contextMenu = this.el<HTMLInputElement>('trigger-menu').checked;
+    try {
+      await this.update((settings) => ({
+        ...settings,
+        triggers: { ...settings.triggers, keyboard, contextMenu },
+      }));
+      this.message('triggers-message', 'Entry points saved.', 'ok');
+    } catch {
+      this.message('triggers-message', errorMessage('STORAGE_ERROR'), 'error');
+    }
+    this.render();
+  }
+
+  async saveSmartButton(): Promise<void> {
+    const on = this.el<HTMLInputElement>('trigger-smart').checked;
+    try {
+      // The permission prompt must come first, while the click still counts
+      // as a user gesture.
+      if (on && !(await this.deps.enableSmartButton?.())) {
+        this.message(
+          'triggers-message',
+          'Site access was not granted, so the smart button stays off.',
+          'error',
+        );
+        this.render();
+        return;
+      }
+      if (!on) await this.deps.disableSmartButton?.();
+      await this.update((settings) => ({
+        ...settings,
+        triggers: { ...settings.triggers, smartButton: on },
+      }));
+      this.message(
+        'triggers-message',
+        on
+          ? 'Smart button on. Reload already open pages to see it.'
+          : 'Smart button off. Site access removed.',
+        'ok',
+      );
+    } catch {
+      this.message('triggers-message', errorMessage('STORAGE_ERROR'), 'error');
     }
     this.render();
   }

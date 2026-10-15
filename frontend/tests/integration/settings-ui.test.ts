@@ -239,7 +239,7 @@ describe('connection test', () => {
     fetchImpl.mockResolvedValueOnce(jsonResponse(200, { candidates: [] }));
     await page.testConnection();
     expect(text('status-label')).toBe('Connection failed');
-    expect(text('test-result')).toContain('no usable text');
+    expect(text('test-result')).toContain('not usable');
   });
 
   it('shows Checking... and a busy button while in flight', async () => {
@@ -305,6 +305,87 @@ describe('connection test', () => {
   });
 });
 
+describe('correction consent', () => {
+  it('is off by default, saved on toggle, and never touches the network', async () => {
+    await openPage();
+    const box = $<HTMLInputElement>('correction-consent');
+    expect(box.checked).toBe(false);
+    expect(box.disabled).toBe(false);
+    box.checked = true;
+    box.dispatchEvent(new Event('change'));
+    await vi.waitFor(async () =>
+      expect((await loadSettings(area)).correction.consent).toBe(true),
+    );
+    expect(text('consent-message')).toContain('Correction enabled');
+    await openPage();
+    expect($<HTMLInputElement>('correction-consent').checked).toBe(true);
+    expect(fetchImpl).not.toHaveBeenCalled();
+  });
+});
+
+describe('V5.3 entry points', () => {
+  async function openWith(
+    deps: Partial<ConstructorParameters<typeof SettingsPage>[1]>,
+  ) {
+    document.body.innerHTML = body;
+    const page = new SettingsPage(document, {
+      area,
+      confirm,
+      today: () => TODAY,
+      sendTest: () => Promise.resolve(undefined),
+      ...deps,
+    });
+    await page.init();
+    return page;
+  }
+
+  it('shows the real assigned shortcut, or "not set"', async () => {
+    await openWith({ getShortcut: () => Promise.resolve('Ctrl+Shift+C') });
+    await vi.waitFor(() => expect(text('shortcut-label')).toBe('Ctrl+Shift+C'));
+    await openWith({ getShortcut: () => Promise.resolve('') });
+    await vi.waitFor(() => expect(text('shortcut-label')).toContain('not set'));
+  });
+
+  it('defaults: shortcut and menu on, smart button off; toggles persist', async () => {
+    const openShortcuts = vi.fn();
+    const page = await openWith({ openShortcuts });
+    expect($<HTMLInputElement>('trigger-keyboard').checked).toBe(true);
+    expect($<HTMLInputElement>('trigger-menu').checked).toBe(true);
+    expect($<HTMLInputElement>('trigger-smart').checked).toBe(false);
+    $<HTMLInputElement>('trigger-keyboard').checked = false;
+    await page.saveTriggers();
+    expect((await loadSettings(area)).triggers).toEqual({
+      keyboard: false,
+      contextMenu: true,
+      smartButton: false,
+    });
+    $('open-shortcuts').click();
+    expect(openShortcuts).toHaveBeenCalledTimes(1);
+    expect(fetchImpl).not.toHaveBeenCalled();
+  });
+
+  it('the smart button is saved only when site access is granted', async () => {
+    const enableSmartButton = vi.fn(() => Promise.resolve(false));
+    const disableSmartButton = vi.fn(() => Promise.resolve());
+    const page = await openWith({ enableSmartButton, disableSmartButton });
+    $<HTMLInputElement>('trigger-smart').checked = true;
+    await page.saveSmartButton();
+    expect((await loadSettings(area)).triggers.smartButton).toBe(false);
+    expect($<HTMLInputElement>('trigger-smart').checked).toBe(false);
+    expect(text('triggers-message')).toContain('not granted');
+
+    enableSmartButton.mockResolvedValueOnce(true);
+    $<HTMLInputElement>('trigger-smart').checked = true;
+    await page.saveSmartButton();
+    expect((await loadSettings(area)).triggers.smartButton).toBe(true);
+
+    $<HTMLInputElement>('trigger-smart').checked = false;
+    await page.saveSmartButton();
+    expect(disableSmartButton).toHaveBeenCalledTimes(1);
+    expect((await loadSettings(area)).triggers.smartButton).toBe(false);
+  });
+});
+
 describe('daily limit setting', () => {
   it('S08: rejects invalid values and keeps the previous limit', async () => {
     const page = await openPage();
@@ -332,6 +413,8 @@ describe('pure helpers', () => {
         keyRevision: 2,
       },
       safety: { dailyTestAttemptLimit: 20 },
+      correction: { consent: false },
+      triggers: { keyboard: true, contextMenu: true, smartButton: false },
     };
     const connection = {
       schemaVersion: 1 as const,

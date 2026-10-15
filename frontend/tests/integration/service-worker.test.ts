@@ -1,7 +1,7 @@
-import { afterEach, beforeEach, expect, it, vi } from 'vitest';
-import { TEST_CONNECTION } from '../../src/shared/contracts';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { CORRECT_TEXT, TEST_CONNECTION } from '../../src/shared/contracts';
 import { normalizeSettings } from '../../src/shared/settings';
-import { saveSettings } from '../../src/shared/storage';
+import { saveSettings, STORAGE_KEYS } from '../../src/shared/storage';
 import {
   FakeStorage,
   FAKE_KEY,
@@ -25,15 +25,52 @@ const optionsSender: chrome.runtime.MessageSender = {
 };
 
 let listener: Listener;
-let actionClick: () => void;
+let actionClick: (tab: chrome.tabs.Tab) => void;
 let area: FakeStorage;
 const fetcher = vi.fn<typeof fetch>();
 const openOptionsPage = vi.fn(() => Promise.resolve());
+const executeScript = vi.fn<(injection: unknown) => Promise<unknown[]>>(() =>
+  Promise.resolve([]),
+);
+const menus = {
+  create: vi.fn(),
+  removeAll: vi.fn(() => Promise.resolve()),
+  update: vi.fn(() => Promise.resolve()),
+};
+const registerContentScripts = vi.fn(() => Promise.resolve());
+const unregisterContentScripts = vi.fn(() => Promise.resolve());
+let granted = false;
+let onCommand: (command: string, tab?: chrome.tabs.Tab) => void;
+let onMenuClick: (
+  info: Partial<chrome.contextMenus.OnClickData>,
+  tab?: chrome.tabs.Tab,
+) => void;
+let onInstalled: () => void;
+let onStorageChanged: (changes: object, areaName: string) => void;
+const listen = <T>(set: (callback: T) => void) => ({ addListener: set });
+const contentSender: chrome.runtime.MessageSender = {
+  id: ID,
+  url: 'https://mail.example/compose',
+  frameId: 0,
+  tab: { id: 7 } as chrome.tabs.Tab,
+};
+const configure = (consent: boolean, triggers: object = {}) =>
+  saveSettings(
+    area,
+    normalizeSettings({
+      gemini: { apiKey: FAKE_KEY },
+      correction: { consent },
+      triggers,
+    }),
+  );
+const correctionReply = (hasErrors: boolean, correctedText: string) =>
+  jsonResponse(200, geminiOk(JSON.stringify({ hasErrors, correctedText })));
 const consoleSpies: ReturnType<typeof vi.spyOn>[] = [];
 
 beforeEach(async () => {
   vi.resetModules();
   area = new FakeStorage();
+  granted = false;
   fetcher.mockResolvedValue(jsonResponse(200, geminiOk()));
   vi.stubGlobal('fetch', fetcher);
   vi.stubGlobal('chrome', {
@@ -46,15 +83,37 @@ beforeEach(async () => {
         },
       },
       openOptionsPage,
+      onInstalled: listen((callback: () => void) => (onInstalled = callback)),
+      lastError: undefined,
     },
+    commands: {
+      onCommand: listen((callback: typeof onCommand) => (onCommand = callback)),
+    },
+    contextMenus: {
+      ...menus,
+      onClicked: listen(
+        (callback: typeof onMenuClick) => (onMenuClick = callback),
+      ),
+    },
+    permissions: { contains: () => Promise.resolve(granted) },
     action: {
       onClicked: {
-        addListener: (callback: () => void) => {
+        addListener: (callback: (tab: chrome.tabs.Tab) => void) => {
           actionClick = callback;
         },
       },
     },
-    storage: { local: area },
+    scripting: {
+      executeScript,
+      registerContentScripts,
+      unregisterContentScripts,
+    },
+    storage: {
+      local: area,
+      onChanged: listen(
+        (callback: typeof onStorageChanged) => (onStorageChanged = callback),
+      ),
+    },
   });
   for (const method of ['log', 'info', 'warn', 'error', 'debug'] as const)
     consoleSpies.push(vi.spyOn(console, method));
@@ -133,7 +192,216 @@ it('no fetch happens on worker startup', () => {
   expect(fetcher).not.toHaveBeenCalled();
 });
 
-it('the toolbar button opens the settings page', () => {
-  actionClick();
-  expect(openOptionsPage).toHaveBeenCalledTimes(1);
+describe('toolbar button', () => {
+  it('opens the settings page while no key is saved', async () => {
+    actionClick({ id: 7 } as chrome.tabs.Tab);
+    await vi.waitFor(() => expect(openOptionsPage).toHaveBeenCalledTimes(1));
+    expect(executeScript).not.toHaveBeenCalled();
+  });
+
+  it('opens the settings page until correction consent is given', async () => {
+    await configure(false);
+    actionClick({ id: 7 } as chrome.tabs.Tab);
+    await vi.waitFor(() => expect(openOptionsPage).toHaveBeenCalledTimes(1));
+    expect(executeScript).not.toHaveBeenCalled();
+  });
+
+  it('injects the content script into the clicked tab only, without network', async () => {
+    await configure(true);
+    actionClick({ id: 7 } as chrome.tabs.Tab);
+    await vi.waitFor(() => expect(executeScript).toHaveBeenCalledTimes(1));
+    expect(executeScript).toHaveBeenCalledWith({
+      target: { tabId: 7, frameIds: [0] },
+      files: ['content.js'],
+    });
+    expect(openOptionsPage).not.toHaveBeenCalled();
+    expect(fetcher).not.toHaveBeenCalled();
+  });
+
+  it('falls back to the settings on pages that cannot be scripted', async () => {
+    await configure(true);
+    executeScript.mockRejectedValueOnce(new Error('Cannot access chrome://'));
+    actionClick({ id: 7 } as chrome.tabs.Tab);
+    await vi.waitFor(() => expect(openOptionsPage).toHaveBeenCalledTimes(1));
+  });
+});
+
+describe('CORRECT_TEXT', () => {
+  it('A02: one Gemini call, the text only as a user part, no key in the reply', async () => {
+    await configure(true);
+    fetcher.mockResolvedValueOnce(
+      correctionReply(true, 'Je suis allé à Lyon hier.'),
+    );
+    const { handled, reply } = await send(
+      { type: CORRECT_TEXT, text: ' Je suis aller a Lyon hier.\n' },
+      contentSender,
+    );
+    expect(handled).toBe(true);
+    expect(reply).toEqual({
+      ok: true,
+      hasErrors: true,
+      correctedText: ' Je suis allé à Lyon hier.\n',
+      suspicious: false,
+    });
+    expect(fetcher).toHaveBeenCalledTimes(1);
+    const body = JSON.parse(fetcher.mock.calls[0]![1]!.body as string) as {
+      contents: unknown;
+    };
+    expect(body.contents).toEqual([
+      { role: 'user', parts: [{ text: 'Je suis aller a Lyon hier.' }] },
+    ]);
+    expect(JSON.stringify(reply)).not.toContain(FAKE_KEY);
+    expect(area.dump()).not.toContain('Lyon');
+    for (const spy of consoleSpies) expect(spy).not.toHaveBeenCalled();
+  });
+
+  it('refuses without consent, and from forged senders or shapes, without network', async () => {
+    await configure(false);
+    const { reply } = await send(
+      { type: CORRECT_TEXT, text: 'Bonjour' },
+      contentSender,
+    );
+    expect(reply).toMatchObject({ ok: false, code: 'CONSENT_REQUIRED' });
+    await configure(true);
+    for (const [message, sender] of [
+      [
+        { type: CORRECT_TEXT, text: 'x' },
+        { ...contentSender, id: 'other' },
+      ],
+      [
+        { type: CORRECT_TEXT, text: 'x' },
+        { ...contentSender, frameId: undefined },
+      ],
+      [{ type: CORRECT_TEXT, text: 'x' }, { id: ID }],
+      [{ type: CORRECT_TEXT, text: '   ' }, contentSender],
+      [{ type: CORRECT_TEXT, text: 'é'.repeat(2001) }, contentSender],
+      [{ type: CORRECT_TEXT, text: 'x', model: 'evil' }, contentSender],
+      [{ type: CORRECT_TEXT, text: 42 }, contentSender],
+      [{ type: TEST_CONNECTION }, contentSender],
+    ] as [unknown, chrome.runtime.MessageSender][]) {
+      const { handled } = await send(message, sender);
+      expect(handled).toBe(false);
+    }
+    expect(fetcher).not.toHaveBeenCalled();
+  });
+});
+
+describe('V5.3 keyboard shortcut', () => {
+  it('K01: the command injects into the active tab, like the toolbar', async () => {
+    await configure(true);
+    onCommand('correct-selection', { id: 7 } as chrome.tabs.Tab);
+    await vi.waitFor(() => expect(executeScript).toHaveBeenCalledTimes(1));
+    expect(executeScript).toHaveBeenCalledWith({
+      target: { tabId: 7, frameIds: [0] },
+      files: ['content.js'],
+    });
+    expect(fetcher).not.toHaveBeenCalled();
+  });
+
+  it('K07/K10: unknown commands and a disabled shortcut do nothing', async () => {
+    await configure(true, { keyboard: false });
+    onCommand('correct-selection', { id: 7 } as chrome.tabs.Tab);
+    onCommand('_execute_action', { id: 7 } as chrome.tabs.Tab);
+    await new Promise((resolve) => setTimeout(resolve, 20));
+    expect(executeScript).not.toHaveBeenCalled();
+    expect(openOptionsPage).not.toHaveBeenCalled();
+  });
+
+  it('K09: no tab (browser page) opens the settings', async () => {
+    await configure(true);
+    onCommand('correct-selection', undefined);
+    await vi.waitFor(() => expect(openOptionsPage).toHaveBeenCalledTimes(1));
+  });
+});
+
+describe('V5.3 context menu', () => {
+  it('M07: install/update registers exactly one parent and one item, idempotently', async () => {
+    for (let i = 0; i < 2; i++) onInstalled();
+    await vi.waitFor(() => expect(menus.create).toHaveBeenCalledTimes(4));
+    expect(menus.removeAll).toHaveBeenCalledTimes(2);
+    const ids = menus.create.mock.calls.map(
+      (call) => (call as unknown as [{ id: string }])[0].id,
+    );
+    expect(ids).toEqual([
+      'correctly',
+      'correctly-correct-selection',
+      'correctly',
+      'correctly-correct-selection',
+    ]);
+    expect((menus.create.mock.calls[0] as unknown[])[0]).toMatchObject({
+      contexts: ['editable'],
+      visible: true,
+    });
+  });
+
+  it('M01/M05: a click injects into the frame that was right-clicked', async () => {
+    await configure(true);
+    onMenuClick({ menuItemId: 'correctly-correct-selection', frameId: 4 }, {
+      id: 7,
+    } as chrome.tabs.Tab);
+    await vi.waitFor(() => expect(executeScript).toHaveBeenCalledTimes(1));
+    expect(executeScript).toHaveBeenCalledWith({
+      target: { tabId: 7, frameIds: [4] },
+      files: ['content.js'],
+    });
+  });
+
+  it('M05: an unreachable cross-site frame gets a notice in the top frame, nothing else', async () => {
+    await configure(true);
+    executeScript.mockRejectedValueOnce(new Error('Cannot access frame'));
+    onMenuClick({ menuItemId: 'correctly-correct-selection', frameId: 4 }, {
+      id: 7,
+    } as chrome.tabs.Tab);
+    await vi.waitFor(() => expect(executeScript).toHaveBeenCalledTimes(3));
+    const notice = executeScript.mock.calls[1]![0] as {
+      target: unknown;
+      func: unknown;
+    };
+    expect(notice.target).toEqual({ tabId: 7 });
+    expect(typeof notice.func).toBe('function');
+    expect(executeScript.mock.calls[2]![0]).toEqual({
+      target: { tabId: 7 },
+      files: ['content.js'],
+    });
+    expect(openOptionsPage).not.toHaveBeenCalled();
+  });
+
+  it('M09: a disabled menu or another item does nothing, and the menu is hidden', async () => {
+    await configure(true, { contextMenu: false });
+    onMenuClick({ menuItemId: 'correctly-correct-selection', frameId: 0 }, {
+      id: 7,
+    } as chrome.tabs.Tab);
+    onMenuClick({ menuItemId: 'other', frameId: 0 }, {
+      id: 7,
+    } as chrome.tabs.Tab);
+    onStorageChanged({ [STORAGE_KEYS.settings]: {} }, 'local');
+    await vi.waitFor(() =>
+      expect(menus.update).toHaveBeenCalledWith('correctly', {
+        visible: false,
+      }),
+    );
+    expect(executeScript).not.toHaveBeenCalled();
+  });
+});
+
+describe('V5.3 smart button registration', () => {
+  it('registers smart.js only when enabled AND site access is granted', async () => {
+    await configure(true, { smartButton: true });
+    onStorageChanged({ [STORAGE_KEYS.settings]: {} }, 'local');
+    await vi.waitFor(() => expect(unregisterContentScripts).toHaveBeenCalled());
+    expect(registerContentScripts).not.toHaveBeenCalled();
+    granted = true;
+    onStorageChanged({ [STORAGE_KEYS.settings]: {} }, 'local');
+    await vi.waitFor(() =>
+      expect(registerContentScripts).toHaveBeenCalledWith([
+        {
+          id: 'correctly-smart-button',
+          matches: ['<all_urls>'],
+          js: ['smart.js'],
+          runAt: 'document_idle',
+        },
+      ]),
+    );
+    expect(fetcher).not.toHaveBeenCalled();
+  });
 });

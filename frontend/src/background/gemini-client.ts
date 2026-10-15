@@ -74,26 +74,46 @@ function sanitizeSample(text: string, apiKey: string): string {
     : safe;
 }
 
-/** Success requires a non-empty, non-thought text part in the first candidate. */
-export function parseSuccess(body: unknown, apiKey: string): GeminiResult {
+export interface CandidateText {
+  text: string;
+  finishReason?: string;
+  usage?: TokenUsage;
+}
+
+/** Joined non-thought text of the first candidate, or null when the prompt was blocked or the shape is wrong. */
+export function candidateText(body: unknown): CandidateText | null {
   const data = object(body);
-  if (!data) return { ok: false, code: 'INVALID_RESPONSE' };
-  if (object(data.promptFeedback)?.blockReason)
-    return { ok: false, code: 'INVALID_RESPONSE' };
+  if (!data || object(data.promptFeedback)?.blockReason) return null;
   const candidates = data.candidates;
-  if (!Array.isArray(candidates) || candidates.length === 0)
-    return { ok: false, code: 'INVALID_RESPONSE' };
-  const parts = object(object(candidates[0])?.content)?.parts;
-  if (!Array.isArray(parts)) return { ok: false, code: 'INVALID_RESPONSE' };
+  if (!Array.isArray(candidates) || candidates.length === 0) return null;
+  const candidate = object(candidates[0]);
+  const parts = object(candidate?.content)?.parts;
+  if (!Array.isArray(parts)) return null;
   const text = parts
     .map(object)
     .filter((part) => part && part.thought !== true)
     .map((part) => (typeof part?.text === 'string' ? part.text : ''))
     .join('');
-  const sample = sanitizeSample(text, apiKey);
-  if (!sample) return { ok: false, code: 'INVALID_RESPONSE' };
+  const finishReason =
+    typeof candidate?.finishReason === 'string'
+      ? candidate.finishReason
+      : undefined;
   const usage = parseUsage(data.usageMetadata);
-  return usage ? { ok: true, sample, usage } : { ok: true, sample };
+  return {
+    text,
+    ...(finishReason ? { finishReason } : {}),
+    ...(usage ? { usage } : {}),
+  };
+}
+
+/** Success requires a non-empty, non-thought text part in the first candidate. */
+export function parseSuccess(body: unknown, apiKey: string): GeminiResult {
+  const candidate = candidateText(body);
+  const sample = candidate ? sanitizeSample(candidate.text, apiKey) : '';
+  if (!candidate || !sample) return { ok: false, code: 'INVALID_RESPONSE' };
+  return candidate.usage
+    ? { ok: true, sample, usage: candidate.usage }
+    : { ok: true, sample };
 }
 
 /** Maps an HTTP failure to a code using only status and Google's enum fields. */
@@ -125,16 +145,23 @@ async function readJson(response: Response): Promise<unknown> {
   }
 }
 
+export type GeminiReply =
+  | { ok: true; body: unknown }
+  | { ok: false; code: ErrorCode; httpStatus?: number };
+
 /**
- * Sends the fixed smoke-test prompt once. Never retries: every dispatch may
+ * POSTs one generateContent request. Never retries: every dispatch may
  * consume quota, so retrying is always an explicit user action.
  */
-export async function testGemini({
-  apiKey,
-  modelId,
-  fetchImpl = fetch,
-  timeoutMs = REQUEST_TIMEOUT_MS,
-}: GeminiRequest): Promise<GeminiResult> {
+export async function postGemini(
+  {
+    apiKey,
+    modelId,
+    fetchImpl = fetch,
+    timeoutMs = REQUEST_TIMEOUT_MS,
+  }: GeminiRequest,
+  body: string,
+): Promise<GeminiReply> {
   const url = generateContentUrl(modelId);
   const controller = new AbortController();
   let timedOut = false;
@@ -146,24 +173,32 @@ export async function testGemini({
     const response = await fetchImpl(url, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', 'x-goog-api-key': apiKey },
-      body: smokeTestBody(),
+      body,
       signal: controller.signal,
       credentials: 'omit',
       redirect: 'error',
       cache: 'no-store',
       referrerPolicy: 'no-referrer',
     });
-    const body = await readJson(response);
+    const json = await readJson(response);
     if (!response.ok)
       return {
         ok: false,
-        code: classifyHttpError(response.status, body),
+        code: classifyHttpError(response.status, json),
         httpStatus: response.status,
       };
-    return parseSuccess(body, apiKey);
+    return { ok: true, body: json };
   } catch {
     return { ok: false, code: timedOut ? 'TIMEOUT' : 'NETWORK_ERROR' };
   } finally {
     clearTimeout(timer);
   }
+}
+
+/** Sends the fixed smoke-test prompt once. */
+export async function testGemini(
+  request: GeminiRequest,
+): Promise<GeminiResult> {
+  const reply = await postGemini(request, smokeTestBody());
+  return reply.ok ? parseSuccess(reply.body, request.apiKey) : reply;
 }

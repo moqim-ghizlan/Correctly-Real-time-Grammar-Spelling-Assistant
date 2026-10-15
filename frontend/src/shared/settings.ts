@@ -16,7 +16,13 @@ export interface V51Settings {
     // the key it was made with, without storing any key-derived value.
     keyRevision: number;
   };
+  // Counts every Gemini request (connection tests and corrections).
   safety: { dailyTestAttemptLimit: number };
+  // V5.2: no selected text is ever sent before the user opts in.
+  correction: { consent: boolean };
+  // V5.3 entry points. The smart button needs optional all-sites access, so
+  // it is off until the user enables it (and grants that access).
+  triggers: { keyboard: boolean; contextMenu: boolean; smartButton: boolean };
 }
 
 /** Written only by the service worker (cleared by the options page on key change). */
@@ -46,6 +52,8 @@ export const defaultSettings = (): V51Settings => ({
   schemaVersion: 1,
   gemini: { apiKey: null, modelId: DEFAULT_MODEL_ID, keyRevision: 0 },
   safety: { dailyTestAttemptLimit: DAILY_LIMIT_DEFAULT },
+  correction: { consent: false },
+  triggers: { keyboard: true, contextMenu: true, smartButton: false },
 });
 
 export const emptyConnection = (): ConnectionRecord => ({
@@ -123,7 +131,8 @@ export function parseDailyLimit(value: unknown): number | null {
 export function normalizeSettings(value: unknown): V51Settings {
   const data = record(value),
     gemini = record(data.gemini),
-    safety = record(data.safety);
+    safety = record(data.safety),
+    triggers = record(data.triggers);
   return {
     schemaVersion: 1,
     gemini: {
@@ -137,6 +146,12 @@ export function normalizeSettings(value: unknown): V51Settings {
     safety: {
       dailyTestAttemptLimit:
         parseDailyLimit(safety.dailyTestAttemptLimit) ?? DAILY_LIMIT_DEFAULT,
+    },
+    correction: { consent: record(data.correction).consent === true },
+    triggers: {
+      keyboard: triggers.keyboard !== false,
+      contextMenu: triggers.contextMenu !== false,
+      smartButton: triggers.smartButton === true,
     },
   };
 }

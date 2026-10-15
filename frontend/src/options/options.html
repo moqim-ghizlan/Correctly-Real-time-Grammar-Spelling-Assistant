@@ -3,7 +3,7 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <title>Correctly V5.1 — Settings</title>
+    <title>Correctly V5.2 — Settings</title>
     <link rel="icon" href="/icons/icon-48.png" />
     <link rel="stylesheet" href="./settings-ui.css" />
   </head>
@@ -18,13 +18,13 @@
           height="40"
         />
         <div>
-          <h1>Correctly V5.1</h1>
-          <p class="subtitle">Personal AI connection setup</p>
+          <h1>Correctly V5.2</h1>
+          <p class="subtitle">Personal AI writing assistant</p>
         </div>
       </header>
       <p class="scope">
-        This version only connects Correctly to Gemini. Correction and rewriting
-        arrive in later V5 releases.
+        This version corrects the text you select, on request only. Rewriting,
+        translation and shortcuts arrive in later V5 releases.
       </p>
 
       <section class="card" aria-labelledby="gemini-title">
@@ -108,7 +108,7 @@
         <h2 id="test-title">Connection test</h2>
         <p class="hint" id="test-notice">
           This test sends a short prompt to Gemini and may use quota or incur
-          charges. No text from websites is sent by V5.1.
+          charges. It sends no text from websites.
         </p>
         <button
           id="test"
@@ -123,10 +123,66 @@
         <div id="test-result" class="result" aria-live="polite" hidden></div>
       </section>
 
+      <section class="card" aria-labelledby="correction-title">
+        <h2 id="correction-title">Correction</h2>
+        <label class="check" for="correction-consent">
+          <input id="correction-consent" type="checkbox" disabled />
+          <span
+            >Send the text I select to Google Gemini when I ask Correctly to
+            correct it.</span
+          >
+        </label>
+        <p class="hint">
+          How to use: select text on a web page (up to 2,000 characters), then
+          click the Correctly toolbar button. Only the selection is sent, only
+          on that click. Nothing changes until you click <strong>Apply</strong>,
+          which is available in plain text boxes; elsewhere, copy the
+          suggestion. Password, email, phone, URL, number and search fields are
+          never read. Each correction counts toward the daily limit below and
+          may incur Gemini charges. Suggestions can be wrong: check them.
+        </p>
+        <p id="consent-message" class="message" aria-live="polite"></p>
+      </section>
+
+      <section class="card" aria-labelledby="triggers-title">
+        <h2 id="triggers-title">Correction shortcuts &amp; entry points</h2>
+        <p class="hint">
+          AI is called only after you activate Correctly. Each call may count
+          against your Gemini usage. The toolbar button always works.
+        </p>
+        <label class="check" for="trigger-keyboard">
+          <input id="trigger-keyboard" type="checkbox" disabled />
+          <span
+            >Keyboard shortcut —
+            <strong id="shortcut-label">checking…</strong></span
+          >
+        </label>
+        <p class="hint">
+          Some key combinations are reserved by the browser or other apps.
+          <button id="open-shortcuts" type="button" class="ghost" disabled>
+            Change shortcut
+          </button>
+        </p>
+        <label class="check" for="trigger-menu">
+          <input id="trigger-menu" type="checkbox" disabled />
+          <span>Right-click menu: Correctly → Correct selected text</span>
+        </label>
+        <label class="check" for="trigger-smart">
+          <input id="trigger-smart" type="checkbox" disabled />
+          <span
+            >Smart button next to the text box you are typing in (asks for
+            access to all sites; turning it off removes that access)</span
+          >
+        </label>
+        <p id="triggers-message" class="message" aria-live="polite"></p>
+      </section>
+
       <section class="card" aria-labelledby="limit-title">
         <h2 id="limit-title">Local safety limit</h2>
         <form id="limit-form" novalidate>
-          <label for="daily-limit">Maximum connection tests per day</label>
+          <label for="daily-limit"
+            >Maximum Gemini requests per day (tests and corrections)</label
+          >
           <div class="key-row">
             <input
               id="daily-limit"
@@ -146,7 +202,7 @@
         </form>
         <dl class="usage">
           <div>
-            <dt>Tests attempted today</dt>
+            <dt>Requests today</dt>
             <dd id="usage-attempted">0 of 20</dd>
           </div>
           <div>
@@ -172,10 +228,13 @@
       <section class="card notes" aria-labelledby="notes-title">
         <h2 id="notes-title">Notes</h2>
         <ul>
-          <li>This build does not inspect or change text on websites.</li>
           <li>
-            Future versions add correction, rewriting, translation, shortcuts,
-            more providers and full statistics.
+            Correctly reads a page only when you click its toolbar button, and
+            changes it only when you click Apply.
+          </li>
+          <li>
+            Future versions add rewriting, translation, shortcuts, more
+            providers and full statistics.
           </li>
           <li>
             Prices:
@@ -184,7 +243,7 @@
               target="_blank"
               rel="noopener noreferrer"
               >Gemini pricing</a
-            >. Documentation: <code>docs/v5.1/</code> in the project repository.
+            >. Documentation: <code>docs/v5.2/</code> in the project repository.
           </li>
         </ul>
       </section>

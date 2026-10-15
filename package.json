@@ -1,12 +1,12 @@
 {
   "name": "correctly",
-  "version": "5.1.0",
+  "version": "5.3.0",
   "private": true,
   "type": "module",
   "scripts": {
     "dev": "npm run build && node scripts/dev.mjs",
     "typecheck": "tsc --noEmit -p frontend/tsconfig.json",
-    "build": "npm run typecheck && vite build --config frontend/vite.config.ts && node scripts/verify-build.mjs",
+    "build": "npm run typecheck && vite build --config frontend/vite.config.ts && vite build --config frontend/vite.content.config.ts && vite build --config frontend/vite.content.config.ts --mode smart && node scripts/verify-build.mjs",
     "verify": "node scripts/verify-build.mjs",
     "package": "npm run build && node scripts/package.mjs",
     "test": "vitest run --config frontend/vitest.config.ts",

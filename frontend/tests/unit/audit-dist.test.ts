@@ -1,4 +1,10 @@
-import { mkdirSync, mkdtempSync, readFileSync, writeFileSync } from 'node:fs';
+import {
+  mkdirSync,
+  mkdtempSync,
+  readFileSync,
+  rmSync,
+  writeFileSync,
+} from 'node:fs';
 import { tmpdir } from 'node:os';
 import { dirname, join } from 'node:path';
 import { beforeEach, expect, it } from 'vitest';
@@ -20,6 +26,8 @@ beforeEach(() => {
   dir = mkdtempSync(join(tmpdir(), 'correctly-audit-'));
   writeManifest(manifest);
   put('service-worker.js', 'console;');
+  put('content.js', 'void 0;');
+  put('smart.js', 'void 0;');
   put('icons/icon-16.png', 'png');
   put('icons/icon-48.png', 'png');
   put('icons/icon-128.png', 'png');
@@ -37,7 +45,7 @@ it('B01: the real source manifest passes on a well-formed dist', () => {
 it('B01: extra permissions, broad hosts and missing assets fail', () => {
   writeManifest({
     ...manifest,
-    permissions: ['storage', 'tabs'],
+    permissions: ['activeTab', 'scripting', 'storage', 'tabs'],
     host_permissions: ['<all_urls>'],
     options_page: 'missing.html',
   });
@@ -45,6 +53,22 @@ it('B01: extra permissions, broad hosts and missing assets fail', () => {
   expect(errors.join('\n')).toMatch(/permissions must be exactly/);
   expect(errors.join('\n')).toMatch(/host_permissions/);
   expect(errors.join('\n')).toMatch(/options page missing/);
+});
+
+it('V5.3: optional hosts and commands are allowlisted exactly', () => {
+  writeManifest({
+    ...manifest,
+    optional_host_permissions: ['<all_urls>', 'file:///*'],
+    commands: { 'correct-selection': {}, other: {} },
+  });
+  const text = auditDist(dir).errors.join('\n');
+  expect(text).toMatch(/optional_host_permissions must be exactly/);
+  expect(text).toMatch(/commands must be exactly/);
+});
+
+it('V5.2: the on-click content script must be built', () => {
+  rmSync(join(dir, 'content.js'));
+  expect(auditDist(dir).errors.join('\n')).toMatch(/content script missing/);
 });
 
 it('B04: any content script or page-facing surface fails', () => {

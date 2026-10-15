@@ -1,18 +1,25 @@
 {
   "manifest_version": 3,
-  "name": "Correctly V5.1",
-  "version": "5.1.0",
-  "version_name": "5.1.0",
-  "description": "Personal AI writing assistant (V5.1: Gemini connection setup only).",
+  "name": "Correctly V5.3",
+  "version": "5.3.0",
+  "version_name": "5.3.0",
+  "description": "Personal AI writing assistant (V5.3: correct selected text with Gemini from the toolbar, a shortcut, the right-click menu or a smart button).",
   "minimum_chrome_version": "120",
-  "permissions": ["storage"],
+  "permissions": ["activeTab", "contextMenus", "scripting", "storage"],
+  "optional_host_permissions": ["<all_urls>"],
   "host_permissions": ["https://generativelanguage.googleapis.com/*"],
   "background": {
     "service_worker": "service-worker.js",
     "type": "module"
   },
   "action": {
-    "default_title": "Correctly V5.1 settings"
+    "default_title": "Correct the selected text with Correctly"
+  },
+  "commands": {
+    "correct-selection": {
+      "suggested_key": { "default": "Alt+Shift+C", "mac": "Alt+Shift+C" },
+      "description": "Correct the selected text"
+    }
   },
   "options_page": "src/options/options.html",
   "content_security_policy": {

@@ -1,4 +1,8 @@
-import type { ConnectionResult } from '../shared/contracts';
+import type {
+  ConnectionResult,
+  CorrectionResult,
+  FailureResult,
+} from '../shared/contracts';
 import {
   CorrectlyError,
   errorMessage,
@@ -12,7 +16,19 @@ import {
   saveConnection,
   type StorageArea,
 } from '../shared/storage';
-import { testGemini, type GeminiResult } from './gemini-client';
+import {
+  CORRECTION_TIMEOUT_MS,
+  correctionBody,
+  parseCorrection,
+  splitEdges,
+} from './correction';
+import {
+  candidateText,
+  postGemini,
+  testGemini,
+  type GeminiReply,
+  type GeminiResult,
+} from './gemini-client';
 import { UsageGuard } from './usage-guard';
 
 export interface ControllerDeps {
@@ -24,7 +40,7 @@ export interface ControllerDeps {
   isOnline?: () => boolean;
 }
 
-const failure = (code: ErrorCode, httpStatus?: number): ConnectionResult => ({
+const failure = (code: ErrorCode, httpStatus?: number): FailureResult => ({
   ok: false,
   code,
   message: errorMessage(code),
@@ -32,9 +48,18 @@ const failure = (code: ErrorCode, httpStatus?: number): ConnectionResult => ({
   ...(httpStatus === undefined ? {} : { httpStatus }),
 });
 
+type Ready = {
+  ok: true;
+  apiKey: string;
+  modelId: string;
+  keyRevision: number;
+  localDate: string;
+};
+
 /**
- * Handles TEST_CONNECTION. Tests run one at a time; each one is reserved in
- * the usage ledger before the network is touched and is never retried.
+ * Handles TEST_CONNECTION and CORRECT_TEXT. Requests run one at a time; each
+ * one is reserved in the usage ledger before the network is touched and is
+ * never retried.
  */
 export class ConnectionController {
   private readonly guard: UsageGuard;
@@ -48,30 +73,49 @@ export class ConnectionController {
     this.isOnline = deps.isOnline ?? (() => navigator.onLine !== false);
   }
 
-  testConnection(): Promise<ConnectionResult> {
-    const run = this.queue.then(
-      () => this.run(),
-      () => this.run(),
-    );
+  private enqueue<T>(task: () => Promise<T>): Promise<T | FailureResult> {
+    const run = this.queue.then(task, task);
     this.queue = run.catch(() => undefined);
     return run.catch((error: unknown) =>
       failure(error instanceof CorrectlyError ? error.code : 'UNKNOWN_ERROR'),
     );
   }
 
-  private async run(): Promise<ConnectionResult> {
-    const { area } = this.deps;
-    const settings = await loadSettings(area);
+  testConnection(): Promise<ConnectionResult> {
+    return this.enqueue(() => this.run());
+  }
+
+  /** One Gemini request that both detects and corrects errors in `text`. */
+  correct(text: string): Promise<CorrectionResult> {
+    return this.enqueue(() => this.runCorrection(text));
+  }
+
+  /** Guards that must not consume an attempt, then the reservation. */
+  private async begin(needsConsent: boolean): Promise<Ready | FailureResult> {
+    const settings = await loadSettings(this.deps.area);
     const { apiKey, modelId, keyRevision } = settings.gemini;
-    // Guards that must not consume an attempt.
     if (!apiKey) return failure('NOT_CONFIGURED');
+    if (needsConsent && !settings.correction.consent)
+      return failure('CONSENT_REQUIRED');
     if (!isAllowedModelId(modelId)) return failure('MODEL_UNAVAILABLE');
     if (!this.isOnline()) return failure('NETWORK_ERROR');
-
     const reservation = await this.guard.reserve(
       settings.safety.dailyTestAttemptLimit,
     );
     if (!reservation.ok) return failure('LOCAL_DAILY_LIMIT');
+    return {
+      ok: true,
+      apiKey,
+      modelId,
+      keyRevision,
+      localDate: reservation.localDate,
+    };
+  }
+
+  private async run(): Promise<ConnectionResult> {
+    const start = await this.begin(false);
+    if (!start.ok) return start;
+    const { apiKey, modelId, keyRevision } = start;
 
     let result: GeminiResult;
     try {
@@ -87,9 +131,7 @@ export class ConnectionController {
     const checkedAt = this.now().toISOString();
     // The attempt is already counted; failing to store the outcome must not
     // hide the real provider result from the user.
-    await this.guard
-      .complete(reservation.localDate, result)
-      .catch(() => undefined);
+    await this.guard.complete(start.localDate, result).catch(() => undefined);
     await this.record(result, modelId, keyRevision, checkedAt).catch(
       () => undefined,
     );
@@ -103,6 +145,51 @@ export class ConnectionController {
       sample: result.sample,
       ...(result.usage ? { usage: result.usage } : {}),
     };
+  }
+
+  private async runCorrection(text: string): Promise<CorrectionResult> {
+    const [lead, core, trail] = splitEdges(text);
+    if (!core) return failure('UNKNOWN_ERROR');
+    const start = await this.begin(true);
+    if (!start.ok) return start;
+
+    let reply: GeminiReply;
+    try {
+      reply = await postGemini(
+        {
+          apiKey: start.apiKey,
+          modelId: start.modelId,
+          fetchImpl: this.deps.fetchImpl,
+          timeoutMs: this.deps.timeoutMs ?? CORRECTION_TIMEOUT_MS,
+        },
+        correctionBody(core),
+      );
+    } catch {
+      reply = { ok: false, code: 'UNKNOWN_ERROR' };
+    }
+    const candidate = reply.ok ? candidateText(reply.body) : null;
+    // A truncated (MAX_TOKENS) or refused (SAFETY…) answer is never parsed.
+    const parsed =
+      candidate && (candidate.finishReason ?? 'STOP') === 'STOP'
+        ? parseCorrection(candidate.text, core)
+        : null;
+    await this.guard
+      .complete(start.localDate, {
+        ok: parsed !== null,
+        usage: candidate?.usage,
+      })
+      .catch(() => undefined);
+
+    if (!reply.ok) return failure(reply.code, reply.httpStatus);
+    if (!parsed) return failure('INVALID_RESPONSE');
+    return parsed.hasErrors
+      ? {
+          ok: true,
+          hasErrors: true,
+          correctedText: lead + parsed.correctedText + trail,
+          suspicious: parsed.suspicious,
+        }
+      : { ok: true, hasErrors: false };
   }
 
   private async record(
