@@ -130,9 +130,23 @@ fieldset.styles legend {
   color: var(--muted);
 }
 
-fieldset.styles label.check {
+fieldset.styles label.stack {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  margin: 6px 0;
+}
+
+label.check {
   margin: 6px 0;
   font-weight: 400;
+}
+
+label.stack {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  margin: 6px 0;
 }
 
 label.check {

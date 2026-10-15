@@ -10,7 +10,11 @@ export const TEST_KEY_SENTINEL = 'CORRECTLY_TEST_SENTINEL_KEY';
 const PERMISSIONS = ['activeTab', 'contextMenus', 'scripting', 'storage'];
 // Requested at runtime only when the user turns the smart button on.
 const OPTIONAL_HOSTS = ['<all_urls>'];
-const COMMANDS = ['correct-selection', 'rewrite-selection'];
+const COMMANDS = [
+  'correct-selection',
+  'rewrite-selection',
+  'translate-selection',
+];
 
 const FORBIDDEN_EXTENSIONS = new Set([
   '.exe',
@@ -97,8 +101,8 @@ export function auditDist(distDir) {
 
   // B01 — manifest shape and minimal permissions.
   if (manifest.manifest_version !== 3) fail('manifest_version must be 3');
-  if (manifest.version !== '5.4.0') fail('version must be 5.4.0');
-  if (!String(manifest.name ?? '').includes('V5.4')) fail('name must say V5.4');
+  if (manifest.version !== '5.5.0') fail('version must be 5.5.0');
+  if (!String(manifest.name ?? '').includes('V5.5')) fail('name must say V5.5');
   // activeTab + scripting: inject content.js into the clicked tab only.
   if (!same(manifest.permissions, PERMISSIONS))
     fail(`permissions must be exactly ${JSON.stringify(PERMISSIONS)}`);
@@ -111,7 +115,7 @@ export function auditDist(distDir) {
     'web_accessible_resources',
   ])
     if (key in manifest) fail(`unexpected manifest key: ${key}`); // B04
-  if (manifest.action?.default_popup) fail('no popup is expected in V5.4');
+  if (manifest.action?.default_popup) fail('no popup is expected in V5.5');
   if (!same(manifest.optional_host_permissions ?? [], OPTIONAL_HOSTS))
     fail(
       `optional_host_permissions must be exactly ${JSON.stringify(OPTIONAL_HOSTS)}`,

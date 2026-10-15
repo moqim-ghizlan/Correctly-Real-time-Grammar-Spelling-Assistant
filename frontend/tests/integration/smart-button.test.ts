@@ -7,6 +7,7 @@ import {
 import {
   CORRECT_TEXT,
   OPEN_REWRITE,
+  OPEN_TRANSLATE,
   SMART_BUTTON_OFF,
 } from '../../src/shared/contracts';
 
@@ -206,5 +207,20 @@ describe('V5.4 rewrite action', () => {
     smart.rewrite();
     expect(sendMessage).toHaveBeenCalledWith({ type: OPEN_REWRITE });
     expect(document.activeElement).toBe(textarea);
+  });
+});
+
+describe('V5.5 translate action', () => {
+  it('asks the worker to open the translation picker; synthetic clicks ignored', () => {
+    const [textarea] = editors(
+      '<textarea></textarea>',
+    ) as HTMLTextAreaElement[];
+    textarea!.value = 'Salut';
+    textarea!.focus();
+    textarea!.select();
+    smart.translateButton.click();
+    expect(sendMessage).not.toHaveBeenCalled();
+    smart.open(OPEN_TRANSLATE);
+    expect(sendMessage).toHaveBeenCalledWith({ type: OPEN_TRANSLATE });
   });
 });

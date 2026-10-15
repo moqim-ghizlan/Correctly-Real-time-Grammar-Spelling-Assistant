@@ -25,6 +25,7 @@ describe('settings defaults and validation', () => {
       correction: { consent: false },
       triggers: { keyboard: true, contextMenu: true, smartButton: false },
       rewrite: { enabled: true, defaultStyles: ['professional'] },
+      translation: { source: 'auto', target: 'en', arabicVariant: 'msa' },
     });
   });
 

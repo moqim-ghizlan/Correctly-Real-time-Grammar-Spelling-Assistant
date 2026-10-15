@@ -3,7 +3,16 @@ import type {
   CorrectionResult,
   FailureResult,
 } from '../shared/contracts';
-import type { RewriteResult, RewriteStyleId } from '../shared/rewrite';
+import type {
+  CandidatesResult,
+  RewriteResult,
+  RewriteStyleId,
+} from '../shared/rewrite';
+import {
+  translationKeys,
+  type TranslateTextRequest,
+  type TranslationKey,
+} from '../shared/translate';
 import {
   CorrectlyError,
   errorMessage,
@@ -31,6 +40,7 @@ import {
   type GeminiResult,
 } from './gemini-client';
 import { REWRITE_TIMEOUT_MS, parseRewrite, rewriteBody } from './rewrite';
+import { parseTranslation, translationBody } from './translate';
 import { UsageGuard } from './usage-guard';
 
 export interface ControllerDeps {
@@ -59,7 +69,7 @@ type Ready = {
 };
 
 /**
- * Handles TEST_CONNECTION, CORRECT_TEXT and REWRITE_TEXT. Requests run one at a time; each
+ * Handles TEST_CONNECTION, CORRECT_TEXT, REWRITE_TEXT and TRANSLATE_TEXT. Requests run one at a time; each
  * one is reserved in the usage ledger before the network is touched and is
  * never retried.
  */
@@ -98,6 +108,13 @@ export class ConnectionController {
     styleIds: readonly RewriteStyleId[],
   ): Promise<RewriteResult> {
     return this.enqueue(() => this.runRewrite(text, styleIds));
+  }
+
+  /** One Gemini request: detection, translation and any styles together. */
+  translate(
+    request: TranslateTextRequest,
+  ): Promise<CandidatesResult<TranslationKey>> {
+    return this.enqueue(() => this.runTranslate(request));
   }
 
   /** Guards that must not consume an attempt, then the reservation. */
@@ -270,5 +287,31 @@ export class ConnectionController {
         ? { lastSuccessfulCheckAt: checkedAt, lastSuccessfulModelId: modelId }
         : {}),
     });
+  }
+
+  private async runTranslate({
+    text,
+    ...options
+  }: TranslateTextRequest): Promise<CandidatesResult<TranslationKey>> {
+    const [lead, core, trail] = splitEdges(text);
+    const keys = translationKeys(options.styleIds);
+    const result = await this.generate(
+      core,
+      translationBody(core, options),
+      REWRITE_TIMEOUT_MS,
+      (raw) => parseTranslation(raw, core, keys),
+    );
+    if (!result.ok) return result;
+    const { parsed } = result;
+    if (parsed.sameLanguage)
+      return { ok: true, candidates: [], missing: [], sameLanguage: true };
+    return {
+      ok: true,
+      candidates: parsed.candidates.map((candidate) => ({
+        ...candidate,
+        text: lead + candidate.text + trail,
+      })),
+      missing: parsed.missing,
+    };
   }
 }

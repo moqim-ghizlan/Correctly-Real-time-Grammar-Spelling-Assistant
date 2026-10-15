@@ -9,6 +9,11 @@ import { localDate } from '../shared/local-date';
 import { GEMINI_MODELS, isAllowedModelId, modelLabel } from '../shared/models';
 import { REWRITE_STYLES, normalizeStyleIds } from '../shared/rewrite';
 import {
+  ARABIC_VARIANTS,
+  LANGUAGES,
+  normalizeTranslation,
+} from '../shared/translate';
+import {
   emptyConnection,
   emptyUsage,
   parseDailyLimit,
@@ -169,6 +174,7 @@ export class SettingsPage {
   async init(): Promise<void> {
     this.populateModels();
     this.populateStyles();
+    this.populateLanguages();
     this.bind();
     void this.renderShortcut();
     try {
@@ -241,6 +247,31 @@ export class SettingsPage {
     }
   }
 
+  private populateLanguages() {
+    const fill = (
+      id: string,
+      options: readonly { id: string; label: string }[],
+    ) =>
+      this.el<HTMLSelectElement>(id).replaceChildren(
+        ...options.map((item) => {
+          const option = this.doc.createElement('option');
+          option.value = item.id;
+          option.textContent = item.label;
+          return option;
+        }),
+      );
+    const languages = LANGUAGES.map((language) => ({
+      id: language.id,
+      label: `${language.label} — ${language.native}`,
+    }));
+    fill('translation-source', [
+      { id: 'auto', label: 'Auto-detect' },
+      ...languages,
+    ]);
+    fill('translation-target', languages);
+    fill('translation-variant', ARABIC_VARIANTS);
+  }
+
   private get styleBoxes(): HTMLInputElement[] {
     return [
       ...this.doc.querySelectorAll<HTMLInputElement>(
@@ -250,6 +281,14 @@ export class SettingsPage {
   }
 
   private bind() {
+    for (const id of [
+      'translation-source',
+      'translation-target',
+      'translation-variant',
+    ])
+      this.el<HTMLSelectElement>(id).addEventListener('change', () => {
+        void this.saveTranslation();
+      });
     this.el<HTMLInputElement>('rewrite-enabled').addEventListener(
       'change',
       () => {
@@ -324,6 +363,9 @@ export class SettingsPage {
       'trigger-smart',
       'open-shortcuts',
       'rewrite-enabled',
+      'translation-source',
+      'translation-target',
+      'translation-variant',
     ])
       this.el<HTMLInputElement>(id).disabled = !enabled;
     for (const box of this.styleBoxes) box.disabled = !enabled;
@@ -393,6 +435,15 @@ export class SettingsPage {
       settings.triggers.smartButton;
     this.el<HTMLInputElement>('rewrite-enabled').checked =
       settings.rewrite.enabled;
+    this.el<HTMLSelectElement>('translation-source').value =
+      settings.translation.source;
+    this.el<HTMLSelectElement>('translation-target').value =
+      settings.translation.target;
+    this.el<HTMLSelectElement>('translation-variant').value =
+      settings.translation.arabicVariant;
+    // Hidden, not cleared: switching back to Arabic restores the variant.
+    this.el('translation-variant-row').hidden =
+      settings.translation.target !== 'ar';
     for (const box of this.styleBoxes)
       box.checked = settings.rewrite.defaultStyles.some(
         (id) => id === box.value,
@@ -584,6 +635,35 @@ export class SettingsPage {
       this.message('triggers-message', 'Entry points saved.', 'ok');
     } catch {
       this.message('triggers-message', errorMessage('STORAGE_ERROR'), 'error');
+    }
+    this.render();
+  }
+
+  async saveTranslation(): Promise<void> {
+    const value = (id: string) => this.el<HTMLSelectElement>(id).value;
+    const translation = normalizeTranslation({
+      source: value('translation-source'),
+      target: value('translation-target'),
+      arabicVariant: value('translation-variant'),
+    });
+    if (translation.source === translation.target) {
+      this.message(
+        'translation-message',
+        'Source and target are the same. The previous choice is kept.',
+        'error',
+      );
+      this.render();
+      return;
+    }
+    try {
+      await this.update((settings) => ({ ...settings, translation }));
+      this.message('translation-message', 'Translation defaults saved.', 'ok');
+    } catch {
+      this.message(
+        'translation-message',
+        errorMessage('STORAGE_ERROR'),
+        'error',
+      );
     }
     this.render();
   }

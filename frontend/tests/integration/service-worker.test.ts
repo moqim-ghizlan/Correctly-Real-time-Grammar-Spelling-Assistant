@@ -2,8 +2,10 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import {
   CORRECT_TEXT,
   OPEN_REWRITE,
+  OPEN_TRANSLATE,
   REWRITE_TEXT,
   TEST_CONNECTION,
+  TRANSLATE_TEXT,
 } from '../../src/shared/contracts';
 import { normalizeSettings } from '../../src/shared/settings';
 import { saveSettings, STORAGE_KEYS } from '../../src/shared/storage';
@@ -66,7 +68,11 @@ const expectInjected = (frameIds: number[] | undefined, intent: unknown[]) => {
       JSON.stringify(call.target) === JSON.stringify(target) && call.files,
   );
   expect(calls[load]).toEqual({ target, files: ['content.js'] });
-  expect(calls[load + 1]).toMatchObject({ target, args: intent });
+  expect(calls[load + 1]?.target).toEqual(target);
+  // [intent, styles] (and the translation prefs when a test passes them).
+  expect((calls[load + 1]?.args as unknown[]).slice(0, intent.length)).toEqual(
+    intent,
+  );
 };
 const contentSender: chrome.runtime.MessageSender = {
   id: ID,
@@ -331,18 +337,19 @@ describe('V5.3 keyboard shortcut', () => {
 describe('V5.3 context menu', () => {
   it('M07: install/update registers exactly one parent and its items, idempotently', async () => {
     for (let i = 0; i < 2; i++) onInstalled();
-    await vi.waitFor(() => expect(menus.create).toHaveBeenCalledTimes(6));
+    await vi.waitFor(() => expect(menus.create).toHaveBeenCalledTimes(10));
     expect(menus.removeAll).toHaveBeenCalledTimes(2);
     const ids = menus.create.mock.calls.map(
       (call) => (call as unknown as [{ id: string }])[0].id,
     );
     expect(ids).toEqual([
-      'correctly',
-      'correctly-correct-selection',
-      'correctly-rewrite-selection',
-      'correctly',
-      'correctly-correct-selection',
-      'correctly-rewrite-selection',
+      ...[1, 2].flatMap(() => [
+        'correctly',
+        'correctly-correct-selection',
+        'correctly-rewrite-selection',
+        'correctly-translate-selection',
+        'correctly-translate-rewrite-selection',
+      ]),
     ]);
     expect((menus.create.mock.calls[0] as unknown[])[0]).toMatchObject({
       contexts: ['editable'],
@@ -528,6 +535,108 @@ describe('V5.4 rewrite', () => {
     await send({ type: OPEN_REWRITE }, { ...contentSender, id: 'other' });
     await new Promise((resolve) => setTimeout(resolve, 20));
     expect(executeScript).toHaveBeenCalledTimes(2);
+    expect(fetcher).not.toHaveBeenCalled();
+  });
+});
+
+describe('V5.5 translation', () => {
+  const PREFS = { source: 'auto', target: 'ar', arabicVariant: 'syrian' };
+  const configureTranslation = (triggers: object = {}) =>
+    saveSettings(
+      area,
+      normalizeSettings({
+        gemini: { apiKey: FAKE_KEY },
+        correction: { consent: true },
+        rewrite: { defaultStyles: ['friendly'] },
+        translation: PREFS,
+        triggers,
+      }),
+    );
+
+  it('TRANSLATE_TEXT → exactly one Gemini call with the dialect in the instruction', async () => {
+    await configureTranslation();
+    fetcher.mockResolvedValueOnce(
+      jsonResponse(
+        200,
+        geminiOk(
+          JSON.stringify({
+            status: 'translated',
+            candidates: [{ styleId: 'neutral', text: 'مرحبا، كيفك؟' }],
+          }),
+        ),
+      ),
+    );
+    const { handled, reply } = await send(
+      {
+        type: TRANSLATE_TEXT,
+        text: 'Salut, ça va ?',
+        source: 'auto',
+        target: 'ar',
+        variant: 'syrian',
+        styleIds: [],
+      },
+      contentSender,
+    );
+    expect(handled).toBe(true);
+    expect(fetcher).toHaveBeenCalledTimes(1);
+    expect(reply).toMatchObject({
+      ok: true,
+      candidates: [{ styleId: 'neutral', text: 'مرحبا، كيفك؟' }],
+    });
+    const body = JSON.parse(fetcher.mock.calls[0]![1]!.body as string) as {
+      systemInstruction: { parts: { text: string }[] };
+    };
+    expect(body.systemInstruction.parts[0]!.text).toMatch(/Syrian colloquial/);
+    expect(area.dump()).not.toContain('Salut');
+  });
+
+  it('B14/H03: invalid combinations and forged senders never reach the network', async () => {
+    await configureTranslation();
+    const base = {
+      type: TRANSLATE_TEXT,
+      text: 'x',
+      source: 'auto',
+      target: 'ar',
+      variant: 'syrian',
+      styleIds: [],
+    };
+    for (const [message, sender] of [
+      [{ ...base, target: 'auto' }, contentSender],
+      [{ ...base, target: 'fr' }, contentSender],
+      [{ ...base, variant: 'egyptian' }, contentSender],
+      [{ ...base, styleIds: ['evil'] }, contentSender],
+      [{ ...base, tabId: 9 }, contentSender],
+      [base, { ...contentSender, id: 'other' }],
+      [base, optionsSender],
+    ] as [unknown, chrome.runtime.MessageSender][]) {
+      const { handled } = await send(message, sender);
+      expect(handled).toBe(false);
+    }
+    expect(fetcher).not.toHaveBeenCalled();
+  });
+
+  it('F01: menu items, command and smart button open the picker with the saved prefs, no network', async () => {
+    await configureTranslation({ smartButton: true });
+    onMenuClick({ menuItemId: 'correctly-translate-selection', frameId: 0 }, {
+      id: 7,
+    } as chrome.tabs.Tab);
+    await vi.waitFor(() => expect(executeScript).toHaveBeenCalledTimes(2));
+    expectInjected([0], ['translate', ['friendly'], PREFS]);
+    executeScript.mockClear();
+    onMenuClick(
+      { menuItemId: 'correctly-translate-rewrite-selection', frameId: 0 },
+      { id: 7 } as chrome.tabs.Tab,
+    );
+    await vi.waitFor(() => expect(executeScript).toHaveBeenCalledTimes(2));
+    expectInjected([0], ['translateRewrite', ['friendly'], PREFS]);
+    executeScript.mockClear();
+    onCommand('translate-selection', { id: 7 } as chrome.tabs.Tab);
+    await vi.waitFor(() => expect(executeScript).toHaveBeenCalledTimes(2));
+    expectInjected([0], ['translate', ['friendly'], PREFS]);
+    executeScript.mockClear();
+    await send({ type: OPEN_TRANSLATE }, { ...contentSender, frameId: 3 });
+    await vi.waitFor(() => expect(executeScript).toHaveBeenCalledTimes(2));
+    expectInjected([3], ['translate', ['friendly'], PREFS]);
     expect(fetcher).not.toHaveBeenCalled();
   });
 });

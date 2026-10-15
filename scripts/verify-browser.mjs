@@ -1,5 +1,6 @@
 // Real-browser smoke test for V5.3 (V5.1 checklist steps 3–6, 8, 9, 11, 15,
-// the V5.2 content script, the V5.3 shortcut/smart button and V5.4 rewrite).
+// the V5.2 content script, V5.3 shortcut/smart button, V5.4 rewrite and
+// V5.5 translation).
 // Loads dist/ unpacked in a throwaway profile, drives the settings page over
 // the Chrome DevTools Protocol and records network/console evidence.
 //
@@ -31,7 +32,7 @@ const browserPath = BROWSERS[browserName] ?? browserName;
 const offline = Boolean(args.offline);
 const extensionPath = resolve('dist');
 const DUMMY_KEY = 'CORRECTLY_TEST_SENTINEL_KEY_dummy_000000';
-const profile = await mkdtemp(join(tmpdir(), 'correctly-v54-'));
+const profile = await mkdtemp(join(tmpdir(), 'correctly-v55-'));
 const delay = (ms) => new Promise((done) => setTimeout(done, ms));
 
 const evidence = {
@@ -304,8 +305,8 @@ try {
   await openOptions();
   await wakeWorker(extensionId);
   const manifest = await page.evaluate('chrome.runtime.getManifest()');
-  assert.equal(manifest.version, '5.4.0');
-  assert.equal(manifest.name, 'Correctly V5.4');
+  assert.equal(manifest.version, '5.5.0');
+  assert.equal(manifest.name, 'Correctly V5.5');
   const command = (
     await page.evaluate(
       `chrome.commands.getAll().then((all) => all.map(({ name, shortcut }) => ({ name, shortcut })))`,
@@ -464,9 +465,9 @@ try {
       format: 'png',
       captureBeyondViewport: true,
     });
-    await mkdir('docs/v5.4/evidence', { recursive: true });
+    await mkdir('docs/v5.5/evidence', { recursive: true });
     await writeFile(
-      `docs/v5.4/evidence/options-${browserName}-${width}.png`,
+      `docs/v5.5/evidence/options-${browserName}-${width}.png`,
       Buffer.from(shot.data, 'base64'),
     );
   }
@@ -669,6 +670,57 @@ try {
     'rewrite: picker sends nothing, one request for 2 styles, cards in requested order, chosen card applied, undo',
   );
 
+  // V5.5: translation picker with real layout and RTL output (worker stubbed).
+  await page.evaluate(`(() => {
+    globalThis.correctlyPanel?.close();
+    const t = document.getElementById('t');
+    t.value = 'Salut, tu peux me dire quand tu seras libre demain ?';
+    t.focus(); t.setSelectionRange(0, t.value.length);
+    globalThis.sentMessages = [];
+    globalThis.chrome = { runtime: { id: 'test', onMessage: { addListener() {} },
+      sendMessage: async (message) => (globalThis.sentMessages.push(message), { ok: true, missing: [], candidates: [
+        { styleId: 'neutral', text: 'مرحبا، فيك تقلي إمتى رح تكون فاضي بكرا؟', suspicious: false } ] }) } };
+    globalThis.correctlyRun('translate', ['professional'], { source: 'auto', target: 'ar', arabicVariant: 'syrian' });
+  })()`);
+  const tPanel = 'globalThis.correctlyPanel.root';
+  assert.equal(await page.evaluate('globalThis.sentMessages.length'), 0);
+  await page.evaluate(
+    `[...${tPanel}.querySelectorAll('button')].find((b) => b.textContent === 'Translate').click()`,
+  );
+  await page.until(`${tPanel}.querySelectorAll('.card').length === 1`);
+  assert.deepEqual(await page.evaluate('globalThis.sentMessages'), [
+    {
+      type: 'correctly.v5.translateText',
+      text: 'Salut, tu peux me dire quand tu seras libre demain ?',
+      source: 'auto',
+      target: 'ar',
+      variant: 'syrian',
+      styleIds: [],
+    },
+  ]);
+  assert.equal(
+    await page.evaluate(
+      `getComputedStyle(${tPanel}.querySelector('.card .text')).direction`,
+    ),
+    'rtl',
+    'Arabic result must render right-to-left',
+  );
+  await page.evaluate('globalThis.correctlyPanel.apply()');
+  assert.equal(
+    await page.evaluate(value),
+    'مرحبا، فيك تقلي إمتى رح تكون فاضي بكرا؟',
+  );
+  await page.evaluate('globalThis.correctlyPanel.undo()');
+  assert.equal(
+    await page.evaluate(value),
+    'Salut, tu peux me dire quand tu seras libre demain ?',
+  );
+  step(
+    'C04',
+    'PASS',
+    'translate: picker sends nothing, one request (auto → Arabic Syrian), RTL result, exact Apply/Undo',
+  );
+
   // Step 15: no console output containing the key; only approved hosts.
   const leaked = evidence.consoleMessages.filter((item) =>
     item.text.includes(DUMMY_KEY),
@@ -704,8 +756,8 @@ try {
   browser?.kill();
   await delay(500);
   await rm(profile, { recursive: true, force: true }).catch(() => {});
-  await mkdir('docs/v5.4/evidence', { recursive: true });
-  const out = `docs/v5.4/evidence/browser-${browserName}.json`;
+  await mkdir('docs/v5.5/evidence', { recursive: true });
+  const out = `docs/v5.5/evidence/browser-${browserName}.json`;
   await writeFile(out, JSON.stringify(evidence, null, 2) + '\n');
   console.log('Evidence written to ' + out);
   process.exit(exitCode);

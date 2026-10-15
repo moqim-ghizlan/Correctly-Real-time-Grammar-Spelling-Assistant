@@ -2,6 +2,7 @@ import {
   CORRECT_TEXT,
   MAX_CORRECTION_CODE_POINTS,
   REWRITE_TEXT,
+  TRANSLATE_TEXT,
   toCorrectionResult,
   type CorrectionResult,
 } from '../shared/contracts';
@@ -10,9 +11,24 @@ import {
   normalizeStyleIds,
   styleLabel,
   toRewriteResult,
-  type RewriteCandidate,
+  type Candidate,
   type RewriteStyleId,
 } from '../shared/rewrite';
+import {
+  ARABIC_VARIANTS,
+  LANGUAGES,
+  NEUTRAL,
+  isArabicVariant,
+  isLanguageId,
+  normalizeTranslation,
+  targetLabel,
+  translationKeys,
+  type TranslateTextRequest,
+  type TranslationKey,
+  type TranslationPreferences,
+} from '../shared/translate';
+
+export type TranslationChoice = Omit<TranslateTextRequest, 'type' | 'text'>;
 
 // Runs in the page's isolated world, injected on an explicit trigger (toolbar,
 // shortcut, context menu) or loaded with the opt-in smart button. It never
@@ -198,6 +214,9 @@ legend { padding: 0 4px; font-size: 12px; color: var(--muted); }
 .card strong { margin-left: 6px; }
 .card .text { margin-top: 4px; }
 .missing { margin: 8px 0 0; color: var(--muted); }
+.langs { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 8px; }
+.field { display: flex; flex-direction: column; gap: 2px; font-size: 12px; color: var(--muted); }
+select { font: inherit; font-size: 14px; color: var(--text); background: var(--bg); border: 1px solid var(--border); border-radius: 6px; padding: 4px 6px; min-height: 30px; }
 [hidden] { display: none !important; }
 `;
 
@@ -209,8 +228,10 @@ export class CorrectionPanel {
   busy = false;
   private snapshot: Snapshot | null = null;
   private corrected = '';
-  /** 'Correction' or 'Rewrite': only wording differs; Apply/Undo are shared. */
+  /** 'Correction', 'Rewrite' or 'Translation': only wording differs. */
   private noun = 'Correction';
+  private generateReady: () => boolean = () => false;
+  private translationControls: (HTMLSelectElement | HTMLInputElement)[] = [];
   private suspicious = false;
   private composing = false;
   private changed = false;
@@ -506,21 +527,166 @@ export class CorrectionPanel {
     defaults: readonly RewriteStyleId[],
     send: (text: string, styleIds: RewriteStyleId[]) => Promise<unknown>,
   ): void {
+    this.openPicker(snapshot, 'Rewrite', 'Generate rewrites');
+    this.buildStyleBoxes(defaults);
+    this.generateReady = () => this.chosenStyles().length > 0;
+    this.ui.generate.onclick = () => void this.generateRewrites(send);
+    this.refreshGenerate();
+    this.show('Choose one or more styles, then Generate rewrites.', 'info', [
+      'generate',
+    ]);
+    this.ui.styles.querySelector('input')?.focus();
+  }
+
+  async generateRewrites(
+    send: (text: string, styleIds: RewriteStyleId[]) => Promise<unknown>,
+  ): Promise<void> {
+    const styles = this.chosenStyles();
+    if (!styles.length) return;
+    await this.generate('Generating rewrites…', styles, styleLabel, (text) =>
+      send(text, styles),
+    );
+  }
+
+  /**
+   * Opens the translation picker (From, To, Arabic variant, optional styles).
+   * Nothing is sent until Translate.
+   */
+  startTranslate(
+    snapshot: Snapshot,
+    prefs: TranslationPreferences,
+    styles: readonly RewriteStyleId[],
+    withStyles: boolean,
+    send: (request: TranslationChoice) => Promise<unknown>,
+  ): void {
+    this.openPicker(snapshot, 'Translation', 'Translate');
+    this.ui.title.textContent = withStyles
+      ? 'Correctly — Translate & rewrite'
+      : 'Correctly — Translate';
+    const select = (
+      label: string,
+      options: readonly { id: string; label: string }[],
+      value: string,
+    ) => {
+      const wrap = this.make('label', 'field');
+      const node = this.make('select', '');
+      for (const option of options) {
+        const item = this.make('option', '', option.label);
+        item.value = option.id;
+        node.append(item);
+      }
+      node.value = value;
+      wrap.append(this.make('span', '', label), node);
+      return { wrap, node };
+    };
+    const languages = LANGUAGES.map((language) => ({
+      id: language.id,
+      label: `${language.label} — ${language.native}`,
+    }));
+    const from = select(
+      'From',
+      [{ id: 'auto', label: 'Auto-detect' }, ...languages],
+      prefs.source,
+    );
+    const to = select('To', languages, prefs.target);
+    const variant = select(
+      'Arabic variant',
+      ARABIC_VARIANTS,
+      prefs.arabicVariant,
+    );
+    const styled = this.make('label', 'choice');
+    const styledBox = this.make('input', '');
+    styledBox.type = 'checkbox';
+    styledBox.checked = withStyles;
+    styled.append(styledBox, this.make('span', '', 'Also rewrite in a style'));
+    const langs = this.make('div', 'langs');
+    langs.append(from.wrap, to.wrap, variant.wrap);
+    this.ui.styles.before(langs, styled);
+    this.buildStyleBoxes(styles);
+    this.translationControls = [from.node, to.node, variant.node, styledBox];
+
+    const choice = (): TranslationChoice => {
+      const target = isLanguageId(to.node.value) ? to.node.value : 'en';
+      const source =
+        from.node.value === 'auto' || isLanguageId(from.node.value)
+          ? from.node.value
+          : 'auto';
+      return {
+        source,
+        target,
+        variant:
+          target === 'ar' && isArabicVariant(variant.node.value)
+            ? variant.node.value
+            : null,
+        styleIds: styledBox.checked ? this.chosenStyles() : [],
+      };
+    };
+    const sync = () => {
+      variant.wrap.hidden = to.node.value !== 'ar';
+      this.ui.styles.hidden = !styledBox.checked;
+      const { source, target } = choice();
+      // Same languages: no request at all; Rewrite is the right action.
+      this.ui.note.textContent =
+        source === target
+          ? 'Source and target are the same: use Rewrite instead.'
+          : '';
+      this.refreshGenerate();
+    };
+    this.generateReady = () => {
+      const { source, target } = choice();
+      return (
+        source !== target &&
+        (!styledBox.checked || !!this.chosenStyles().length)
+      );
+    };
+    for (const node of this.translationControls)
+      node.addEventListener('change', sync);
+    sync();
+    this.ui.generate.onclick = () => {
+      const request = choice();
+      if (!this.generateReady()) return;
+      const keys = translationKeys(request.styleIds);
+      const target = targetLabel(request.target, request.variant);
+      const label = (key: TranslationKey) =>
+        key === NEUTRAL
+          ? `Translation → ${target}`
+          : `${styleLabel(key)} → ${target}`;
+      void this.generate(
+        `Translating into ${target}…`,
+        keys,
+        label,
+        () => send(request),
+        `The text already seems to be in ${target}. Nothing to translate: use Rewrite to change its style.`,
+      );
+    };
+    this.show(
+      'Choose the languages, then Translate. Selected text is sent to Gemini only when you click Translate.',
+      'info',
+      ['generate'],
+    );
+    to.node.focus();
+  }
+
+  /** Common picker setup: snapshot, wording and the original text. */
+  private openPicker(snapshot: Snapshot, noun: string, action: string) {
     this.snapshot = snapshot;
     this.watch(snapshot.field, true);
-    this.noun = 'Rewrite';
-    this.ui.title.textContent = 'Correctly — Rewrite';
-    this.ui.undo.textContent = 'Undo rewrite';
+    this.noun = noun;
+    this.ui.title.textContent = `Correctly — ${noun}`;
+    this.ui.undo.textContent = `Undo ${noun.toLowerCase()}`;
+    this.ui.generate.textContent = action;
     this.ui.pickerOriginal.textContent = snapshot.text;
+    this.ui.picker.hidden = false;
+  }
+
+  private buildStyleBoxes(defaults: readonly RewriteStyleId[]) {
     for (const style of REWRITE_STYLES) {
       const label = this.make('label', 'choice');
       const box = this.make('input', '');
       box.type = 'checkbox';
       box.value = style.id;
       box.checked = defaults.includes(style.id);
-      box.addEventListener('change', () => {
-        this.ui.generate.disabled = !this.chosenStyles().length;
-      });
+      box.addEventListener('change', () => this.refreshGenerate());
       label.append(
         box,
         this.make('span', '', style.label),
@@ -528,13 +694,10 @@ export class CorrectionPanel {
       );
       this.ui.styles.append(label);
     }
-    this.ui.picker.hidden = false;
-    this.ui.generate.disabled = !this.chosenStyles().length;
-    this.ui.generate.onclick = () => void this.generateRewrites(send);
-    this.show('Choose one or more styles, then Generate rewrites.', 'info', [
-      'generate',
-    ]);
-    this.ui.styles.querySelector('input')?.focus();
+  }
+
+  private refreshGenerate() {
+    this.ui.generate.disabled = this.busy || !this.generateReady();
   }
 
   /** Checked styles, in catalog order. */
@@ -546,46 +709,64 @@ export class CorrectionPanel {
     );
   }
 
-  async generateRewrites(
-    send: (text: string, styleIds: RewriteStyleId[]) => Promise<unknown>,
+  /**
+   * One explicit click → one request. Locks the picker while running, keeps
+   * the text untouched on any error and offers an explicit Try again.
+   */
+  private async generate<K extends string>(
+    loading: string,
+    keys: readonly K[],
+    label: (key: K) => string,
+    call: (text: string) => Promise<unknown>,
+    sameLanguage = '',
   ): Promise<void> {
     const snapshot = this.snapshot;
-    const styles = this.chosenStyles();
     // In-flight guard: a double click never makes a second paid request.
-    if (this.busy || !snapshot || !styles.length) return;
+    if (this.busy || !snapshot) return;
     this.busy = true;
-    const inputs = [...this.ui.styles.querySelectorAll('input')];
-    for (const box of inputs) box.disabled = true;
-    this.show('Generating rewrites…', 'info', ['generate']);
+    const controls = [
+      ...this.ui.styles.querySelectorAll('input'),
+      ...this.translationControls,
+    ];
+    for (const control of controls) control.disabled = true;
+    this.show(loading, 'info', ['generate']);
     this.ui.generate.disabled = true;
     this.ui.close.textContent = 'Cancel';
     let result;
     try {
-      result = toRewriteResult(await send(snapshot.text, styles), styles);
+      result = toRewriteResult(await call(snapshot.text), keys);
     } catch {
-      result = toRewriteResult(undefined, styles);
+      result = toRewriteResult(undefined, keys);
     }
     this.busy = false;
     if (!this.host.isConnected) return;
     if (!result.ok) {
       // Retrying is always an explicit new click.
-      for (const box of inputs) box.disabled = false;
-      this.ui.generate.disabled = false;
+      for (const control of controls) control.disabled = false;
       this.ui.generate.textContent = 'Try again';
+      this.refreshGenerate();
       this.show(`${result.message} Your text was not changed.`, 'error', [
         'generate',
       ]);
       return;
     }
     this.ui.picker.hidden = true;
-    this.renderCards(snapshot, result.candidates, result.missing);
+    if (result.sameLanguage) {
+      this.show(sameLanguage, 'info');
+      this.ui.close.textContent = 'Close';
+      this.ui.close.focus();
+      return;
+    }
+    this.renderCards(snapshot, result.candidates, result.missing, label);
   }
 
-  private renderCards(
+  private renderCards<K extends string>(
     snapshot: Snapshot,
-    candidates: RewriteCandidate[],
-    missing: RewriteStyleId[],
+    candidates: Candidate<K>[],
+    missing: K[],
+    label: (key: K) => string,
   ) {
+    const noun = this.noun.toLowerCase();
     const cards = this.ui.cards;
     cards.replaceChildren(
       this.make('h2', '', 'Original'),
@@ -600,16 +781,13 @@ export class CorrectionPanel {
       const same = candidate.text === snapshot.text;
       radio.disabled = same;
       radio.addEventListener('change', () => this.select(candidate));
-      card.append(
-        radio,
-        this.make('strong', '', styleLabel(candidate.styleId)),
-      );
+      card.append(radio, this.make('strong', '', label(candidate.styleId)));
       card.append(
         same
           ? this.make(
               'p',
               'missing',
-              'No meaningful rewrite was generated for this style.',
+              `No meaningful ${noun} was generated for this style.`,
             )
           : Object.assign(this.make('p', 'text', candidate.text), {
               dir: 'auto',
@@ -627,17 +805,17 @@ export class CorrectionPanel {
         this.make(
           'p',
           'missing',
-          `No rewrite was returned for: ${missing.map(styleLabel).join(', ')}.`,
+          `No ${noun} was returned for: ${missing.map(label).join(', ')}.`,
         ),
       );
     cards.hidden = false;
     this.ui.close.textContent = 'Close';
     if (!first) {
-      this.show('No meaningful rewrite was generated.', 'info');
+      this.show(`No meaningful ${noun} was generated.`, 'info');
       this.ui.close.focus();
       return;
     }
-    this.show('Choose a rewrite, then Apply or Copy.', 'info', [
+    this.show(`Choose a ${noun}, then Apply or Copy.`, 'info', [
       'apply',
       'copy',
     ]);
@@ -646,7 +824,7 @@ export class CorrectionPanel {
   }
 
   /** Choosing a card only changes what Apply/Copy use; it never edits the page. */
-  private select(candidate: RewriteCandidate) {
+  private select(candidate: Candidate<string>) {
     this.corrected = candidate.text;
     this.suspicious = candidate.suspicious;
     this.refresh();
@@ -688,13 +866,20 @@ export function startCorrection(
   return panel;
 }
 
-export type Intent = 'correct' | 'rewrite' | 'unreachable' | 'rewriteOff';
+export type Intent =
+  | 'correct'
+  | 'rewrite'
+  | 'translate'
+  | 'translateRewrite'
+  | 'unreachable'
+  | 'rewriteOff';
 
 /** The single entry point shared by every trigger in this frame. */
 export function runInPage(
   doc: Document,
   intent: Intent,
   styles: readonly string[] = [],
+  translation?: unknown,
 ): void {
   // The isolated world keeps this global across injections and bundles, so an
   // in-flight request and the open panel are shared by all triggers.
@@ -709,15 +894,28 @@ export function runInPage(
       ? NOTICES[intent]
       : capture(doc);
   if (typeof snapshot === 'string') return panel.notice(snapshot);
-  if (intent === 'rewrite') {
-    const defaults = normalizeStyleIds(styles);
-    panel.startRewrite(
-      snapshot,
-      defaults.length ? defaults : ['professional'],
-      (text, styleIds) =>
-        chrome.runtime.sendMessage({ type: REWRITE_TEXT, text, styleIds }),
+  const normalized = normalizeStyleIds(styles);
+  const defaults: RewriteStyleId[] = normalized.length
+    ? normalized
+    : ['professional'];
+  if (intent === 'rewrite')
+    panel.startRewrite(snapshot, defaults, (text, styleIds) =>
+      chrome.runtime.sendMessage({ type: REWRITE_TEXT, text, styleIds }),
     );
-  } else
+  else if (intent === 'translate' || intent === 'translateRewrite')
+    panel.startTranslate(
+      snapshot,
+      normalizeTranslation(translation),
+      defaults,
+      intent === 'translateRewrite',
+      (choice) =>
+        chrome.runtime.sendMessage({
+          type: TRANSLATE_TEXT,
+          text: snapshot.text,
+          ...choice,
+        }),
+    );
+  else
     void panel.run(snapshot, (text) =>
       chrome.runtime.sendMessage({ type: CORRECT_TEXT, text }),
     );

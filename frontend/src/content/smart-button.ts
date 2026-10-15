@@ -1,7 +1,11 @@
-import { OPEN_REWRITE, SMART_BUTTON_OFF } from '../shared/contracts';
+import {
+  OPEN_REWRITE,
+  OPEN_TRANSLATE,
+  SMART_BUTTON_OFF,
+} from '../shared/contracts';
 import { deepActiveElement, isEligibleField, runInPage } from './correction';
 
-// Opt-in smart button: two small actions (Correct, Rewrite) next to the
+// Opt-in smart button: three small actions (Correct, Rewrite, Translate) next to the
 // focused plain text field. Showing them never sends anything; only an
 // activation does, through the same paths as the other triggers.
 
@@ -30,6 +34,7 @@ export class SmartButton {
   /** Inside a closed shadow root; exposed for tests only. */
   readonly button: HTMLButtonElement;
   readonly rewriteButton: HTMLButtonElement;
+  readonly translateButton: HTMLButtonElement;
   private field: TextField | null = null;
   private frame = 0;
 
@@ -59,9 +64,14 @@ export class SmartButton {
     this.rewriteButton = button(
       '✎',
       'Rewrite the selected text (Correctly)',
-      () => this.rewrite(),
+      () => this.open(OPEN_REWRITE),
     );
-    root.append(style, this.rewriteButton, this.button);
+    this.translateButton = button(
+      '⇄',
+      'Translate the selected text (Correctly)',
+      () => this.open(OPEN_TRANSLATE),
+    );
+    root.append(style, this.translateButton, this.rewriteButton, this.button);
     doc.addEventListener('focusin', this.onFocus, true);
     doc.addEventListener('focusout', this.onBlur, true);
     doc.defaultView?.addEventListener('scroll', this.schedule, true);
@@ -98,13 +108,15 @@ export class SmartButton {
     runInPage(this.doc, 'correct');
   }
 
-  /** The worker opens the picker here with the saved default styles. */
-  rewrite(): void {
+  /** The worker opens the picker here with the saved defaults. */
+  open(type: typeof OPEN_REWRITE | typeof OPEN_TRANSLATE): void {
     if (!this.field?.isConnected) return;
     this.field.focus({ preventScroll: true });
-    void chrome.runtime
-      .sendMessage({ type: OPEN_REWRITE })
-      .catch(() => undefined);
+    void chrome.runtime.sendMessage({ type }).catch(() => undefined);
+  }
+
+  rewrite(): void {
+    this.open(OPEN_REWRITE);
   }
 
   private place() {
@@ -126,6 +138,8 @@ export class SmartButton {
       this.rewriteButton.style.top = `${Math.max(4, top)}px`;
     this.button.style.left = `${Math.max(SIZE + 8, left)}px`;
     this.rewriteButton.style.left = `${Math.max(4, left - SIZE - 4)}px`;
+    this.translateButton.style.top = this.button.style.top;
+    this.translateButton.style.left = `${Math.max(4, left - 2 * (SIZE + 4))}px`;
     if (!this.host.isConnected) this.doc.documentElement.append(this.host);
   }
 

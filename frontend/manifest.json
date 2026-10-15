@@ -1,9 +1,9 @@
 {
   "manifest_version": 3,
-  "name": "Correctly V5.4",
-  "version": "5.4.0",
-  "version_name": "5.4.0",
-  "description": "Personal AI writing assistant (V5.4: correct or rewrite selected text with Gemini).",
+  "name": "Correctly V5.5",
+  "version": "5.5.0",
+  "version_name": "5.5.0",
+  "description": "Personal AI writing assistant (V5.5: correct, rewrite or translate selected text with Gemini).",
   "minimum_chrome_version": "120",
   "permissions": ["activeTab", "contextMenus", "scripting", "storage"],
   "optional_host_permissions": ["<all_urls>"],
@@ -22,6 +22,9 @@
     },
     "rewrite-selection": {
       "description": "Rewrite the selected text (choose styles)"
+    },
+    "translate-selection": {
+      "description": "Translate the selected text (choose languages)"
     }
   },
   "options_page": "src/options/options.html",

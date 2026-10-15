@@ -2,7 +2,7 @@
 // requested style. Model output is untrusted data; everything here is pure.
 import {
   REWRITE_STYLES,
-  type RewriteCandidate,
+  type Candidate,
   type RewriteStyleId,
 } from '../shared/rewrite';
 import { protectedTokens } from './correction';
@@ -48,17 +48,24 @@ export function rewriteBody(
   });
 }
 
-/**
- * Strict parser. Any entry that is malformed, unrequested or duplicated
- * rejects the whole reply (null); requested styles that are simply absent are
- * reported as missing. Order follows the request, not the model.
- */
+/** Strict parser for `{"candidates":[…]}` (see parseCandidateList). */
 export function parseRewrite(
   raw: string,
   original: string,
   styleIds: readonly RewriteStyleId[],
-): { candidates: RewriteCandidate[]; missing: RewriteStyleId[] } | null {
-  if (raw.length > styleIds.length * (8 * original.length + 400) + 200)
+): { candidates: Candidate[]; missing: RewriteStyleId[] } | null {
+  const data = parseJsonObject(raw, styleIds.length, original);
+  if (!data || Object.keys(data).join() !== 'candidates') return null;
+  return parseCandidateList(data.candidates, original, styleIds, 3);
+}
+
+/** A bounded, strictly parsed JSON object, or null. */
+export function parseJsonObject(
+  raw: string,
+  count: number,
+  original: string,
+): Record<string, unknown> | null {
+  if (raw.length > Math.max(1, count) * (8 * original.length + 400) + 200)
     return null;
   let data: unknown;
   try {
@@ -66,19 +73,35 @@ export function parseRewrite(
   } catch {
     return null;
   }
-  if (!data || typeof data !== 'object' || Array.isArray(data)) return null;
-  if (Object.keys(data).join() !== 'candidates') return null;
-  const list = (data as { candidates: unknown }).candidates;
+  return data && typeof data === 'object' && !Array.isArray(data)
+    ? (data as Record<string, unknown>)
+    : null;
+}
+
+/**
+ * Any entry that is malformed, unrequested or duplicated rejects the whole
+ * list (null); requested IDs that are simply absent are reported as missing.
+ * Order follows the request, not the model.
+ */
+export function parseCandidateList<K extends string>(
+  list: unknown,
+  original: string,
+  ids: readonly K[],
+  maxFactor: number,
+): { candidates: Candidate<K>[]; missing: K[] } | null {
   if (!Array.isArray(list)) return null;
-  const found = new Map<RewriteStyleId, RewriteCandidate>();
+  const found = new Map<K, Candidate<K>>();
   for (const item of list as unknown[]) {
     if (!item || typeof item !== 'object' || Array.isArray(item)) return null;
     if (Object.keys(item).sort().join() !== 'styleId,text') return null;
     const { styleId, text } = item as Record<string, unknown>;
-    const id = styleIds.find((requested) => requested === styleId);
+    const id = ids.find((requested) => requested === styleId);
     if (!id || found.has(id) || typeof text !== 'string') return null;
     const rewrite = text.trim();
-    if (!rewrite || codePoints(rewrite) > 3 * codePoints(original) + 200)
+    if (
+      !rewrite ||
+      codePoints(rewrite) > maxFactor * codePoints(original) + 200
+    )
       return null;
     found.set(id, {
       styleId: id,
@@ -88,7 +111,7 @@ export function parseRewrite(
   }
   if (!found.size) return null;
   return {
-    candidates: styleIds.flatMap((id) => found.get(id) ?? []),
-    missing: styleIds.filter((id) => !found.has(id)),
+    candidates: ids.flatMap((id) => found.get(id) ?? []),
+    missing: ids.filter((id) => !found.has(id)),
   };
 }

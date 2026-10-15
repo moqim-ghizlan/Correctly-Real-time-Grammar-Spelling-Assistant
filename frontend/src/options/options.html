@@ -3,7 +3,7 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <title>Correctly V5.4 — Settings</title>
+    <title>Correctly V5.5 — Settings</title>
     <link rel="icon" href="/icons/icon-48.png" />
     <link rel="stylesheet" href="./settings-ui.css" />
   </head>
@@ -18,13 +18,13 @@
           height="40"
         />
         <div>
-          <h1>Correctly V5.4</h1>
+          <h1>Correctly V5.5</h1>
           <p class="subtitle">Personal AI writing assistant</p>
         </div>
       </header>
       <p class="scope">
-        Correctly corrects or rewrites the text you select, on request only.
-        Translation and text shortcuts arrive in later V5 releases.
+        Correctly corrects, rewrites or translates the text you select, on
+        request only. Text shortcuts arrive in a later V5 release.
       </p>
 
       <section class="card" aria-labelledby="gemini-title">
@@ -129,7 +129,7 @@
           <input id="correction-consent" type="checkbox" disabled />
           <span
             >Send the text I select to Google Gemini when I ask Correctly to
-            correct or rewrite it.</span
+            correct, rewrite or translate it.</span
           >
         </label>
         <p class="hint">
@@ -198,6 +198,41 @@
           click Apply.
         </p>
         <p id="rewrite-message" class="message" aria-live="polite"></p>
+      </section>
+
+      <section class="card" aria-labelledby="translation-title">
+        <h2 id="translation-title">Translation</h2>
+        <p class="hint">
+          Defaults for <strong>Translate</strong> and
+          <strong>Translate &amp; rewrite</strong> (right-click menu, smart
+          button ⇄, optional shortcut). You can change them each time before
+          translating. Translate &amp; rewrite uses the rewrite styles chosen
+          above.
+        </p>
+        <div class="key-row">
+          <label class="stack" for="translation-source"
+            >From
+            <select id="translation-source" disabled></select>
+          </label>
+          <label class="stack" for="translation-target"
+            >To
+            <select id="translation-target" disabled></select>
+          </label>
+          <label
+            class="stack"
+            id="translation-variant-row"
+            for="translation-variant"
+            >Arabic variant
+            <select id="translation-variant" disabled></select>
+          </label>
+        </div>
+        <p class="hint">
+          One Gemini request per translation (language detection included).
+          Syrian colloquial is everyday spoken Arabic; Modern Standard Arabic is
+          the formal written standard. Machine translation can be wrong: review
+          it before sending anything important.
+        </p>
+        <p id="translation-message" class="message" aria-live="polite"></p>
       </section>
 
       <section class="card" aria-labelledby="limit-title">

@@ -6,6 +6,7 @@ import {
   normalizeStyleIds,
   type RewriteStyleId,
 } from './rewrite';
+import { normalizeTranslation, type TranslationPreferences } from './translate';
 
 export const DAILY_LIMIT_DEFAULT = 20;
 export const DAILY_LIMIT_MIN = 1;
@@ -30,6 +31,8 @@ export interface V51Settings {
   triggers: { keyboard: boolean; contextMenu: boolean; smartButton: boolean };
   // V5.4: styles pre-selected in the rewrite picker (stable IDs only).
   rewrite: { enabled: boolean; defaultStyles: RewriteStyleId[] };
+  // V5.5: picker defaults; Translate & rewrite reuses rewrite.defaultStyles.
+  translation: TranslationPreferences;
 }
 
 /** Written only by the service worker (cleared by the options page on key change). */
@@ -62,6 +65,7 @@ export const defaultSettings = (): V51Settings => ({
   correction: { consent: false },
   triggers: { keyboard: true, contextMenu: true, smartButton: false },
   rewrite: { enabled: true, defaultStyles: [...DEFAULT_REWRITE_STYLES] },
+  translation: normalizeTranslation(undefined),
 });
 
 export const emptyConnection = (): ConnectionRecord => ({
@@ -168,6 +172,7 @@ export function normalizeSettings(value: unknown): V51Settings {
         ? normalizeStyleIds(rewrite.defaultStyles)
         : [...DEFAULT_REWRITE_STYLES],
     },
+    translation: normalizeTranslation(data.translation),
   };
 }
 

@@ -416,6 +416,11 @@ describe('pure helpers', () => {
       correction: { consent: false },
       triggers: { keyboard: true, contextMenu: true, smartButton: false },
       rewrite: { enabled: true, defaultStyles: ['professional' as const] },
+      translation: {
+        source: 'auto' as const,
+        target: 'en' as const,
+        arabicVariant: 'msa' as const,
+      },
     };
     const connection = {
       schemaVersion: 1 as const,
@@ -477,6 +482,30 @@ describe('V5.4 rewrite settings', () => {
     $<HTMLInputElement>('rewrite-enabled').checked = false;
     await page.saveRewrite();
     expect((await loadSettings(area)).rewrite.enabled).toBe(false);
+    expect(fetchImpl).not.toHaveBeenCalled();
+  });
+});
+
+describe('V5.5 translation settings', () => {
+  it('defaults Auto → English, saves choices, hides the Arabic variant unless Arabic', async () => {
+    const page = await openPage();
+    const select = (id: string) => $<HTMLSelectElement>(id);
+    expect(select('translation-source').value).toBe('auto');
+    expect(select('translation-target').value).toBe('en');
+    expect($('translation-variant-row').hidden).toBe(true);
+    select('translation-target').value = 'ar';
+    select('translation-variant').value = 'syrian';
+    await page.saveTranslation();
+    expect((await loadSettings(area)).translation).toEqual({
+      source: 'auto',
+      target: 'ar',
+      arabicVariant: 'syrian',
+    });
+    expect($('translation-variant-row').hidden).toBe(false);
+    select('translation-source').value = 'ar';
+    await page.saveTranslation();
+    expect(text('translation-message')).toContain('the same');
+    expect((await loadSettings(area)).translation.source).toBe('auto');
     expect(fetchImpl).not.toHaveBeenCalled();
   });
 });

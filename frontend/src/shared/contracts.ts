@@ -14,11 +14,15 @@ export const CORRECT_TEXT = 'correctly.v5.correctText';
 export const SMART_BUTTON_OFF = 'correctly.v5.smartButtonOff';
 /** Sent by the injected content script with selected text and style IDs. */
 export const REWRITE_TEXT = 'correctly.v5.rewriteText';
-/** Sent by the smart button: asks the worker to open the rewrite picker here. */
+/** Sent by the injected content script with text, languages and styles. */
+export const TRANSLATE_TEXT = 'correctly.v5.translateText';
+/** Sent by the smart button: asks the worker to open a picker in that frame. */
 export const OPEN_REWRITE = 'correctly.v5.openRewrite';
+export const OPEN_TRANSLATE = 'correctly.v5.openTranslate';
 /** Manifest command names of the keyboard shortcuts. */
 export const CORRECT_COMMAND = 'correct-selection';
 export const REWRITE_COMMAND = 'rewrite-selection';
+export const TRANSLATE_COMMAND = 'translate-selection';
 /** Bounds cost and latency; longer selections are refused, never truncated. */
 export const MAX_CORRECTION_CODE_POINTS = 2000;
 // A reply may double the length (2× + 50 code points, see parseCorrection);

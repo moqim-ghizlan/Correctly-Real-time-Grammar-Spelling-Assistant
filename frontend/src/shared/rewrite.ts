@@ -83,45 +83,56 @@ export function isRewriteTextRequest(
   );
 }
 
-export interface RewriteCandidate {
-  styleId: RewriteStyleId;
+/** One generated version, keyed by a requested ID (a style, or 'neutral'). */
+export interface Candidate<K extends string = RewriteStyleId> {
+  styleId: K;
   text: string;
   // Numbers, links or emails differ from the source: Copy only.
   suspicious: boolean;
 }
+export type RewriteCandidate = Candidate;
 
-export type RewriteResult =
-  | { ok: true; candidates: RewriteCandidate[]; missing: RewriteStyleId[] }
+export type CandidatesResult<K extends string = RewriteStyleId> =
+  | {
+      ok: true;
+      candidates: Candidate<K>[];
+      missing: K[];
+      // Translation only: the text is already in the target language.
+      sameLanguage?: boolean;
+    }
   | FailureResult;
+export type RewriteResult = CandidatesResult;
 
-// A rewrite may be up to 3× + 200 code points (see parseRewrite); in UTF-16
-// units that is at most 6× + 400.
-const MAX_CANDIDATE_CHARS = 6 * MAX_CORRECTION_CODE_POINTS + 400;
+// A version may be up to 4× + 200 code points (see parseCandidateList); in
+// UTF-16 units that is at most 8× + 400.
+const MAX_CANDIDATE_CHARS = 8 * MAX_CORRECTION_CODE_POINTS + 400;
 
-/** The worker's reply is untrusted in the page: keep only requested styles, in request order. */
-export function toRewriteResult(
+/** The worker's reply is untrusted in the page: keep only requested IDs, in request order. */
+export function toRewriteResult<K extends string = RewriteStyleId>(
   value: unknown,
-  requested: readonly RewriteStyleId[],
-): RewriteResult {
+  requested: readonly K[],
+): CandidatesResult<K> {
   const data =
     value && typeof value === 'object'
       ? (value as Record<string, unknown>)
       : {};
+  if (data.ok === true && data.sameLanguage === true)
+    return { ok: true, candidates: [], missing: [], sameLanguage: true };
   if (data.ok === true && Array.isArray(data.candidates)) {
-    const byStyle = new Map<RewriteStyleId, RewriteCandidate>();
+    const byStyle = new Map<K, Candidate<K>>();
     for (const item of data.candidates as unknown[]) {
       const candidate = (item ?? {}) as Record<string, unknown>;
+      const id = requested.find((key) => key === candidate.styleId);
       if (
-        isRewriteStyleId(candidate.styleId) &&
-        requested.includes(candidate.styleId) &&
-        !byStyle.has(candidate.styleId) &&
+        id !== undefined &&
+        !byStyle.has(id) &&
         typeof candidate.text === 'string' &&
         candidate.text.trim() !== '' &&
         candidate.text.length <= MAX_CANDIDATE_CHARS &&
         typeof candidate.suspicious === 'boolean'
       )
-        byStyle.set(candidate.styleId, {
-          styleId: candidate.styleId,
+        byStyle.set(id, {
+          styleId: id,
           text: candidate.text,
           suspicious: candidate.suspicious,
         });
