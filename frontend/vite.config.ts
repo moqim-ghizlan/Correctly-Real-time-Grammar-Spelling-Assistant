@@ -6,6 +6,8 @@ const frontend = fileURLToPath(new URL('.', import.meta.url));
 const dist = resolve(frontend, '../dist');
 export default defineConfig({
   root: frontend,
+  // Keep caches in the root node_modules instead of creating frontend/node_modules.
+  cacheDir: resolve(frontend, '../node_modules/.vite'),
   plugins: [
     {
       name: 'manifest',
