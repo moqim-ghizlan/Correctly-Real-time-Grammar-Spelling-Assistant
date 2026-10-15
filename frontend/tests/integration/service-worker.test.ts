@@ -1,5 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import {
+  AI_EDIT,
   CORRECT_TEXT,
   OPEN_LIMITS,
   OPEN_REWRITE,
@@ -26,6 +27,9 @@ import {
   profile,
   seedProviders,
 } from '../helpers/fake-storage';
+
+/** V5.9: replies carry an opaque request ID. */
+const ANY_ID: unknown = expect.any(String);
 
 type Listener = (
   message: unknown,
@@ -288,6 +292,7 @@ describe('CORRECT_TEXT', () => {
     expect(handled).toBe(true);
     expect(reply).toEqual({
       ok: true,
+      operationId: ANY_ID,
       hasErrors: true,
       correctedText: ' Je suis allé à Lyon hier.\n',
       suspicious: false,
@@ -799,6 +804,7 @@ describe('V5.7 providers and routes', () => {
     );
     expect(reply).toEqual({
       ok: true,
+      operationId: ANY_ID,
       hasErrors: true,
       correctedText: 'Fixed text',
       suspicious: false,
@@ -1029,5 +1035,66 @@ describe('V5.8 usage limits', () => {
       expect(reply).toBeUndefined();
     }
     expect(fetcher).not.toHaveBeenCalled();
+  });
+});
+
+describe('V5.9 statistics', () => {
+  it('AP/SEC: an Apply from the requesting frame is recorded once; forged ones are ignored', async () => {
+    await saveSettings(
+      area,
+      normalizeSettings({
+        gemini: { apiKey: FAKE_KEY },
+        correction: { consent: true },
+      }),
+    );
+    fetcher.mockResolvedValueOnce(correctionReply(true, 'Bonjour.'));
+    const { reply } = await send(
+      { type: CORRECT_TEXT, text: 'Bonjour' },
+      contentSender,
+    );
+    const operationId = (reply as { operationId: string }).operationId;
+    expect(operationId).toMatch(/^[A-Za-z0-9-]{8,64}$/);
+    const quota = new QuotaStore(globalThis.indexedDB);
+    const events = async () =>
+      (await quota.history(0, Date.now() + 60_000, Date.now())).events;
+    for (const [message, sender] of [
+      [
+        { type: AI_EDIT, operationId, action: 'applied' },
+        { ...contentSender, tab: { id: 99 } as chrome.tabs.Tab },
+      ],
+      [
+        { type: AI_EDIT, operationId, action: 'applied' },
+        { ...contentSender, frameId: 4 },
+      ],
+      [{ type: AI_EDIT, operationId, action: 'applied' }, optionsSender],
+      [
+        { type: AI_EDIT, operationId, action: 'applied', count: 5 },
+        contentSender,
+      ],
+      [
+        { type: AI_EDIT, operationId: '../x', action: 'applied' },
+        contentSender,
+      ],
+      [{ type: AI_EDIT, operationId, action: 'copied' }, contentSender],
+    ] as [unknown, chrome.runtime.MessageSender][]) {
+      const { handled } = await send(message, sender);
+      expect(handled).toBe(false);
+    }
+    await vi.waitFor(async () => expect(await events()).toEqual([]));
+    for (let i = 0; i < 3; i++)
+      expect(
+        (
+          await send(
+            { type: AI_EDIT, operationId, action: 'applied' },
+            contentSender,
+          )
+        ).handled,
+      ).toBe(false);
+    await vi.waitFor(async () =>
+      expect((await events()).map((e) => e.action)).toEqual(['applied']),
+    );
+    // INV-19: recording an edit never contacts a provider.
+    expect(fetcher).toHaveBeenCalledTimes(1);
+    expect(JSON.stringify(await events())).not.toMatch(/Bonjour|SENTINEL/);
   });
 });

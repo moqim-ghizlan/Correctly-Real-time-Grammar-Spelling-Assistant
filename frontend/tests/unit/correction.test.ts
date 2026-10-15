@@ -19,6 +19,9 @@ import {
   usageToday,
 } from '../helpers/fake-storage';
 
+/** V5.9: replies carry an opaque request ID. */
+const ANY_ID: unknown = expect.any(String);
+
 const json = (hasErrors: unknown, correctedText: unknown) =>
   JSON.stringify({ hasErrors, correctedText });
 
@@ -213,6 +216,7 @@ describe('ConnectionController.correct', () => {
     await configure();
     expect(await controller().correct('Hello, how are you?')).toEqual({
       ok: true,
+      operationId: ANY_ID,
       hasErrors: false,
     });
     expect(fetchImpl).toHaveBeenCalledTimes(1);

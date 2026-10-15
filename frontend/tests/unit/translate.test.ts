@@ -24,6 +24,9 @@ import {
   usageToday,
 } from '../helpers/fake-storage';
 
+/** V5.9: replies carry an opaque request ID. */
+const ANY_ID: unknown = expect.any(String);
+
 const request = (
   extra: Partial<TranslateTextRequest> = {},
 ): TranslateTextRequest => ({
@@ -331,6 +334,7 @@ describe('C: ConnectionController.translate', () => {
       await controller().translate(request({ target: 'fr', variant: null })),
     ).toEqual({
       ok: true,
+      operationId: ANY_ID,
       candidates: [],
       missing: [],
       sameLanguage: true,

@@ -1,4 +1,4 @@
-# Correctly V5.8
+# Correctly V5.9
 
 Personal Chrome/Brave extension (Manifest V3, TypeScript): an on-demand AI
 writing assistant using your own Google Gemini and/or OpenAI API keys.
@@ -47,7 +47,13 @@ writing assistant using your own Google Gemini and/or OpenAI API keys.
   atomically in the extension's own IndexedDB, so several tabs or a worker
   restart cannot exceed them. They count requests in this browser profile,
   not money. See [docs/v5.8/USER_GUIDE.md](docs/v5.8/USER_GUIDE.md).
-- Full statistics arrive in a later V5 release (plans in [`v5/`](v5/)).
+- **Statistics (V5.9).** Today, this week, this month or any dates:
+  requests used, successful results, AI edits actually applied, tokens
+  reported by the provider and an **estimated** USD cost (official list
+  prices checked on 15 October 2026, or your own dated prices), by action,
+  provider, model and key, with CSV/JSON export and deletion. Local only:
+  viewing statistics never contacts a provider, and unknown is never shown
+  as $0.00. See [docs/v5.9/USER_GUIDE.md](docs/v5.9/USER_GUIDE.md).
 
 V1–V4 (LanguageTool engine, Windows server and installer) are archived in Git:
 tag `v4.0.0` contains the last V4 sources.
@@ -66,7 +72,7 @@ npm run lint
 Optional:
 
 ```powershell
-npm run package        # release/Correctly-V5.8-Extension.zip (+ .sha256)
+npm run package        # release/Correctly-V5.9-Extension.zip (+ .sha256)
 npm run test:browser   # real-browser smoke test (Brave by default)
 node scripts/verify-browser.mjs --browser=chrome
 ```
@@ -130,11 +136,12 @@ IndexedDB.
 | `frontend/tests/`           | unit and integration tests                                |
 | `frontend/manifest.json`    | the only manifest (copied to `dist/` by Vite)             |
 | `scripts/`                  | dist audit, packaging, dev watch, browser smoke test      |
-| `docs/v5.1/` … `docs/v5.8/` | architecture, security, test reports, checklists          |
+| `docs/v5.1/` … `docs/v5.9/` | architecture, security, test reports, checklists          |
 | `v5/`                       | V5.1–V5.x specifications                                  |
 | `plans/`                    | V1–V4 plans (history)                                     |
 
-See [docs/v5.8/V5.8_REPORT.md](docs/v5.8/V5.8_REPORT.md),
+See [docs/v5.9/V5.9_REPORT.md](docs/v5.9/V5.9_REPORT.md),
+[docs/v5.8/V5.8_REPORT.md](docs/v5.8/V5.8_REPORT.md),
 [docs/v5.7/V5.7_REPORT.md](docs/v5.7/V5.7_REPORT.md),
 [docs/v5.6/V5.6_REPORT.md](docs/v5.6/V5.6_REPORT.md),
 [docs/v5.5/V5.5_REPORT.md](docs/v5.5/V5.5_REPORT.md),

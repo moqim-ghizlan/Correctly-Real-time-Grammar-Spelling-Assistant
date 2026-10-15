@@ -3,6 +3,7 @@ import { QUOTA_CHANNEL, browserQuotaStore } from '../shared/quota-store';
 import { loadShortcuts } from '../shared/shortcuts';
 import { browserStorage, loadSettings } from '../shared/storage';
 import { LimitsSection } from './limits-ui';
+import { StatsSection } from './stats-ui';
 import { ProvidersSection } from './providers-ui';
 import { SettingsPage } from './settings-ui';
 import { ShortcutsSection } from './shortcuts-ui';
@@ -67,9 +68,10 @@ const shortcuts = new ShortcutsSection(document, {
   },
 });
 
+const quota = browserQuotaStore();
 const limits = new LimitsSection(document, {
   area,
-  quota: browserQuotaStore(),
+  quota,
   confirm: (question) => window.confirm(question),
   timeZones: () => {
     try {
@@ -78,6 +80,23 @@ const limits = new LimitsSection(document, {
       return [];
     }
   },
+});
+
+const download = (filename: string, text: string, type: string) => {
+  const url = URL.createObjectURL(new Blob([text], { type }));
+  const link = Object.assign(document.createElement('a'), {
+    href: url,
+    download: filename,
+  });
+  link.click();
+  setTimeout(() => URL.revokeObjectURL(url), 1000);
+};
+
+const stats = new StatsSection(document, {
+  area,
+  quota,
+  confirm: (question) => window.confirm(question),
+  download,
 });
 
 chrome.storage.onChanged.addListener((changes, areaName) => {
@@ -92,6 +111,7 @@ chrome.storage.onChanged.addListener((changes, areaName) => {
 if (typeof BroadcastChannel === 'function')
   new BroadcastChannel(QUOTA_CHANNEL).addEventListener('message', () => {
     void limits.refresh();
+    void stats.refresh();
   });
 
 // Never leave a revealed key on screen when the tab is hidden or left.
@@ -102,9 +122,13 @@ window.addEventListener('pagehide', () => providers.hideKey(true));
 
 // Day/week/month rollover and requests in progress: re-read the local usage
 // records (no network access).
-setInterval(() => void limits.refresh(), 60_000);
+setInterval(() => {
+  void limits.refresh();
+  void stats.refresh();
+}, 60_000);
 
 void page.init();
 void providers.init();
 void shortcuts.init();
 void limits.init();
+void stats.init();

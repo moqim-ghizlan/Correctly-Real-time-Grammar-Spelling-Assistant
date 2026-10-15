@@ -135,3 +135,18 @@ it('V5.7: exactly the two provider hosts, in permissions and CSP; key shapes are
   expect(text).toMatch(/connect-src/);
   expect(text).toMatch(/OpenAI API key/);
 });
+
+it('V5.9: in-page anchors are links, not files; a missing file still fails', () => {
+  put(
+    'src/options/options.html',
+    '<script type="module" src="/options.js"></script><a href="#statistics">x</a><a href="#usage-limits">y</a>',
+  );
+  expect(auditDist(dir).errors).toEqual([]);
+  put(
+    'src/options/options.html',
+    '<script type="module" src="/missing.js"></script><a href="#statistics">x</a>',
+  );
+  expect(auditDist(dir).errors.join('\n')).toMatch(
+    /options page asset missing: \/missing\.js/,
+  );
+});

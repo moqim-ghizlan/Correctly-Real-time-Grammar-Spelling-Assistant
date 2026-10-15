@@ -81,9 +81,18 @@ function parseUsage(value: unknown): TokenUsage | undefined {
     candidates === undefined && thoughts === undefined
       ? undefined
       : (candidates ?? 0) + (thoughts ?? 0);
+  // A subset of promptTokenCount, sent only when part of the prompt was
+  // cached: absent next to a prompt count means none was.
+  const cached =
+    input === undefined
+      ? undefined
+      : (tokenCount(usage.cachedContentTokenCount) ??
+        (usage.cachedContentTokenCount === undefined ? 0 : undefined));
   const result: TokenUsage = {};
   if (input !== undefined) result.inputTokens = input;
   if (output !== undefined) result.outputTokens = output;
+  if (cached !== undefined && input !== undefined && cached <= input)
+    result.cachedInputTokens = cached;
   return Object.keys(result).length ? result : undefined;
 }
 

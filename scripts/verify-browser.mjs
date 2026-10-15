@@ -1,7 +1,7 @@
 // Real-browser smoke test (V5.1 checklist steps 3–6, 8, 9, 11, 15, the V5.2
 // content script, V5.3 shortcut/smart button, V5.4 rewrite, V5.5
-// translation, V5.6 text shortcuts, V5.7 provider keys and routes and V5.8
-// usage limits on the real IndexedDB of the extension).
+// translation, V5.6 text shortcuts, V5.7 provider keys and routes, V5.8
+// usage limits on the real IndexedDB of the extension and V5.9 statistics).
 // Loads dist/ unpacked in a throwaway profile, drives the settings page over
 // the Chrome DevTools Protocol and records network/console evidence.
 //
@@ -36,8 +36,8 @@ const offline = Boolean(args.offline);
 const extensionPath = resolve('dist');
 const DUMMY_KEY = 'CORRECTLY_TEST_SENTINEL_KEY_dummy_000000';
 const DUMMY_OPENAI_KEY = 'CORRECTLY_TEST_SENTINEL_KEY_openai_dummy_0';
-const profile = await mkdtemp(join(tmpdir(), 'correctly-v58-'));
-const EVIDENCE = 'docs/v5.8/evidence';
+const profile = await mkdtemp(join(tmpdir(), 'correctly-v59-'));
+const EVIDENCE = 'docs/v5.9/evidence';
 const delay = (ms) => new Promise((done) => setTimeout(done, ms));
 
 const evidence = {
@@ -176,6 +176,10 @@ async function openOptions() {
 /** "Test" of one saved route (the page auto-confirms the billing prompt). */
 async function clickTest(slot = 'default') {
   const message = `route-message-${slot}`;
+  // After a reload the route editor renders once its keys are loaded.
+  await page.until(
+    `!!document.getElementById(${JSON.stringify(`route-test-${slot}`)})`,
+  );
   await page.evaluate(
     `document.getElementById(${JSON.stringify(message)}).textContent = ''`,
   );
@@ -378,8 +382,8 @@ try {
   await openOptions();
   await wakeWorker(extensionId);
   const manifest = await page.evaluate('chrome.runtime.getManifest()');
-  assert.equal(manifest.version, '5.8.0');
-  assert.equal(manifest.name, 'Correctly V5.8');
+  assert.equal(manifest.version, '5.9.0');
+  assert.equal(manifest.name, 'Correctly V5.9');
   assert.deepEqual(manifest.host_permissions, [
     'https://generativelanguage.googleapis.com/*',
     'https://api.openai.com/*',
@@ -666,6 +670,52 @@ try {
     `IndexedDB stores ${stores.join(', ')}: no key, prompt or header inside (${records.length} bytes)`,
   );
 
+  // V5.9 S1: Statistics read the real journal; viewing, filtering,
+  // refreshing and exporting never contact a provider (INV-19).
+  const beforeStats = providerRequests().length;
+  await page.evaluate(
+    `document.querySelector('[data-stats-preset="today"]').click()`,
+  );
+  await page.until(`/^(Ready|No requests)$/.test(${text('stats-state')})`);
+  const sent = offline ? 0 : 2;
+  assert.equal(await page.evaluate(text('stats-requests-value')), String(sent));
+  assert.equal(await page.evaluate(text('stats-success-value')), '0');
+  assert.equal(
+    await page.evaluate(text('stats-cost-value')),
+    offline ? '$0.00' : 'Unavailable',
+    'requests without token counts are unknown, never $0.00',
+  );
+  for (const preset of ['week', 'month', 'today'])
+    await page.evaluate(
+      `document.querySelector('[data-stats-preset="${preset}"]').click()`,
+    );
+  await page.evaluate(`(() => {
+    const select = document.getElementById('stats-provider');
+    select.value = 'openai';
+    select.dispatchEvent(new Event('change'));
+  })()`);
+  const openaiOnly = await page.evaluate(text('stats-requests-value'));
+  for (let i = 0; i < 10; i++)
+    await page.evaluate(`document.getElementById('stats-refresh').click()`);
+  await page.until(`/^(Ready|No requests)$/.test(${text('stats-state')})`);
+  await page.evaluate(`document.getElementById('stats-csv').click()`);
+  await page.until(`${text('stats-message')}.startsWith('Exported')`);
+  await page.evaluate(`document.getElementById('stats-json').click()`);
+  await page.until(
+    `${text('stats-message')}.endsWith('.json (no text, no key).')`,
+  );
+  await delay(300);
+  assert.equal(
+    providerRequests().length,
+    beforeStats,
+    'statistics sent requests',
+  );
+  step(
+    'S1',
+    'PASS',
+    `Statistics: ${sent} request(s) today (OpenAI filter: ${openaiOnly}), cost "${await page.evaluate(text('stats-cost-value'))}"; presets, filters, 10 refreshes and CSV/JSON export with zero provider requests`,
+  );
+
   // Step 14: narrow width, keyboard order, screenshots (no key is on screen).
   for (const width of [360, 900]) {
     await page.call('Emulation.setDeviceMetricsOverride', {
@@ -688,20 +738,25 @@ try {
       `${EVIDENCE}/options-${browserName}-${width}.png`,
       Buffer.from(shot.data, 'base64'),
     );
-    // The V5.8 section alone, readable at full scale.
-    const box = await page.evaluate(`(() => {
-      const r = document.getElementById('usage-limits').getBoundingClientRect();
-      return { x: r.left + scrollX, y: r.top + scrollY, width: r.width, height: r.height };
-    })()`);
-    const limitsShot = await page.call('Page.captureScreenshot', {
-      format: 'png',
-      captureBeyondViewport: true,
-      clip: { ...box, scale: 1 },
-    });
-    await writeFile(
-      `${EVIDENCE}/limits-${browserName}-${width}.png`,
-      Buffer.from(limitsShot.data, 'base64'),
-    );
+    // The V5.8 and V5.9 sections alone, readable at full scale.
+    for (const [id, name] of [
+      ['usage-limits', 'limits'],
+      ['statistics', 'statistics'],
+    ]) {
+      const box = await page.evaluate(`(() => {
+        const r = document.getElementById('${id}').getBoundingClientRect();
+        return { x: r.left + scrollX, y: r.top + scrollY, width: r.width, height: r.height };
+      })()`);
+      const sectionShot = await page.call('Page.captureScreenshot', {
+        format: 'png',
+        captureBeyondViewport: true,
+        clip: { ...box, scale: 1 },
+      });
+      await writeFile(
+        `${EVIDENCE}/${name}-${browserName}-${width}.png`,
+        Buffer.from(sectionShot.data, 'base64'),
+      );
+    }
   }
   await page.call('Emulation.clearDeviceMetricsOverride');
   const focusOrder = [];

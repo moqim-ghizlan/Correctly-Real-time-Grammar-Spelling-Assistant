@@ -28,22 +28,26 @@ import {
   type Scope,
   type ScopeKind,
 } from './quota';
+import { parsePriceEntry, type PriceEntry } from './prices';
 import { ROUTE_KEY, type DailyUsageRecord } from './settings';
 import { loadSettings, loadUsage, type StorageArea } from './storage';
 
 export const QUOTA_DB = 'correctly-v5-quota';
 /** Settings tabs listen here to refresh after any committed change. */
 export const QUOTA_CHANNEL = 'correctly.v5.quota';
-const DB_VERSION = 1;
+// v2 (V5.9): operations indexed by send time, Apply/Undo events, prices.
+const DB_VERSION = 2;
 const POLICY = 'policy';
 const META = 'meta';
 const COUNTERS = 'counters';
 const OPERATIONS = 'operations';
 const ALERTS = 'alerts';
-const ALL = [POLICY, META, COUNTERS, OPERATIONS, ALERTS];
+const EVENTS = 'events';
+const PRICES = 'prices';
+const ALL = [POLICY, META, COUNTERS, OPERATIONS, ALERTS, EVENTS, PRICES];
 export const MIGRATION_ID = 'v5.8-quota-1';
-/** Finished operations kept for attribution (V5.9 reads them). */
-export const OPERATION_RETENTION_MS = 90 * 86_400_000;
+/** Finished operations (and edit events) kept for Statistics: 400 days. */
+export const OPERATION_RETENTION_MS = 400 * 86_400_000;
 const ALERT_RETENTION_MS = 40 * 86_400_000;
 
 /** [kind, id, period, timezone, window start]: no text, no key. */
@@ -93,6 +97,39 @@ export interface Operation {
   keys: CounterKey[];
   inputTokens: number | null;
   outputTokens: number | null;
+  /** V5.9 (absent on V5.8 records = unknown): cached part of inputTokens. */
+  cachedInputTokens?: number | null;
+  /** V5.9: tab and frame that asked (to accept its Apply/Undo events only). */
+  originTabId?: number | null;
+  originFrameId?: number | null;
+}
+
+/** V5.9: an AI edit confirmed by the page (after the text really changed). */
+export type EditAction = 'applied' | 'undone';
+export interface EditEvent {
+  /** `${operationId}|${action}`: one of each per request at most. */
+  id: string;
+  operationId: string;
+  action: EditAction;
+  task: QuotaTask;
+  provider: ProviderId;
+  credentialId: string;
+  modelId: string;
+  at: number;
+}
+
+/** What Statistics reads for one period (metadata only). */
+export interface History {
+  timezone: string | null;
+  /** Sent (or possibly sent) requests whose send time is in the period. */
+  operations: Operation[];
+  events: EditEvent[];
+  prices: PriceEntry[];
+  inProgress: number;
+  migration: Migration | null;
+  /** History before this instant was deleted by the owner. */
+  deletedBefore: number | null;
+  clockBack: boolean;
 }
 
 export interface AlertRecord {
@@ -144,12 +181,15 @@ export interface OperationDraft {
   credentialId: string;
   revision: number;
   modelId: string;
+  originTabId?: number | null;
+  originFrameId?: number | null;
 }
 
 export interface Settlement {
   state: 'completed' | 'failed-after-send' | 'unknown';
   inputTokens?: number;
   outputTokens?: number;
+  cachedInputTokens?: number;
 }
 
 /** What the V5.1–V5.7 storage held, read before the one-time import. */
@@ -357,6 +397,17 @@ export class QuotaStore {
         }
         if (!db.objectStoreNames.contains(ALERTS))
           db.createObjectStore(ALERTS, { keyPath: 'id' });
+        // v1 → v2: additions only; V5.8 records are kept as they are.
+        const operations = req.transaction!.objectStore(OPERATIONS);
+        if (!operations.indexNames.contains('dispatchAt'))
+          operations.createIndex('dispatchAt', 'dispatchAt');
+        if (!db.objectStoreNames.contains(EVENTS))
+          db.createObjectStore(EVENTS, { keyPath: 'id' }).createIndex(
+            'at',
+            'at',
+          );
+        if (!db.objectStoreNames.contains(PRICES))
+          db.createObjectStore(PRICES, { keyPath: 'id' });
       };
       // Another extension page holds an older version open: fail closed.
       req.onblocked = () => reject(new QuotaStoreError('blocked'));
@@ -611,6 +662,9 @@ export class QuotaStore {
           keys: cells.map((cell) => cell.key),
           inputTokens: null,
           outputTokens: null,
+          cachedInputTokens: null,
+          originTabId: draft.originTabId ?? null,
+          originFrameId: draft.originFrameId ?? null,
         };
         await request(operations.put(operation));
         return { allowed: true };
@@ -802,7 +856,8 @@ export class QuotaStore {
       const tokens = (value: number | undefined) =>
         isCount(value) ? value : null;
       const input = tokens(outcome.inputTokens),
-        output = tokens(outcome.outputTokens);
+        output = tokens(outcome.outputTokens),
+        cached = tokens(outcome.cachedInputTokens);
       await this.addOutcome(tx, operation.keys, outcome.state, input, output);
       await request(
         operations.put({
@@ -811,6 +866,10 @@ export class QuotaStore {
           settledAt: now,
           inputTokens: input,
           outputTokens: output,
+          cachedInputTokens:
+            cached !== null && input !== null && cached <= input
+              ? cached
+              : null,
         }),
       );
     });
@@ -851,36 +910,214 @@ export class QuotaStore {
    * operations and alerts are pruned; counters are kept.
    */
   recover(bootId: string, now: number): Promise<void> {
-    return this.run([COUNTERS, OPERATIONS, ALERTS], 'readwrite', async (tx) => {
+    return this.run(
+      [COUNTERS, OPERATIONS, ALERTS, EVENTS],
+      'readwrite',
+      async (tx) => {
+        const operations = tx.objectStore(OPERATIONS);
+        const stale = (
+          (await request(operations.getAll())) as Operation[]
+        ).filter(
+          (operation) =>
+            operation.bootId !== bootId &&
+            (operation.state === 'reserved' ||
+              operation.state === 'dispatching'),
+        );
+        for (const operation of stale)
+          if (operation.state === 'reserved')
+            await this.unreserve(tx, operation, now);
+          else {
+            await this.addOutcome(tx, operation.keys, 'unknown', null, null);
+            await request(
+              operations.put({
+                ...operation,
+                state: 'unknown',
+                settledAt: now,
+              }),
+            );
+          }
+        const old = (await request(
+          operations
+            .index('createdAt')
+            .getAll(IDBKeyRange.upperBound(now - OPERATION_RETENTION_MS)),
+        )) as Operation[];
+        for (const operation of old)
+          if (
+            operation.state !== 'reserved' &&
+            operation.state !== 'dispatching'
+          )
+            await request(operations.delete(operation.id));
+        const alerts = tx.objectStore(ALERTS);
+        for (const alert of (await request(alerts.getAll())) as AlertRecord[])
+          if (alert.end < now - ALERT_RETENTION_MS)
+            await request(alerts.delete(alert.id));
+        const events = tx.objectStore(EVENTS);
+        for (const key of await request(
+          events
+            .index('at')
+            .getAllKeys(IDBKeyRange.upperBound(now - OPERATION_RETENTION_MS)),
+        ))
+          await request(events.delete(key));
+      },
+    );
+  }
+
+  // ------------------------------------------------------ statistics (V5.9)
+
+  /** The usage limits' time zone (null when the limits are unreadable). */
+  timezone(): Promise<string | null> {
+    return this.run([POLICY], 'readonly', async (tx) => {
+      return (await this.readPolicy(tx))?.timezone ?? null;
+    });
+  }
+
+  /**
+   * Everything Statistics needs for [start, end): read-only, metadata only.
+   * Requests are placed by their send time (the instant they were counted).
+   */
+  history(start: number, end: number, now: number): Promise<History> {
+    return this.run(ALL, 'readonly', async (tx) => {
+      const policy = await this.readPolicy(tx);
+      const meta = tx.objectStore(META);
       const operations = tx.objectStore(OPERATIONS);
-      const stale = (
-        (await request(operations.getAll())) as Operation[]
-      ).filter(
-        (operation) =>
-          operation.bootId !== bootId &&
-          (operation.state === 'reserved' || operation.state === 'dispatching'),
-      );
-      for (const operation of stale)
-        if (operation.state === 'reserved')
-          await this.unreserve(tx, operation, now);
-        else {
-          await this.addOutcome(tx, operation.keys, 'unknown', null, null);
-          await request(
-            operations.put({ ...operation, state: 'unknown', settledAt: now }),
-          );
-        }
-      const old = (await request(
+      const range = IDBKeyRange.bound(start, end, false, true);
+      const sent = (
+        (await request(
+          operations.index('dispatchAt').getAll(range),
+        )) as Operation[]
+      ).filter((operation) => isSent(operation.state));
+      const events = (await request(
+        tx.objectStore(EVENTS).index('at').getAll(range),
+      )) as EditEvent[];
+      const prices = (
+        (await request(tx.objectStore(PRICES).getAll())) as unknown[]
+      ).flatMap((item) => parsePriceEntry(item) ?? []);
+      const inProgress =
+        (await request(operations.index('state').count('reserved'))) +
+        (await request(operations.index('state').count('dispatching')));
+      const deleted = (await request(meta.get('statsDeleted'))) as
+        { before?: unknown } | undefined;
+      const clock = (await request(meta.get('clock'))) as
+        { lastSeen?: unknown } | undefined;
+      const lastSeen = isCount(clock?.lastSeen) ? clock.lastSeen : 0;
+      return {
+        timezone: policy?.timezone ?? null,
+        operations: sent,
+        events,
+        prices,
+        inProgress,
+        migration:
+          ((await request(meta.get('migration'))) as Migration | undefined) ??
+          null,
+        deletedBefore: isCount(deleted?.before) ? deleted.before : null,
+        clockBack: now < lastSeen - CLOCK_TOLERANCE_MS,
+      };
+    });
+  }
+
+  /**
+   * An Apply or Undo the page confirmed. Accepted only for a completed
+   * request of that same tab and frame, once per action; an Undo needs its
+   * Apply. Nothing about the text is stored.
+   */
+  recordEdit(
+    edit: {
+      operationId: string;
+      action: EditAction;
+      tabId: number;
+      frameId: number;
+    },
+    now: number,
+  ): Promise<boolean> {
+    return this.run([OPERATIONS, EVENTS], 'readwrite', async (tx) => {
+      const operation = (await request(
+        tx.objectStore(OPERATIONS).get(edit.operationId),
+      )) as Operation | undefined;
+      if (
+        !operation ||
+        operation.state !== 'completed' ||
+        operation.task === 'test' ||
+        operation.originTabId !== edit.tabId ||
+        operation.originFrameId !== edit.frameId
+      )
+        return false;
+      const events = tx.objectStore(EVENTS);
+      const id = `${operation.id}|${edit.action}`;
+      if ((await request(events.get(id))) !== undefined) return false;
+      if (
+        edit.action === 'undone' &&
+        (await request(events.get(`${operation.id}|applied`))) === undefined
+      )
+        return false;
+      const event: EditEvent = {
+        id,
+        operationId: operation.id,
+        action: edit.action,
+        task: operation.task,
+        provider: operation.provider,
+        credentialId: operation.credentialId,
+        modelId: operation.modelId,
+        at: now,
+      };
+      await request(events.put(event));
+      return true;
+    });
+  }
+
+  /** Adds a price reference (entries are never edited in place). */
+  addPrice(entry: PriceEntry): Promise<'saved' | 'invalid' | 'exists'> {
+    return this.run([PRICES], 'readwrite', async (tx) => {
+      const valid = parsePriceEntry(entry);
+      if (!valid || valid.source !== 'owner') return 'invalid';
+      const store = tx.objectStore(PRICES);
+      if ((await request(store.get(valid.id))) !== undefined) return 'exists';
+      await request(store.put(valid));
+      return 'saved';
+    });
+  }
+
+  /**
+   * Deletes Statistics history sent before `before`: finished requests and
+   * edit events only. Usage-limit counters, alerts and requests still in
+   * progress are kept, so every limit stays enforced.
+   */
+  deleteHistory(before: number, now: number): Promise<number> {
+    return this.run([META, OPERATIONS, EVENTS], 'readwrite', async (tx) => {
+      const operations = tx.objectStore(OPERATIONS);
+      let deleted = 0;
+      for (const operation of (await request(
         operations
-          .index('createdAt')
-          .getAll(IDBKeyRange.upperBound(now - OPERATION_RETENTION_MS)),
-      )) as Operation[];
-      for (const operation of old)
-        if (operation.state !== 'reserved' && operation.state !== 'dispatching')
+          .index('dispatchAt')
+          .getAll(IDBKeyRange.upperBound(before, true)),
+      )) as Operation[])
+        if (
+          operation.state !== 'reserved' &&
+          operation.state !== 'dispatching'
+        ) {
           await request(operations.delete(operation.id));
-      const alerts = tx.objectStore(ALERTS);
-      for (const alert of (await request(alerts.getAll())) as AlertRecord[])
-        if (alert.end < now - ALERT_RETENTION_MS)
-          await request(alerts.delete(alert.id));
+          deleted += 1;
+        }
+      const events = tx.objectStore(EVENTS);
+      for (const key of await request(
+        events.index('at').getAllKeys(IDBKeyRange.upperBound(before, true)),
+      ))
+        await request(events.delete(key));
+      const meta = tx.objectStore(META);
+      const previous = (await request(meta.get('statsDeleted'))) as
+        { before?: unknown } | undefined;
+      await request(
+        meta.put(
+          {
+            before: Math.max(
+              before,
+              isCount(previous?.before) ? previous.before : 0,
+            ),
+            at: now,
+          },
+          'statsDeleted',
+        ),
+      );
+      return deleted;
     });
   }
 

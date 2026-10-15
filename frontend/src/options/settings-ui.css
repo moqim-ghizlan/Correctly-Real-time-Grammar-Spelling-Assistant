@@ -374,6 +374,116 @@ summary {
   width: 100%;
 }
 
+/* V5.9 statistics */
+.period,
+.filters,
+.price-form {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin: 10px 0;
+}
+
+.period button[aria-pressed='true'] {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: var(--accent-text);
+}
+
+.filters label.stack,
+.price-form label.stack {
+  flex: 1 1 140px;
+  min-width: 0;
+  font-weight: 400;
+}
+
+.stats-cards {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(170px, 1fr));
+  gap: 10px;
+  margin: 12px 0;
+}
+
+.stats-cards > div {
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 8px 10px;
+}
+
+.stats-cards dt {
+  color: var(--muted);
+  font-size: 12px;
+}
+
+.stats-cards dd {
+  margin: 0;
+  overflow-wrap: anywhere;
+}
+
+.stats-cards dd:nth-of-type(1) {
+  font-size: 18px;
+  font-weight: 650;
+  font-variant-numeric: tabular-nums;
+}
+
+.stats-cards dd.hint {
+  font-size: 12px;
+}
+
+.chart {
+  display: flex;
+  align-items: flex-end;
+  gap: 2px;
+  height: 120px;
+  padding: 4px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+}
+
+.chart .bar {
+  flex: 1 1 0;
+  height: 100%;
+  display: flex;
+  align-items: flex-end;
+  min-width: 2px;
+}
+
+.chart .bar span {
+  display: block;
+  width: 100%;
+  min-height: 1px;
+  background: var(--accent);
+  border-radius: 2px 2px 0 0;
+}
+
+.table-wrap {
+  overflow-x: auto;
+}
+
+.stats-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 13px;
+  font-variant-numeric: tabular-nums;
+}
+
+.stats-table th,
+.stats-table td {
+  padding: 4px 6px;
+  border-bottom: 1px solid var(--border);
+  text-align: left;
+}
+
+/* Column titles never break inside a word; long labels wrap normally. */
+.stats-table thead th {
+  white-space: nowrap;
+}
+
+.stats-table td,
+.stats-table tbody th {
+  overflow-wrap: break-word;
+}
+
 select {
   width: 100%;
 }

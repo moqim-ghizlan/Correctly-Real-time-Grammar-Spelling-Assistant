@@ -2,7 +2,7 @@
 
 Extension personnelle Chrome/Brave, **Manifest V3, TypeScript strict**, qui
 deviendra un assistant d'écriture IA à la demande (Gemini et OpenAI, clés
-personnelles de l'utilisateur). État actuel : **V5.8** = page de paramètres, service worker,
+personnelles de l'utilisateur). État actuel : **V5.9** = page de paramètres, service worker,
 correction, réécriture (7 styles), traduction (6 langues, arabe standard ou
 syrien) à la demande, et raccourcis de texte locaux (`shared/shortcuts.ts`,
 expansion dans `smart.js`, protection IA par marqueurs dans
@@ -20,7 +20,11 @@ jour/semaine/mois (total, par action, par fournisseur, par clé), alertes
 80/95/100 %, pause, dans IndexedDB `correctly-v5-quota`
 (`shared/quota.ts` règles pures, `shared/quota-store.ts` transactions
 atomiques) : `admit` puis `dispatch` (marqué envoyé) AVANT tout `fetch`,
-jamais de remboursement ni de rejeu après envoi.
+jamais de remboursement ni de rejeu après envoi. V5.9 : statistiques locales
+(`shared/stats.ts`, `shared/prices.ts`, `options/stats-ui.ts`) lues dans le
+journal `operations` (schéma v2 : index `dispatchAt`, stores `events` et
+`prices`, rétention 400 jours) ; coût estimé en BigInt, inconnu ≠ 0 ;
+événements Apply/Undo (`AI_EDIT`) vérifiés par onglet/cadre d'origine.
 
 ## Ce qui n'existe plus
 
@@ -43,7 +47,7 @@ Les documents `plans/` et l'historique V4 sont du contexte, pas l'état du code.
   aperçu (shadow root fermé), Apply/Undo sur plage exacte.
 - `frontend/src/options/` — page de paramètres (`settings-ui.ts`,
   `providers-ui.ts` pour clés et routes, `limits-ui.ts` pour les limites
-  d'usage, `shortcuts-ui.ts`).
+  d'usage, `stats-ui.ts` pour les statistiques, `shortcuts-ui.ts`).
 - `frontend/src/shared/` — contrats de messages, erreurs, catalogue de
   modèles (`models.ts`), profils/routes/secrets et migration V5.1
   (`providers.ts`), limites d'usage (`quota.ts`, `quota-store.ts`),

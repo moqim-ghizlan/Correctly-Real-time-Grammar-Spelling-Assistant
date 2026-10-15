@@ -1,4 +1,5 @@
 import {
+  AI_EDIT,
   CORRECT_TEXT,
   MAX_CORRECTION_CODE_POINTS,
   OPEN_LIMITS,
@@ -245,6 +246,14 @@ export class CorrectionPanel {
   busy = false;
   /** "Manage limits": asks the worker to open the usage limits page. */
   openLimits: () => void = () => undefined;
+  /**
+   * V5.9: reports an AI edit only after the text really changed (statistics;
+   * carries the opaque request ID, never any text).
+   */
+  reportEdit: (operationId: string, action: 'applied' | 'undone') => void =
+    () => undefined;
+  /** Request that produced the shown result (from the worker's reply). */
+  private operationId: string | null = null;
   private snapshot: Snapshot | null = null;
   private corrected = '';
   /** 'Correction', 'Rewrite' or 'Translation': only wording differs. */
@@ -466,6 +475,7 @@ export class CorrectionPanel {
     // Closed or superseded meanwhile: a late answer must change nothing.
     if (!this.host.isConnected) return;
     this.showQuota(result);
+    this.operationId = (result.ok && result.operationId) || null;
     if (!result.ok) {
       this.show(`${result.message} Your text was not changed.`, 'error');
       this.ui.close.textContent = 'Close';
@@ -529,6 +539,12 @@ export class CorrectionPanel {
       before: snapshot.text,
       value: field.value,
     };
+    // Counted only when the field really holds the applied text.
+    if (
+      this.operationId &&
+      field.value.slice(snapshot.start, this.applied.end) === this.corrected
+    )
+      this.reportEdit(this.operationId, 'applied');
     for (const input of this.ui.cards.querySelectorAll('input'))
       input.disabled = true;
     this.show(`${this.noun} applied.`, 'info', ['copy', 'undo']);
@@ -568,6 +584,14 @@ export class CorrectionPanel {
       this.writing = false;
     }
     this.applied = null;
+    if (
+      this.operationId &&
+      field.value.slice(
+        applied.start,
+        applied.start + applied.before.length,
+      ) === applied.before
+    )
+      this.reportEdit(this.operationId, 'undone');
     this.show(`${this.noun} undone.`, 'info', ['copy']);
     this.ui.close.focus();
   }
@@ -792,6 +816,7 @@ export class CorrectionPanel {
     this.busy = false;
     if (!this.host.isConnected) return;
     this.showQuota(result);
+    this.operationId = (result.ok && result.operationId) || null;
     if (!result.ok) {
       // Retrying is always an explicit new click.
       for (const control of controls) control.disabled = false;
@@ -943,6 +968,10 @@ export function runInPage(
   panel.openLimits = () =>
     void chrome.runtime
       .sendMessage({ type: OPEN_LIMITS })
+      .catch(() => undefined);
+  panel.reportEdit = (operationId, action) =>
+    void chrome.runtime
+      .sendMessage({ type: AI_EDIT, operationId, action })
       .catch(() => undefined);
   state.correctlyPanel = panel;
   const snapshot =

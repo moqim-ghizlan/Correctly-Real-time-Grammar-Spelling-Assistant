@@ -36,6 +36,29 @@ export const OPEN_TRANSLATE = 'correctly.v5.openTranslate';
 export const PAGE_CONFIG = 'correctly.v5.pageConfig';
 /** Sent by the content script ("Manage limits"): opens the usage limits. */
 export const OPEN_LIMITS = 'correctly.v5.openLimits';
+/** V5.9: sent by the content script after an AI edit was really applied or undone. */
+export const AI_EDIT = 'correctly.v5.aiEdit';
+/** Opaque request ID returned to the page (never derived from text or keys). */
+export const OPERATION_ID = /^[A-Za-z0-9-]{8,64}$/;
+
+export interface AiEditRequest {
+  type: typeof AI_EDIT;
+  operationId: string;
+  action: 'applied' | 'undone';
+}
+
+/** Strict shape check: exactly `{ type, operationId, action }`. */
+export function isAiEditRequest(value: unknown): value is AiEditRequest {
+  if (!value || typeof value !== 'object' || Array.isArray(value)) return false;
+  const data = value as Record<string, unknown>;
+  return (
+    Object.keys(data).sort().join() === 'action,operationId,type' &&
+    data.type === AI_EDIT &&
+    typeof data.operationId === 'string' &&
+    OPERATION_ID.test(data.operationId) &&
+    (data.action === 'applied' || data.action === 'undone')
+  );
+}
 /** Manifest command names of the keyboard shortcuts. */
 export const CORRECT_COMMAND = 'correct-selection';
 export const REWRITE_COMMAND = 'rewrite-selection';
@@ -56,9 +79,12 @@ export interface TestKeyRequest {
   credentialId: string;
 }
 
+/** Provider-reported tokens; a missing field is unknown, never zero. */
 export interface TokenUsage {
   inputTokens?: number;
   outputTokens?: number;
+  /** V5.9: the part of inputTokens served from the provider's cache (a subset). */
+  cachedInputTokens?: number;
 }
 
 export type ConnectionResult =
@@ -94,7 +120,7 @@ export type FailureResult = Extract<ConnectionResult, { ok: false }>;
 export type KeyCheckResult = { ok: true; models: number } | FailureResult;
 
 export type CorrectionResult =
-  | { ok: true; hasErrors: false; notice?: QuotaNote }
+  | { ok: true; hasErrors: false; notice?: QuotaNote; operationId?: string }
   | {
       ok: true;
       hasErrors: true;
@@ -103,6 +129,8 @@ export type CorrectionResult =
       suspicious: boolean;
       /** V5.8: a usage warning (80/95/100 %) this request crossed. */
       notice?: QuotaNote;
+      /** V5.9: lets the page report a confirmed Apply/Undo for statistics. */
+      operationId?: string;
     }
   | FailureResult;
 
@@ -112,6 +140,16 @@ export function noticeOf(data: Record<string, unknown>): {
 } {
   const notice = toQuotaNote(data.notice);
   return notice && !notice.blocked ? { notice } : {};
+}
+
+/** A validated V5.9 request ID carried by a successful reply. */
+export function operationOf(data: Record<string, unknown>): {
+  operationId?: string;
+} {
+  return typeof data.operationId === 'string' &&
+    OPERATION_ID.test(data.operationId)
+    ? { operationId: data.operationId }
+    : {};
 }
 
 /** Fixed local copy for the code; only a validated quota note is kept. */
@@ -150,7 +188,12 @@ export function toCorrectionResult(value: unknown): CorrectionResult {
       ? (value as Record<string, unknown>)
       : {};
   if (data.ok === true && data.hasErrors === false)
-    return { ok: true, hasErrors: false, ...noticeOf(data) };
+    return {
+      ok: true,
+      hasErrors: false,
+      ...noticeOf(data),
+      ...operationOf(data),
+    };
   if (
     data.ok === true &&
     data.hasErrors === true &&
@@ -165,6 +208,7 @@ export function toCorrectionResult(value: unknown): CorrectionResult {
       correctedText: data.correctedText,
       suspicious: data.suspicious,
       ...noticeOf(data),
+      ...operationOf(data),
     };
   return failureOf(data);
 }

@@ -28,6 +28,9 @@ import {
   usageToday,
 } from '../helpers/fake-storage';
 
+/** V5.9: replies carry an opaque request ID. */
+const ANY_ID: unknown = expect.any(String);
+
 // V5.7: the same tasks through either provider, with the same local
 // contracts, one call per action, and no fallback of any kind.
 
@@ -127,6 +130,7 @@ describe('TASK: same contracts on both providers', () => {
         await controller().correct(' Je suis aller a Lyon hier. '),
       ).toEqual({
         ok: true,
+        operationId: ANY_ID,
         hasErrors: true,
         correctedText: ' Je suis allé à Lyon hier. ',
         suspicious: false,
@@ -145,6 +149,7 @@ describe('TASK: same contracts on both providers', () => {
       answer({ hasErrors: false, correctedText: 'All good here.' });
       expect(await controller().correct('All good here.')).toEqual({
         ok: true,
+        operationId: ANY_ID,
         hasErrors: false,
       });
     },
@@ -167,6 +172,7 @@ describe('TASK: same contracts on both providers', () => {
         await controller().rewrite('can we meet at 10', ['formal', 'friendly']),
       ).toEqual({
         ok: true,
+        operationId: ANY_ID,
         candidates: [
           {
             styleId: 'formal',
@@ -206,6 +212,7 @@ describe('TASK: same contracts on both providers', () => {
       });
       expect(result).toEqual({
         ok: true,
+        operationId: ANY_ID,
         candidates: [
           { styleId: 'neutral', text: 'مرحبا، كيفك؟', suspicious: false },
         ],
@@ -340,7 +347,11 @@ describe('RT/Q: routing, limits and lifecycle', () => {
       );
     });
     const c = controller();
-    expect(await c.correct('Fine.')).toEqual({ ok: true, hasErrors: false });
+    expect(await c.correct('Fine.')).toEqual({
+      ok: true,
+      hasErrors: false,
+      operationId: ANY_ID,
+    });
     answer({ hasErrors: false, correctedText: 'Fine.' });
     await c.correct('Fine.');
     expect(hosts()).toEqual(['gemini', 'openai']);
@@ -605,6 +616,7 @@ describe('RT/Q: routing, limits and lifecycle', () => {
     answer({ hasErrors: false, correctedText: 'A.' });
     expect(await controller().correct('A.')).toEqual({
       ok: true,
+      operationId: ANY_ID,
       hasErrors: false,
     });
     expect(hosts()).toEqual(['openai']);

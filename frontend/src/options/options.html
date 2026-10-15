@@ -3,7 +3,7 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <title>Correctly V5.8 — Settings</title>
+    <title>Correctly V5.9 — Settings</title>
     <link rel="icon" href="/icons/icon-48.png" />
     <link rel="stylesheet" href="./settings-ui.css" />
   </head>
@@ -18,7 +18,7 @@
           height="40"
         />
         <div>
-          <h1>Correctly V5.8</h1>
+          <h1>Correctly V5.9</h1>
           <p class="subtitle">Personal AI writing assistant</p>
         </div>
       </header>
@@ -516,6 +516,10 @@
           </div>
           <p id="limits-message" class="message" aria-live="polite"></p>
         </form>
+        <p class="hint">
+          Full history, tokens and estimated cost:
+          <a href="#statistics">Statistics</a>.
+        </p>
         <h3 class="subhead">Today by key, model and action</h3>
         <ul
           id="usage-routes"
@@ -547,6 +551,240 @@
         </p>
       </section>
 
+      <section class="card" id="statistics" aria-labelledby="stats-title">
+        <div class="card-head">
+          <h2 id="stats-title">Statistics</h2>
+          <p id="stats-state" class="status" data-tone="neutral">
+            <span class="dot"></span>Loading…
+          </p>
+        </div>
+        <p class="hint">
+          What Correctly recorded on this browser profile: requests sent,
+          results, edits applied, provider-reported tokens and an estimated
+          cost. Only metadata is kept (never your text or keys). Looking at,
+          filtering or exporting statistics never contacts an AI provider and
+          never changes a limit:
+          <a href="#usage-limits">Manage usage limits</a>.
+        </p>
+        <div class="period" role="group" aria-label="Period">
+          <button type="button" data-stats-preset="today" aria-pressed="true">
+            Today
+          </button>
+          <button type="button" data-stats-preset="week" aria-pressed="false">
+            This week
+          </button>
+          <button type="button" data-stats-preset="month" aria-pressed="false">
+            This month
+          </button>
+          <button type="button" data-stats-preset="custom" aria-pressed="false">
+            Custom range
+          </button>
+        </div>
+        <form id="stats-custom" class="key-row" novalidate hidden>
+          <label class="stack" for="stats-from"
+            >Start date <input id="stats-from" type="date"
+          /></label>
+          <label class="stack" for="stats-to"
+            >End date <input id="stats-to" type="date"
+          /></label>
+          <button type="submit">Show</button>
+        </form>
+        <p id="stats-range" class="hint"></p>
+        <div class="filters">
+          <label class="stack" for="stats-task"
+            >Action
+            <select id="stats-task" disabled></select
+          ></label>
+          <label class="stack" for="stats-provider"
+            >Provider
+            <select id="stats-provider" disabled></select
+          ></label>
+          <label class="stack" for="stats-model"
+            >Model
+            <select id="stats-model" disabled></select
+          ></label>
+          <label class="stack" for="stats-key"
+            >API key
+            <select id="stats-key" disabled></select
+          ></label>
+        </div>
+        <p id="stats-message" class="message" role="status"></p>
+        <p id="stats-coverage" class="warning" hidden></p>
+        <dl class="stats-cards">
+          <div>
+            <dt>Requests used</dt>
+            <dd id="stats-requests-value">—</dd>
+            <dd id="stats-requests-detail" class="hint"></dd>
+          </div>
+          <div>
+            <dt>Successful AI results</dt>
+            <dd id="stats-success-value">—</dd>
+            <dd id="stats-success-detail" class="hint"></dd>
+          </div>
+          <div>
+            <dt>AI edits applied</dt>
+            <dd id="stats-applied-value">—</dd>
+            <dd id="stats-applied-detail" class="hint"></dd>
+          </div>
+          <div>
+            <dt>Tokens reported</dt>
+            <dd id="stats-tokens-value">—</dd>
+            <dd id="stats-tokens-detail" class="hint"></dd>
+          </div>
+          <div>
+            <dt>Estimated API cost (USD)</dt>
+            <dd id="stats-cost-value">—</dd>
+            <dd id="stats-cost-detail" class="hint"></dd>
+          </div>
+        </dl>
+        <h3 class="subhead">Requests per day</h3>
+        <div id="stats-chart" class="chart" role="img"></div>
+        <details>
+          <summary>Requests per day as a table</summary>
+          <table id="stats-days" class="stats-table">
+            <thead>
+              <tr>
+                <th scope="col">Date</th>
+                <th scope="col">Requests</th>
+                <th scope="col">Successful</th>
+              </tr>
+            </thead>
+            <tbody></tbody>
+          </table>
+        </details>
+        <h3 class="subhead">By action</h3>
+        <div class="table-wrap">
+          <table id="stats-by-task" class="stats-table">
+            <thead>
+              <tr>
+                <th scope="col">Action</th>
+                <th scope="col">Requests</th>
+                <th scope="col">Successful</th>
+                <th scope="col">Tokens in / out</th>
+                <th scope="col">With tokens</th>
+                <th scope="col">Estimated USD</th>
+                <th scope="col">Cost coverage</th>
+              </tr>
+            </thead>
+            <tbody></tbody>
+          </table>
+        </div>
+        <p id="stats-applied-by-task" class="hint"></p>
+        <h3 class="subhead">By provider and model</h3>
+        <div class="table-wrap">
+          <table id="stats-by-model" class="stats-table">
+            <thead>
+              <tr>
+                <th scope="col">Model</th>
+                <th scope="col">Requests</th>
+                <th scope="col">Successful</th>
+                <th scope="col">Tokens in / out</th>
+                <th scope="col">With tokens</th>
+                <th scope="col">Estimated USD</th>
+                <th scope="col">Cost coverage</th>
+              </tr>
+            </thead>
+            <tbody></tbody>
+          </table>
+        </div>
+        <h3 class="subhead">By API key</h3>
+        <div class="table-wrap">
+          <table id="stats-by-key" class="stats-table">
+            <thead>
+              <tr>
+                <th scope="col">API key</th>
+                <th scope="col">Requests</th>
+                <th scope="col">Successful</th>
+                <th scope="col">Tokens in / out</th>
+                <th scope="col">With tokens</th>
+                <th scope="col">Estimated USD</th>
+                <th scope="col">Cost coverage</th>
+              </tr>
+            </thead>
+            <tbody></tbody>
+          </table>
+        </div>
+        <div class="actions">
+          <button id="stats-refresh" type="button">Refresh</button>
+          <button id="stats-csv" type="button" disabled>Export CSV</button>
+          <button id="stats-json" type="button" disabled>Export JSON</button>
+        </div>
+        <details id="stats-prices">
+          <summary>Price references (USD per 1M tokens)</summary>
+          <p class="hint">
+            Estimates use the tokens each provider reported and the price in
+            force when the request was sent. Official list prices were checked
+            on 15 October 2026 and may change: check your provider's current
+            rates. An estimate is not your invoice (no taxes, credits, free tier
+            or currency conversion).
+          </p>
+          <div class="table-wrap">
+            <table id="price-table" class="stats-table">
+              <thead>
+                <tr>
+                  <th scope="col">Model</th>
+                  <th scope="col">Input</th>
+                  <th scope="col">Cached input</th>
+                  <th scope="col">Output</th>
+                  <th scope="col">Applies to</th>
+                  <th scope="col">Source</th>
+                </tr>
+              </thead>
+              <tbody></tbody>
+            </table>
+          </div>
+          <form id="price-form" class="price-form" novalidate>
+            <label class="stack" for="price-provider"
+              >Provider
+              <select id="price-provider">
+                <option value="gemini">Google Gemini</option>
+                <option value="openai">OpenAI</option>
+              </select></label
+            >
+            <label class="stack" for="price-model"
+              >Exact model ID
+              <input id="price-model" list="price-models" autocomplete="off"
+            /></label>
+            <datalist id="price-models"></datalist>
+            <label class="stack" for="price-input"
+              >Input $ / 1M <input id="price-input" inputmode="decimal"
+            /></label>
+            <label class="stack" for="price-cached"
+              >Cached input $ / 1M (optional)
+              <input id="price-cached" inputmode="decimal"
+            /></label>
+            <label class="stack" for="price-output"
+              >Output $ / 1M <input id="price-output" inputmode="decimal"
+            /></label>
+            <label class="stack" for="price-from"
+              >Applies from <input id="price-from" type="date"
+            /></label>
+            <label class="stack" for="price-label"
+              >Source (text only) <input id="price-label" maxlength="120"
+            /></label>
+            <button type="submit">Add price reference</button>
+          </form>
+          <p id="price-message" class="message" aria-live="polite"></p>
+        </details>
+        <details id="stats-delete">
+          <summary>Delete statistics history</summary>
+          <p class="hint">
+            Deletes Correctly's local records of requests sent before the chosen
+            date and of the edits applied. Your API keys, your usage limits and
+            what they already counted are kept (limits stay enforced). Nothing
+            is deleted at Google or OpenAI. Export first if you want a copy.
+          </p>
+          <form id="stats-delete-form" class="key-row" novalidate>
+            <label class="stack" for="stats-delete-before"
+              >Delete requests sent before
+              <input id="stats-delete-before" type="date"
+            /></label>
+            <button type="submit" class="danger">Delete statistics</button>
+          </form>
+          <p id="stats-delete-message" class="message" aria-live="polite"></p>
+        </details>
+      </section>
+
       <section class="card notes" aria-labelledby="notes-title">
         <h2 id="notes-title">Notes</h2>
         <ul>
@@ -554,11 +792,10 @@
             Correctly reads a page only when you click its toolbar button, and
             changes it only when you click Apply.
           </li>
-          <li>A later version adds full usage statistics.</li>
           <li>
             OpenAI requests are sent with <code>store: false</code> (not kept
             for later retrieval); this is not a zero-retention guarantee.
-            Documentation: <code>docs/v5.8/</code> in the project repository.
+            Documentation: <code>docs/v5.9/</code> in the project repository.
           </li>
         </ul>
       </section>

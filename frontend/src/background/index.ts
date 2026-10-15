@@ -1,6 +1,7 @@
 import {
   CORRECT_COMMAND,
   OPEN_LIMITS,
+  isAiEditRequest,
   OPEN_REWRITE,
   OPEN_TRANSLATE,
   PAGE_CONFIG,
@@ -72,6 +73,12 @@ export function isContentScriptSender(
     typeof sender.frameId === 'number'
   );
 }
+
+/** Tab and frame of a content-script sender (checked by the caller). */
+const origin = (sender: chrome.runtime.MessageSender) => ({
+  tabId: sender.tab?.id ?? -1,
+  frameId: sender.frameId ?? -1,
+});
 
 export type Trigger = 'toolbar' | 'keyboard' | 'contextMenu' | 'smartButton';
 type Action = 'correct' | 'rewrite' | 'translate' | 'translateRewrite';
@@ -309,18 +316,27 @@ export function registerServiceWorker(
       isContentScriptSender(sender, chrome.runtime.id) &&
       isCorrectTextRequest(message)
     )
-      task = controller.correct(message.text);
+      task = controller.correct(message.text, origin(sender));
     else if (
       isContentScriptSender(sender, chrome.runtime.id) &&
       isRewriteTextRequest(message)
     )
-      task = controller.rewrite(message.text, message.styleIds);
+      task = controller.rewrite(message.text, message.styleIds, origin(sender));
     else if (
       isContentScriptSender(sender, chrome.runtime.id) &&
       isTranslateTextRequest(message)
     )
-      task = controller.translate(message);
+      task = controller.translate(message, origin(sender));
     else if (
+      isContentScriptSender(sender, chrome.runtime.id) &&
+      isAiEditRequest(message)
+    ) {
+      // Statistics only: checked against the request's own tab and frame.
+      void controller
+        .recordEdit(message.operationId, message.action, origin(sender))
+        .catch(() => undefined);
+      return false;
+    } else if (
       isContentScriptSender(sender, chrome.runtime.id) &&
       !!message &&
       typeof message === 'object' &&

@@ -65,9 +65,13 @@ function parseUsage(value: unknown): TokenUsage | undefined {
   const input = tokenCount(usage?.input_tokens);
   // output_tokens already includes reasoning tokens: never add them twice.
   const output = tokenCount(usage?.output_tokens);
+  // input_tokens_details.cached_tokens is a subset of input_tokens.
+  const cached = tokenCount(object(usage?.input_tokens_details)?.cached_tokens);
   const result: TokenUsage = {};
   if (input !== undefined) result.inputTokens = input;
   if (output !== undefined) result.outputTokens = output;
+  if (cached !== undefined && input !== undefined && cached <= input)
+    result.cachedInputTokens = cached;
   return Object.keys(result).length ? result : undefined;
 }
 

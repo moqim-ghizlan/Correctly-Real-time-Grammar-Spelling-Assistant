@@ -181,7 +181,8 @@ describe('response parsing', () => {
     ).toEqual({
       ok: true,
       text: 'x',
-      usage: { inputTokens: 40, outputTokens: 25 },
+      // cached_tokens is a subset of input_tokens, kept apart (TOK).
+      usage: { inputTokens: 40, outputTokens: 25, cachedInputTokens: 10 },
     });
     expect(parseResponse(openaiOk('x'))).toEqual({ ok: true, text: 'x' });
     expect(

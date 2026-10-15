@@ -115,6 +115,12 @@ type Ready = {
 const withNotice = (start: Ready): { notice?: QuotaNote } =>
   start.notice ? { notice: start.notice } : {};
 
+/** The tab and frame a page request came from (V5.9 edit events). */
+export interface Origin {
+  tabId: number;
+  frameId: number;
+}
+
 /**
  * Handles TEST_CONNECTION, TEST_KEY, CORRECT_TEXT, REWRITE_TEXT and
  * TRANSLATE_TEXT. Requests run one at a time; each generation is bound to
@@ -225,23 +231,36 @@ export class ConnectionController {
   }
 
   /** One request that both detects and corrects errors in `text`. */
-  correct(text: string): Promise<CorrectionResult> {
-    return this.enqueue(() => this.runCorrection(text));
+  correct(text: string, origin?: Origin): Promise<CorrectionResult> {
+    return this.enqueue(() => this.runCorrection(text, origin));
   }
 
   /** One request returning one rewrite per requested style. */
   rewrite(
     text: string,
     styleIds: readonly RewriteStyleId[],
+    origin?: Origin,
   ): Promise<RewriteResult> {
-    return this.enqueue(() => this.runRewrite(text, styleIds));
+    return this.enqueue(() => this.runRewrite(text, styleIds, origin));
   }
 
   /** One request: detection, translation and any styles together. */
   translate(
     request: TranslateTextRequest,
+    origin?: Origin,
   ): Promise<CandidatesResult<TranslationKey>> {
-    return this.enqueue(() => this.runTranslate(request));
+    return this.enqueue(() => this.runTranslate(request, origin));
+  }
+
+  /** V5.9: an Apply/Undo the page confirmed (statistics only; never a request). */
+  recordEdit(
+    operationId: string,
+    action: 'applied' | 'undone',
+    origin: Origin,
+  ): Promise<boolean> {
+    return this.quota
+      .recordEdit({ operationId, action, ...origin }, this.now().getTime())
+      .catch(() => false);
   }
 
   private async resolve(slot: RouteSlot) {
@@ -261,6 +280,7 @@ export class ConnectionController {
     slot: RouteSlot,
     task: TaskKind | 'test',
     needsConsent: boolean,
+    origin?: Origin,
   ): Promise<Ready | FailureResult> {
     // A V5.1 key is moved to a profile first (local only, idempotent).
     await migrateLegacyKey(this.deps.area).catch(() => undefined);
@@ -278,6 +298,8 @@ export class ConnectionController {
       credentialId: resolved.route.credentialId,
       revision: resolved.route.revision,
       modelId: resolved.route.modelId,
+      originTabId: origin?.tabId ?? null,
+      originFrameId: origin?.frameId ?? null,
     };
     const at = () => this.now().getTime();
     let admission: Admission;
@@ -350,6 +372,7 @@ export class ConnectionController {
             outcome.state === 'failed' ? 'failed-after-send' : outcome.state,
           inputTokens: outcome.usage?.inputTokens,
           outputTokens: outcome.usage?.outputTokens,
+          cachedInputTokens: outcome.usage?.cachedInputTokens,
         },
         this.now().getTime(),
       )
@@ -457,11 +480,17 @@ export class ConnectionController {
     task: TaskRequest,
     timeoutMs: number,
     parse: (raw: string) => T | null,
+    origin?: Origin,
   ): Promise<
-    { ok: true; parsed: T; notice: { notice?: QuotaNote } } | FailureResult
+    | {
+        ok: true;
+        parsed: T;
+        notice: { notice?: QuotaNote; operationId: string };
+      }
+    | FailureResult
   > {
     if (!core) return failure('UNKNOWN_ERROR');
-    const start = await this.begin(slot, slot, true);
+    const start = await this.begin(slot, slot, true, origin);
     if (!start.ok) return start;
     const reply = await this.dispatch(start, task, timeoutMs);
     const parsed = reply.ok ? parse(reply.text) : null;
@@ -479,7 +508,11 @@ export class ConnectionController {
       return { ...failure(reply.code, reply.httpStatus), ...withNotice(start) };
     if (parsed === null)
       return { ...failure('INVALID_RESPONSE'), ...withNotice(start) };
-    return { ok: true, parsed, notice: withNotice(start) };
+    return {
+      ok: true,
+      parsed,
+      notice: { ...withNotice(start), operationId: start.operationId },
+    };
   }
 
   /**
@@ -511,7 +544,10 @@ export class ConnectionController {
     return candidates.length ? { candidates, missing } : null;
   }
 
-  private async runCorrection(text: string): Promise<CorrectionResult> {
+  private async runCorrection(
+    text: string,
+    origin?: Origin,
+  ): Promise<CorrectionResult> {
     const [lead, core, trail] = splitEdges(text);
     const guard = await this.protect(core);
     const result = await this.generate(
@@ -527,6 +563,7 @@ export class ConnectionController {
           ? null
           : { ...parsed, correctedText: restored };
       },
+      origin,
     );
     if (!result.ok) return result;
     const { parsed, notice } = result;
@@ -544,6 +581,7 @@ export class ConnectionController {
   private async runRewrite(
     text: string,
     styleIds: readonly RewriteStyleId[],
+    origin?: Origin,
   ): Promise<RewriteResult> {
     const [lead, core, trail] = splitEdges(text);
     const guard = await this.protect(core);
@@ -556,6 +594,7 @@ export class ConnectionController {
         const parsed = parseRewrite(raw, guard.text, styleIds);
         return parsed && ConnectionController.restoreAll(parsed, guard);
       },
+      origin,
     );
     if (!result.ok) return result;
     return {
@@ -569,10 +608,10 @@ export class ConnectionController {
     };
   }
 
-  private async runTranslate({
-    text,
-    ...options
-  }: TranslateTextRequest): Promise<CandidatesResult<TranslationKey>> {
+  private async runTranslate(
+    { text, ...options }: TranslateTextRequest,
+    origin?: Origin,
+  ): Promise<CandidatesResult<TranslationKey>> {
     const [lead, core, trail] = splitEdges(text);
     const keys = translationKeys(options.styleIds);
     const guard = await this.protect(core);
@@ -588,6 +627,7 @@ export class ConnectionController {
         const restored = ConnectionController.restoreAll(parsed, guard);
         return restored && { sameLanguage: false as const, ...restored };
       },
+      origin,
     );
     if (!result.ok) return result;
     const { parsed, notice } = result;

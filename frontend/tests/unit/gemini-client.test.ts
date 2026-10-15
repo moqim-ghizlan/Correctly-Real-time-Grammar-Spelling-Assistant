@@ -207,7 +207,8 @@ describe('response handling', () => {
     ).toEqual({
       ok: true,
       sample: 'OK',
-      usage: { inputTokens: 6, outputTokens: 21 },
+      // No cachedContentTokenCount next to a prompt count: none cached.
+      usage: { inputTokens: 6, outputTokens: 21, cachedInputTokens: 0 },
     });
   });
 

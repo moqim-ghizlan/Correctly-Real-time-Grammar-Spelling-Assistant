@@ -3,6 +3,7 @@ import {
   REWRITE_TEXT,
   failureOf,
   noticeOf,
+  operationOf,
   type FailureResult,
 } from './contracts';
 import type { QuotaNote } from './quota';
@@ -103,6 +104,8 @@ export type CandidatesResult<K extends string = RewriteStyleId> =
       sameLanguage?: boolean;
       /** V5.8: a usage warning (80/95/100 %) this request crossed. */
       notice?: QuotaNote;
+      /** V5.9: lets the page report a confirmed Apply/Undo for statistics. */
+      operationId?: string;
     }
   | FailureResult;
 export type RewriteResult = CandidatesResult;
@@ -127,6 +130,7 @@ export function toRewriteResult<K extends string = RewriteStyleId>(
       missing: [],
       sameLanguage: true,
       ...noticeOf(data),
+      ...operationOf(data),
     };
   if (data.ok === true && Array.isArray(data.candidates)) {
     const byStyle = new Map<K, Candidate<K>>();
@@ -154,6 +158,7 @@ export function toRewriteResult<K extends string = RewriteStyleId>(
         candidates,
         missing: requested.filter((id) => !byStyle.has(id)),
         ...noticeOf(data),
+        ...operationOf(data),
       };
   }
   return failureOf(data);

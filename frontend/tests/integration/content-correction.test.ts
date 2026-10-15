@@ -325,6 +325,71 @@ describe('undo', () => {
   });
 });
 
+describe('V5.9 edit events (AP)', () => {
+  const ID = 'operation-abcdef12';
+  async function preview(value = 'A: Il a oublier. B') {
+    const start = value.indexOf('Il a oublier.');
+    const el = field<HTMLTextAreaElement>(
+      '<textarea></textarea>',
+      value,
+      start,
+      start + 'Il a oublier.'.length,
+    );
+    const panel = startCorrection(document, send);
+    const report = vi.fn();
+    panel.reportEdit = report;
+    answer({ ...suggestion('Il a oublié.'), operationId: ID });
+    await flush();
+    return { el, panel, report };
+  }
+
+  it('INV-07: Apply reports once, after the text really changed; Undo reports once', async () => {
+    const { el, panel, report } = await preview();
+    expect(report).not.toHaveBeenCalled();
+    button(panel, 'Apply').click();
+    expect(el.value).toBe('A: Il a oublié. B');
+    expect(report.mock.calls).toEqual([[ID, 'applied']]);
+    panel.apply(); // Apply is hidden now: nothing more
+    button(panel, 'Undo correction').click();
+    expect(report.mock.calls).toEqual([
+      [ID, 'applied'],
+      [ID, 'undone'],
+    ]);
+  });
+
+  it('INV-08/T06/T07: a stale Apply, Copy or Cancel reports nothing', async () => {
+    vi.stubGlobal('navigator', {
+      clipboard: { writeText: vi.fn(() => Promise.resolve()) },
+    });
+    const { el, panel, report } = await preview();
+    await panel.copy();
+    el.value += ' Merci';
+    el.dispatchEvent(new Event('input'));
+    button(panel, 'Apply').click();
+    panel.apply();
+    button(panel, 'Cancel').click();
+    expect(report).not.toHaveBeenCalled();
+    vi.unstubAllGlobals();
+  });
+
+  it('a reply without a valid request ID reports nothing', async () => {
+    const el = field<HTMLTextAreaElement>(
+      '<textarea></textarea>',
+      'Il a oublier.',
+      0,
+      13,
+    );
+    void el;
+    const panel = startCorrection(document, send);
+    const report = vi.fn();
+    panel.reportEdit = report;
+    answer({ ...suggestion('Il a oublié.'), operationId: '<script>' });
+    await flush();
+    button(panel, 'Apply').click();
+    expect(report).not.toHaveBeenCalled();
+  });
+});
+
 describe('request lifecycle', () => {
   it('A08: a second click while waiting sends nothing more', () => {
     field('<textarea></textarea>', 'Il a oublier.', 0, 13);
