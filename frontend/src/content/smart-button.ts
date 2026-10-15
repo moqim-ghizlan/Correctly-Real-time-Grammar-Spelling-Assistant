@@ -1,13 +1,9 @@
-import { SMART_BUTTON_OFF } from '../shared/contracts';
-import {
-  correctInPage,
-  deepActiveElement,
-  isEligibleField,
-} from './correction';
+import { OPEN_REWRITE, SMART_BUTTON_OFF } from '../shared/contracts';
+import { deepActiveElement, isEligibleField, runInPage } from './correction';
 
-// Opt-in smart button: a small action next to the focused plain text field.
-// Showing it never sends anything; only an activation does, through the same
-// correctInPage() path as the other triggers.
+// Opt-in smart button: two small actions (Correct, Rewrite) next to the
+// focused plain text field. Showing them never sends anything; only an
+// activation does, through the same paths as the other triggers.
 
 const SIZE = 24;
 const CSS = `
@@ -33,6 +29,7 @@ export class SmartButton {
   readonly host: HTMLElement;
   /** Inside a closed shadow root; exposed for tests only. */
   readonly button: HTMLButtonElement;
+  readonly rewriteButton: HTMLButtonElement;
   private field: TextField | null = null;
   private frame = 0;
 
@@ -41,18 +38,30 @@ export class SmartButton {
     const root = this.host.attachShadow({ mode: 'closed' });
     const style = doc.createElement('style');
     style.textContent = CSS;
-    this.button = doc.createElement('button');
-    this.button.type = 'button';
-    this.button.textContent = '✓';
-    this.button.title = 'Correct the selected text (Correctly)';
-    this.button.setAttribute('aria-label', this.button.title);
-    root.append(style, this.button);
-
-    // Keep focus and selection in the field when the button is pressed.
-    this.button.addEventListener('mousedown', (event) =>
-      event.preventDefault(),
+    const button = (glyph: string, title: string, action: () => void) => {
+      const node = doc.createElement('button');
+      node.type = 'button';
+      node.textContent = glyph;
+      node.title = title;
+      node.setAttribute('aria-label', title);
+      // Keep focus and selection in the field when the button is pressed.
+      node.addEventListener('mousedown', (event) => event.preventDefault());
+      // Page scripts cannot reach a closed shadow root; isTrusted also
+      // rejects synthetic clicks, so only a real gesture can send text.
+      node.addEventListener('click', (event) => {
+        if (event.isTrusted) action();
+      });
+      return node;
+    };
+    this.button = button('✓', 'Correct the selected text (Correctly)', () =>
+      this.correct(),
     );
-    this.button.addEventListener('click', this.activate);
+    this.rewriteButton = button(
+      '✎',
+      'Rewrite the selected text (Correctly)',
+      () => this.rewrite(),
+    );
+    root.append(style, this.rewriteButton, this.button);
     doc.addEventListener('focusin', this.onFocus, true);
     doc.addEventListener('focusout', this.onBlur, true);
     doc.defaultView?.addEventListener('scroll', this.schedule, true);
@@ -82,17 +91,20 @@ export class SmartButton {
     });
   };
 
-  private readonly activate = (event: MouseEvent) => {
-    // Page scripts cannot reach a closed shadow root; this also rejects
-    // synthetic clicks so only a real user gesture can send text.
-    if (event.isTrusted) this.correct();
-  };
-
   /** Same path as the shortcut: the field keeps its selection. */
   correct(): void {
     if (!this.field?.isConnected) return;
     this.field.focus({ preventScroll: true });
-    correctInPage(this.doc);
+    runInPage(this.doc, 'correct');
+  }
+
+  /** The worker opens the picker here with the saved default styles. */
+  rewrite(): void {
+    if (!this.field?.isConnected) return;
+    this.field.focus({ preventScroll: true });
+    void chrome.runtime
+      .sendMessage({ type: OPEN_REWRITE })
+      .catch(() => undefined);
   }
 
   private place() {
@@ -110,8 +122,10 @@ export class SmartButton {
     // Inside the field's bottom-right corner, kept on screen.
     const top = Math.min(rect.bottom - SIZE - 4, view.clientHeight - SIZE - 4);
     const left = Math.min(rect.right - SIZE - 4, view.clientWidth - SIZE - 4);
-    this.button.style.top = `${Math.max(4, top)}px`;
-    this.button.style.left = `${Math.max(4, left)}px`;
+    this.button.style.top =
+      this.rewriteButton.style.top = `${Math.max(4, top)}px`;
+    this.button.style.left = `${Math.max(SIZE + 8, left)}px`;
+    this.rewriteButton.style.left = `${Math.max(4, left - SIZE - 4)}px`;
     if (!this.host.isConnected) this.doc.documentElement.append(this.host);
   }
 

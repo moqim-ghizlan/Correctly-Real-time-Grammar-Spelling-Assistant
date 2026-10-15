@@ -1,4 +1,4 @@
-# Correctly V5.3
+# Correctly V5.4
 
 Personal Chrome/Brave extension (Manifest V3, TypeScript): an on-demand AI
 writing assistant using your own Gemini API key.
@@ -17,8 +17,14 @@ writing assistant using your own Gemini API key.
   text, password, email, phone, URL, number and search fields are never sent.
   The smart button is off by default; turning it on asks Chrome for access to
   all sites, and turning it off removes that access.
-- Rewriting, translation, shortcuts, more providers and statistics arrive in
-  later V5 releases (plans in [`v5/`](v5/)).
+- **Rewrite (V5.4).** Right-click **Correctly → Rewrite selected text…**, the
+  smart button's ✎, or an optional shortcut (set it in
+  `chrome://extensions/shortcuts`). Pick one or more styles (Professional,
+  Formal, Friendly, Casual, Polite, Concise, Funny), click **Generate
+  rewrites**: **one** Gemini request returns one labeled version per style, in
+  the same language. Choose one, then Apply, Copy or Cancel.
+- Translation, text shortcuts, more providers and statistics arrive in later
+  V5 releases (plans in [`v5/`](v5/)).
 
 V1–V4 (LanguageTool engine, Windows server and installer) are archived in Git:
 tag `v4.0.0` contains the last V4 sources.
@@ -37,7 +43,7 @@ npm run lint
 Optional:
 
 ```powershell
-npm run package        # release/Correctly-V5.3-Extension.zip (+ .sha256)
+npm run package        # release/Correctly-V5.4-Extension.zip (+ .sha256)
 npm run test:browser   # real-browser smoke test (Brave by default)
 node scripts/verify-browser.mjs --browser=chrome
 ```
@@ -87,11 +93,12 @@ synced, not encrypted). Use it only on your own computer and profile.
 | `frontend/tests/`           | unit and integration tests                                |
 | `frontend/manifest.json`    | the only manifest (copied to `dist/` by Vite)             |
 | `scripts/`                  | dist audit, packaging, dev watch, browser smoke test      |
-| `docs/v5.1/` … `docs/v5.3/` | architecture, security, test reports, checklists          |
+| `docs/v5.1/` … `docs/v5.4/` | architecture, security, test reports, checklists          |
 | `v5/`                       | V5.1–V5.x specifications                                  |
 | `plans/`                    | V1–V4 plans (history)                                     |
 
-See [docs/v5.3/V5.3_REPORT.md](docs/v5.3/V5.3_REPORT.md),
+See [docs/v5.4/V5.4_REPORT.md](docs/v5.4/V5.4_REPORT.md),
+[docs/v5.3/V5.3_REPORT.md](docs/v5.3/V5.3_REPORT.md),
 [docs/v5.2/V5.2_REPORT.md](docs/v5.2/V5.2_REPORT.md),
 [docs/v5.1/ARCHITECTURE.md](docs/v5.1/ARCHITECTURE.md),
 [SECURITY.md](docs/v5.1/SECURITY.md),

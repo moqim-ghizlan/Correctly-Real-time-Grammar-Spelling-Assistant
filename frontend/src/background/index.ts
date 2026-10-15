@@ -1,10 +1,13 @@
 import {
   CORRECT_COMMAND,
+  OPEN_REWRITE,
+  REWRITE_COMMAND,
   isCorrectTextRequest,
   isTestConnectionRequest,
   type ConnectionResult,
 } from '../shared/contracts';
 import { errorMessage, isRetryable } from '../shared/errors';
+import { isRewriteTextRequest } from '../shared/rewrite';
 import {
   browserStorage,
   loadSettings,
@@ -22,6 +25,7 @@ export const SMART_SCRIPT = 'smart.js';
 export const SMART_SCRIPT_ID = 'correctly-smart-button';
 export const MENU_PARENT = 'correctly';
 export const MENU_CORRECT = 'correctly-correct-selection';
+export const MENU_REWRITE = 'correctly-rewrite-selection';
 const ALL_SITES = ['<all_urls>'];
 
 /** Only pages bundled in this extension may talk to the worker. */
@@ -50,59 +54,81 @@ export function isContentScriptSender(
   );
 }
 
-export type Trigger = 'toolbar' | 'keyboard' | 'contextMenu';
+export type Trigger = 'toolbar' | 'keyboard' | 'contextMenu' | 'smartButton';
+type Intent = 'correct' | 'rewrite' | 'unreachable' | 'rewriteOff';
+
+/** Loads content.js into one frame, then runs it with the intent. */
+async function inject(
+  tabId: number,
+  frameIds: number[] | undefined,
+  intent: Intent,
+  styles: string[] = [],
+): Promise<void> {
+  const target = frameIds ? { tabId, frameIds } : { tabId };
+  await chrome.scripting.executeScript({ target, files: [CONTENT_SCRIPT] });
+  await chrome.scripting.executeScript({
+    target,
+    func: (intent: string, styles: string[]) => {
+      (
+        globalThis as {
+          correctlyRun?: (intent: string, styles: string[]) => void;
+        }
+      ).correctlyRun?.(intent, styles);
+    },
+    args: [intent, styles],
+  });
+}
 
 /**
- * The one path used by the toolbar button, the shortcut and the context menu:
- * inject content.js into the frame the user acted in (activeTab is granted
- * by the gesture). A disabled shortcut or menu does nothing. Without a key or
- * consent, or on pages Chrome does not let extensions script (chrome://, Web
- * Store, PDF viewer), the settings open instead.
+ * The one path used by every trigger: inject content.js into the frame the
+ * user acted in (activeTab is granted by the gesture, or site access by the
+ * smart button) and run correction or the rewrite picker. A disabled trigger
+ * does nothing. Without a key or consent, or on pages Chrome does not let
+ * extensions script (chrome://, Web Store, PDF viewer), the settings open.
  */
 export async function correctInTab(
   tab: chrome.tabs.Tab | undefined,
   area: StorageArea,
   trigger: Trigger,
   frameId = 0,
+  requested: 'correct' | 'rewrite' = 'correct',
 ): Promise<void> {
   let tabId: number | undefined;
+  let intent: Intent = requested;
+  let styles: string[] = [];
   try {
     const settings = await loadSettings(area);
     if (trigger !== 'toolbar' && !settings.triggers[trigger]) return;
+    if (intent === 'rewrite') {
+      if (!settings.rewrite.enabled) intent = 'rewriteOff';
+      styles = settings.rewrite.defaultStyles;
+    }
     if (settings.gemini.apiKey && settings.correction.consent) tabId = tab?.id;
   } catch {
     // Fall through to the settings page.
   }
   if (typeof tabId !== 'number') return chrome.runtime.openOptionsPage();
   try {
-    await chrome.scripting.executeScript({
-      target: { tabId, frameIds: [frameId] },
-      files: [CONTENT_SCRIPT],
-    });
-    return;
+    return await inject(tabId, [frameId], intent, styles);
   } catch {
     if (frameId === 0) return chrome.runtime.openOptionsPage();
   }
   // A frame embedded from another site is outside activeTab: say so in the
   // top frame instead of correcting anything there.
   try {
-    await chrome.scripting.executeScript({
-      target: { tabId },
-      func: () => {
-        (globalThis as { correctlyNotice?: string }).correctlyNotice =
-          'unreachable';
-      },
-    });
-    await chrome.scripting.executeScript({
-      target: { tabId },
-      files: [CONTENT_SCRIPT],
-    });
+    await inject(tabId, undefined, 'unreachable');
   } catch {
     await chrome.runtime.openOptionsPage();
   }
 }
 
-/** Idempotent: exactly one parent and one item after any install/update. */
+const isOpenRewriteRequest = (value: unknown): boolean =>
+  !!value &&
+  typeof value === 'object' &&
+  Object.keys(value).join() === 'type' &&
+  (value as { type?: unknown }).type === OPEN_REWRITE;
+
+/** Idempotent: exactly one parent and its two items after any install/update. */
 export async function installMenu(area: StorageArea): Promise<void> {
   const settings = await loadSettings(area);
   await chrome.contextMenus.removeAll();
@@ -122,6 +148,16 @@ export async function installMenu(area: StorageArea): Promise<void> {
       parentId: MENU_PARENT,
       title: 'Correct selected text',
       contexts: ['editable'],
+    },
+    ignore,
+  );
+  chrome.contextMenus.create(
+    {
+      id: MENU_REWRITE,
+      parentId: MENU_PARENT,
+      title: 'Rewrite selected text…',
+      contexts: ['editable'],
+      visible: settings.rewrite.enabled,
     },
     ignore,
   );
@@ -163,7 +199,26 @@ export function registerServiceWorker(
       isCorrectTextRequest(message)
     )
       task = controller.correct(message.text);
-    else return false;
+    else if (
+      isContentScriptSender(sender, chrome.runtime.id) &&
+      isRewriteTextRequest(message)
+    )
+      task = controller.rewrite(message.text, message.styleIds);
+    else {
+      // Smart button → open the picker in that frame; nothing is replied.
+      if (
+        isContentScriptSender(sender, chrome.runtime.id) &&
+        isOpenRewriteRequest(message)
+      )
+        void correctInTab(
+          sender.tab,
+          area,
+          'smartButton',
+          sender.frameId,
+          'rewrite',
+        ).catch(() => undefined);
+      return false;
+    }
     void task
       .catch((): ConnectionResult => ({
         ok: false,
@@ -179,14 +234,24 @@ export function registerServiceWorker(
     void correctInTab(tab, area, 'toolbar').catch(() => undefined);
   });
   chrome.commands.onCommand.addListener((command, tab) => {
-    if (command === CORRECT_COMMAND)
-      void correctInTab(tab, area, 'keyboard').catch(() => undefined);
+    if (command === CORRECT_COMMAND || command === REWRITE_COMMAND)
+      void correctInTab(
+        tab,
+        area,
+        'keyboard',
+        0,
+        command === REWRITE_COMMAND ? 'rewrite' : 'correct',
+      ).catch(() => undefined);
   });
   chrome.contextMenus.onClicked.addListener((info, tab) => {
-    if (info.menuItemId === MENU_CORRECT)
-      void correctInTab(tab, area, 'contextMenu', info.frameId ?? 0).catch(
-        () => undefined,
-      );
+    if (info.menuItemId === MENU_CORRECT || info.menuItemId === MENU_REWRITE)
+      void correctInTab(
+        tab,
+        area,
+        'contextMenu',
+        info.frameId ?? 0,
+        info.menuItemId === MENU_REWRITE ? 'rewrite' : 'correct',
+      ).catch(() => undefined);
   });
   chrome.runtime.onInstalled.addListener(() => {
     void installMenu(area).catch(() => undefined);
@@ -196,9 +261,14 @@ export function registerServiceWorker(
     if (areaName !== 'local' || !(STORAGE_KEYS.settings in changes)) return;
     void loadSettings(area)
       .then((settings) =>
-        chrome.contextMenus.update(MENU_PARENT, {
-          visible: settings.triggers.contextMenu,
-        }),
+        Promise.all([
+          chrome.contextMenus.update(MENU_PARENT, {
+            visible: settings.triggers.contextMenu,
+          }),
+          chrome.contextMenus.update(MENU_REWRITE, {
+            visible: settings.rewrite.enabled,
+          }),
+        ]),
       )
       .catch(() => undefined);
     void syncSmartScript(area).catch(() => undefined);

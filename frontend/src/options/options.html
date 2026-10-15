@@ -3,7 +3,7 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <title>Correctly V5.2 — Settings</title>
+    <title>Correctly V5.4 — Settings</title>
     <link rel="icon" href="/icons/icon-48.png" />
     <link rel="stylesheet" href="./settings-ui.css" />
   </head>
@@ -18,13 +18,13 @@
           height="40"
         />
         <div>
-          <h1>Correctly V5.2</h1>
+          <h1>Correctly V5.4</h1>
           <p class="subtitle">Personal AI writing assistant</p>
         </div>
       </header>
       <p class="scope">
-        This version corrects the text you select, on request only. Rewriting,
-        translation and shortcuts arrive in later V5 releases.
+        Correctly corrects or rewrites the text you select, on request only.
+        Translation and text shortcuts arrive in later V5 releases.
       </p>
 
       <section class="card" aria-labelledby="gemini-title">
@@ -129,7 +129,7 @@
           <input id="correction-consent" type="checkbox" disabled />
           <span
             >Send the text I select to Google Gemini when I ask Correctly to
-            correct it.</span
+            correct or rewrite it.</span
           >
         </label>
         <p class="hint">
@@ -175,6 +175,29 @@
           >
         </label>
         <p id="triggers-message" class="message" aria-live="polite"></p>
+      </section>
+
+      <section class="card" aria-labelledby="rewrite-title">
+        <h2 id="rewrite-title">Rewrite</h2>
+        <label class="check" for="rewrite-enabled">
+          <input id="rewrite-enabled" type="checkbox" disabled />
+          <span
+            >Offer “Rewrite selected text” (right-click menu, smart button,
+            optional shortcut)</span
+          >
+        </label>
+        <fieldset id="rewrite-styles" class="styles">
+          <legend>Styles selected by default</legend>
+        </fieldset>
+        <p class="hint">
+          You can change the styles each time before generating. All chosen
+          styles are produced by <strong>one</strong> Gemini request (one
+          request in the daily limit), in the language of your text — no
+          translation. Rewrites need an internet connection and may incur
+          charges; they are suggestions to review, and nothing changes until you
+          click Apply.
+        </p>
+        <p id="rewrite-message" class="message" aria-live="polite"></p>
       </section>
 
       <section class="card" aria-labelledby="limit-title">

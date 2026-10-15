@@ -1,0 +1,212 @@
+{
+  "browser": "chrome",
+  "browserVersion": "Chrome/155.0.8059.40",
+  "date": "2026-10-15T14:06:28.865Z",
+  "offline": true,
+  "steps": [
+    {
+      "id": "M3",
+      "result": "PASS",
+      "detail": "extension loaded (eehjeahbmglpngbafjmmhpbpfkmehmhp)"
+    },
+    {
+      "id": "K05",
+      "result": "PASS",
+      "detail": "command registered; shortcut reported: none (automated profiles may not assign suggested keys; check chrome://extensions/shortcuts manually)"
+    },
+    {
+      "id": "M4",
+      "result": "PASS",
+      "detail": "settings open: Not configured, daily cap 20"
+    },
+    {
+      "id": "M6",
+      "result": "PASS",
+      "detail": "Test without key refused locally, zero network requests"
+    },
+    {
+      "id": "M5a",
+      "result": "PASS",
+      "detail": "dummy key saved; after reopen shows Configured, key not in DOM"
+    },
+    {
+      "id": "M5b",
+      "result": "SKIPPED",
+      "detail": "--offline: dummy-key request to Google not sent"
+    },
+    {
+      "id": "M8",
+      "result": "SKIPPED",
+      "detail": "--offline: cap test needs one dispatched attempt"
+    },
+    {
+      "id": "M9",
+      "result": "PASS",
+      "detail": "worker stopped and woken by message; persisted settings/count respected (Invalid key — create or paste a valid key in Google AI Studio, then save it again. (HTTP 400))"
+    },
+    {
+      "id": "M14",
+      "result": "PASS",
+      "detail": "no horizontal overflow at 360/900px; Tab order: api-key → toggle-key → save-key → remove-key → A → model → test → correction-consent → trigger-keyboard"
+    },
+    {
+      "id": "M6b",
+      "result": "PASS",
+      "detail": "Remove key → Not configured"
+    },
+    {
+      "id": "M11",
+      "result": "PASS",
+      "detail": "regular page: no injected UI, text unchanged"
+    },
+    {
+      "id": "C01",
+      "result": "PASS",
+      "detail": "content.js: exact selection sent, no change before Apply, Apply/Undo exact range, closed panel"
+    },
+    {
+      "id": "C02",
+      "result": "PASS",
+      "detail": "smart.js: one button on focus inside the field, hidden on blur, exact selection sent once"
+    },
+    {
+      "id": "C03",
+      "result": "PASS",
+      "detail": "rewrite: picker sends nothing, one request for 2 styles, cards in requested order, chosen card applied, undo"
+    },
+    {
+      "id": "M15",
+      "result": "PASS",
+      "detail": "0 console messages, none with the key; only Google API contacted"
+    }
+  ],
+  "networkRequests": [
+    {
+      "source": "service-worker",
+      "method": "GET",
+      "url": "chrome-extension://eehjeahbmglpngbafjmmhpbpfkmehmhp/chunks/storage.js",
+      "headerNames": ["User-Agent", "Origin", "Referer"]
+    },
+    {
+      "source": "options-page",
+      "method": "GET",
+      "url": "chrome-extension://eehjeahbmglpngbafjmmhpbpfkmehmhp/icons/icon-48.png",
+      "headerNames": ["User-Agent", "Referer"]
+    },
+    {
+      "source": "options-page",
+      "method": "GET",
+      "url": "chrome-extension://eehjeahbmglpngbafjmmhpbpfkmehmhp/src/options/options.html",
+      "headerNames": ["sec-ch-ua", "sec-ch-ua-mobile", "sec-ch-ua-platform"]
+    },
+    {
+      "source": "options-page",
+      "method": "GET",
+      "url": "chrome-extension://eehjeahbmglpngbafjmmhpbpfkmehmhp/options.js",
+      "headerNames": ["User-Agent", "Origin", "Referer"]
+    },
+    {
+      "source": "options-page",
+      "method": "GET",
+      "url": "chrome-extension://eehjeahbmglpngbafjmmhpbpfkmehmhp/chunks/storage.js",
+      "headerNames": ["User-Agent", "Origin", "Referer"]
+    },
+    {
+      "source": "options-page",
+      "method": "GET",
+      "url": "chrome-extension://eehjeahbmglpngbafjmmhpbpfkmehmhp/assets/options-WuwpQoLR.css",
+      "headerNames": ["User-Agent", "Origin", "Referer"]
+    },
+    {
+      "source": "options-page",
+      "method": "GET",
+      "url": "chrome-extension://eehjeahbmglpngbafjmmhpbpfkmehmhp/icons/icon-48.png",
+      "headerNames": ["User-Agent", "Referer"]
+    },
+    {
+      "source": "options-page",
+      "method": "GET",
+      "url": "chrome-extension://eehjeahbmglpngbafjmmhpbpfkmehmhp/src/options/options.html",
+      "headerNames": ["sec-ch-ua", "sec-ch-ua-mobile", "sec-ch-ua-platform"]
+    },
+    {
+      "source": "options-page",
+      "method": "GET",
+      "url": "chrome-extension://eehjeahbmglpngbafjmmhpbpfkmehmhp/options.js",
+      "headerNames": ["User-Agent", "Origin", "Referer"]
+    },
+    {
+      "source": "options-page",
+      "method": "GET",
+      "url": "chrome-extension://eehjeahbmglpngbafjmmhpbpfkmehmhp/chunks/storage.js",
+      "headerNames": ["User-Agent", "Origin", "Referer"]
+    },
+    {
+      "source": "options-page",
+      "method": "GET",
+      "url": "chrome-extension://eehjeahbmglpngbafjmmhpbpfkmehmhp/assets/options-WuwpQoLR.css",
+      "headerNames": ["User-Agent", "Origin", "Referer"]
+    },
+    {
+      "source": "options-page",
+      "method": "GET",
+      "url": "chrome-extension://eehjeahbmglpngbafjmmhpbpfkmehmhp/icons/icon-48.png",
+      "headerNames": ["User-Agent", "Referer"]
+    },
+    {
+      "source": "options-page",
+      "method": "GET",
+      "url": "chrome-extension://eehjeahbmglpngbafjmmhpbpfkmehmhp/icons/icon-48.png",
+      "headerNames": ["User-Agent", "Referer"]
+    },
+    {
+      "source": "options-page",
+      "method": "GET",
+      "url": "chrome-extension://eehjeahbmglpngbafjmmhpbpfkmehmhp/src/options/options.html",
+      "headerNames": ["sec-ch-ua", "sec-ch-ua-mobile", "sec-ch-ua-platform"]
+    },
+    {
+      "source": "options-page",
+      "method": "GET",
+      "url": "chrome-extension://eehjeahbmglpngbafjmmhpbpfkmehmhp/options.js",
+      "headerNames": ["User-Agent", "Origin", "Referer"]
+    },
+    {
+      "source": "options-page",
+      "method": "GET",
+      "url": "chrome-extension://eehjeahbmglpngbafjmmhpbpfkmehmhp/chunks/storage.js",
+      "headerNames": ["User-Agent", "Origin", "Referer"]
+    },
+    {
+      "source": "options-page",
+      "method": "GET",
+      "url": "chrome-extension://eehjeahbmglpngbafjmmhpbpfkmehmhp/assets/options-WuwpQoLR.css",
+      "headerNames": ["User-Agent", "Origin", "Referer"]
+    },
+    {
+      "source": "options-page",
+      "method": "GET",
+      "url": "chrome-extension://eehjeahbmglpngbafjmmhpbpfkmehmhp/icons/icon-48.png",
+      "headerNames": ["User-Agent", "Referer"]
+    },
+    {
+      "source": "options-page",
+      "method": "GET",
+      "url": "chrome-extension://eehjeahbmglpngbafjmmhpbpfkmehmhp/icons/icon-48.png",
+      "headerNames": ["User-Agent", "Referer"]
+    },
+    {
+      "source": "service-worker",
+      "method": "POST",
+      "url": "https://generativelanguage.googleapis.com/v1beta/models/gemini-3.1-flash-lite:generateContent",
+      "headerNames": ["x-goog-api-key", "Referer", "User-Agent", "Content-Type"]
+    },
+    {
+      "source": "options-page",
+      "method": "GET",
+      "url": "data:text/html,<textarea id=t>Je sui ici</textarea><div contenteditable id=c>helo</div>",
+      "headerNames": []
+    }
+  ],
+  "consoleMessages": []
+}

@@ -2,12 +2,14 @@
 
 Extension personnelle Chrome/Brave, **Manifest V3, TypeScript strict**, qui
 deviendra un assistant d'écriture IA à la demande (Gemini, clé personnelle de
-l'utilisateur). État actuel : **V5.3** = page de paramètres, service worker et
-correction à la demande. Bouton de la barre d'outils, raccourci (Alt+Shift+C)
-et menu clic droit passent par `correctInTab()` du worker, qui injecte
-`content.js` (`activeTab` + `scripting`) ; le bouton intelligent optionnel
-(`smart.js`, accès à tous les sites demandé seulement à l'activation) appelle
-le même `correctInPage()`. Une requête Gemini, aperçu, puis Apply explicite.
+l'utilisateur). État actuel : **V5.4** = page de paramètres, service worker,
+correction et réécriture (7 styles) à la demande. Bouton de la barre d'outils,
+raccourcis et menu clic droit passent par `correctInTab()` du worker, qui
+injecte `content.js` (`activeTab` + `scripting`) puis appelle
+`correctlyRun(intent, styles)` ; le bouton intelligent optionnel (`smart.js`,
+accès à tous les sites demandé seulement à l'activation) appelle le même
+`runInPage()`. Une seule requête Gemini par action (`generate()` du
+contrôleur), aperçu, puis Apply explicite.
 
 ## Ce qui n'existe plus
 
@@ -33,7 +35,8 @@ Les documents `plans/` et l'historique V4 sont du contexte, pas l'état du code.
   `helpers/fake-storage.ts`).
 - `scripts/` — audit de `dist/`, packaging ZIP, watch, smoke test navigateur.
 - `docs/v5.1/` — architecture, sécurité, rapport de tests, checklist manuelle.
-- `v5/v5.1.md` … `v5.6.md` — spécifications des jalons V5 (plans, pas preuves).
+- `v5/` — spécifications des jalons V5 (`*_done.md` = livrés ; les autres
+  sont des plans, pas des preuves).
 
 ## Commandes (racine, Node 22.13+ ou 24+)
 

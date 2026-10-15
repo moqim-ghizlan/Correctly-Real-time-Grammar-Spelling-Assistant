@@ -1,9 +1,9 @@
 {
   "manifest_version": 3,
-  "name": "Correctly V5.3",
-  "version": "5.3.0",
-  "version_name": "5.3.0",
-  "description": "Personal AI writing assistant (V5.3: correct selected text with Gemini from the toolbar, a shortcut, the right-click menu or a smart button).",
+  "name": "Correctly V5.4",
+  "version": "5.4.0",
+  "version_name": "5.4.0",
+  "description": "Personal AI writing assistant (V5.4: correct or rewrite selected text with Gemini).",
   "minimum_chrome_version": "120",
   "permissions": ["activeTab", "contextMenus", "scripting", "storage"],
   "optional_host_permissions": ["<all_urls>"],
@@ -19,6 +19,9 @@
     "correct-selection": {
       "suggested_key": { "default": "Alt+Shift+C", "mac": "Alt+Shift+C" },
       "description": "Correct the selected text"
+    },
+    "rewrite-selection": {
+      "description": "Rewrite the selected text (choose styles)"
     }
   },
   "options_page": "src/options/options.html",

@@ -1,6 +1,11 @@
 import { DEFAULT_MODEL_ID, isAllowedModelId } from './models';
 import { isErrorCode, type ErrorCode } from './errors';
 import { isLocalDate } from './local-date';
+import {
+  DEFAULT_REWRITE_STYLES,
+  normalizeStyleIds,
+  type RewriteStyleId,
+} from './rewrite';
 
 export const DAILY_LIMIT_DEFAULT = 20;
 export const DAILY_LIMIT_MIN = 1;
@@ -23,6 +28,8 @@ export interface V51Settings {
   // V5.3 entry points. The smart button needs optional all-sites access, so
   // it is off until the user enables it (and grants that access).
   triggers: { keyboard: boolean; contextMenu: boolean; smartButton: boolean };
+  // V5.4: styles pre-selected in the rewrite picker (stable IDs only).
+  rewrite: { enabled: boolean; defaultStyles: RewriteStyleId[] };
 }
 
 /** Written only by the service worker (cleared by the options page on key change). */
@@ -54,6 +61,7 @@ export const defaultSettings = (): V51Settings => ({
   safety: { dailyTestAttemptLimit: DAILY_LIMIT_DEFAULT },
   correction: { consent: false },
   triggers: { keyboard: true, contextMenu: true, smartButton: false },
+  rewrite: { enabled: true, defaultStyles: [...DEFAULT_REWRITE_STYLES] },
 });
 
 export const emptyConnection = (): ConnectionRecord => ({
@@ -132,7 +140,8 @@ export function normalizeSettings(value: unknown): V51Settings {
   const data = record(value),
     gemini = record(data.gemini),
     safety = record(data.safety),
-    triggers = record(data.triggers);
+    triggers = record(data.triggers),
+    rewrite = record(data.rewrite);
   return {
     schemaVersion: 1,
     gemini: {
@@ -152,6 +161,12 @@ export function normalizeSettings(value: unknown): V51Settings {
       keyboard: triggers.keyboard !== false,
       contextMenu: triggers.contextMenu !== false,
       smartButton: triggers.smartButton === true,
+    },
+    rewrite: {
+      enabled: rewrite.enabled !== false,
+      defaultStyles: normalizeStyleIds(rewrite.defaultStyles).length
+        ? normalizeStyleIds(rewrite.defaultStyles)
+        : [...DEFAULT_REWRITE_STYLES],
     },
   };
 }

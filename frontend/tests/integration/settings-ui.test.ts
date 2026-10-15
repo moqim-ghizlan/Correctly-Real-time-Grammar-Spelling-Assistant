@@ -415,6 +415,7 @@ describe('pure helpers', () => {
       safety: { dailyTestAttemptLimit: 20 },
       correction: { consent: false },
       triggers: { keyboard: true, contextMenu: true, smartButton: false },
+      rewrite: { enabled: true, defaultStyles: ['professional' as const] },
     };
     const connection = {
       schemaVersion: 1 as const,
@@ -447,5 +448,35 @@ describe('pure helpers', () => {
     });
     expect(rebuilt).toMatchObject({ code: 'INVALID_KEY' });
     expect(JSON.stringify(rebuilt)).not.toContain('<b>');
+  });
+});
+
+describe('V5.4 rewrite settings', () => {
+  it('defaults to enabled + Professional, saves choices, refuses an empty set', async () => {
+    const page = await openPage();
+    const box = (id: string) =>
+      document.querySelector<HTMLInputElement>(`input[value="${id}"]`)!;
+    expect($<HTMLInputElement>('rewrite-enabled').checked).toBe(true);
+    expect(box('professional').checked).toBe(true);
+    expect(box('funny').checked).toBe(false);
+    box('funny').checked = true;
+    await page.saveRewrite();
+    expect((await loadSettings(area)).rewrite).toEqual({
+      enabled: true,
+      defaultStyles: ['professional', 'funny'],
+    });
+    box('professional').checked = false;
+    box('funny').checked = false;
+    await page.saveRewrite();
+    expect(text('rewrite-message')).toContain('at least one');
+    expect((await loadSettings(area)).rewrite.defaultStyles).toEqual([
+      'professional',
+      'funny',
+    ]);
+    expect(box('funny').checked).toBe(true);
+    $<HTMLInputElement>('rewrite-enabled').checked = false;
+    await page.saveRewrite();
+    expect((await loadSettings(area)).rewrite.enabled).toBe(false);
+    expect(fetchImpl).not.toHaveBeenCalled();
   });
 });

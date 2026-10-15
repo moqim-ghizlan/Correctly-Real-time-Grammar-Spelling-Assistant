@@ -1,5 +1,5 @@
 // Real-browser smoke test for V5.3 (V5.1 checklist steps 3–6, 8, 9, 11, 15,
-// the V5.2 content script and the V5.3 shortcut/smart button).
+// the V5.2 content script, the V5.3 shortcut/smart button and V5.4 rewrite).
 // Loads dist/ unpacked in a throwaway profile, drives the settings page over
 // the Chrome DevTools Protocol and records network/console evidence.
 //
@@ -31,7 +31,7 @@ const browserPath = BROWSERS[browserName] ?? browserName;
 const offline = Boolean(args.offline);
 const extensionPath = resolve('dist');
 const DUMMY_KEY = 'CORRECTLY_TEST_SENTINEL_KEY_dummy_000000';
-const profile = await mkdtemp(join(tmpdir(), 'correctly-v53-'));
+const profile = await mkdtemp(join(tmpdir(), 'correctly-v54-'));
 const delay = (ms) => new Promise((done) => setTimeout(done, ms));
 
 const evidence = {
@@ -304,8 +304,8 @@ try {
   await openOptions();
   await wakeWorker(extensionId);
   const manifest = await page.evaluate('chrome.runtime.getManifest()');
-  assert.equal(manifest.version, '5.3.0');
-  assert.equal(manifest.name, 'Correctly V5.3');
+  assert.equal(manifest.version, '5.4.0');
+  assert.equal(manifest.name, 'Correctly V5.4');
   const command = (
     await page.evaluate(
       `chrome.commands.getAll().then((all) => all.map(({ name, shortcut }) => ({ name, shortcut })))`,
@@ -464,9 +464,9 @@ try {
       format: 'png',
       captureBeyondViewport: true,
     });
-    await mkdir('docs/v5.3/evidence', { recursive: true });
+    await mkdir('docs/v5.4/evidence', { recursive: true });
     await writeFile(
-      `docs/v5.3/evidence/options-${browserName}-${width}.png`,
+      `docs/v5.4/evidence/options-${browserName}-${width}.png`,
       Buffer.from(shot.data, 'base64'),
     );
   }
@@ -535,7 +535,7 @@ try {
     `(() => { const t = document.getElementById('t'); t.value = 'Bonjour. Je suis aller a Lyon. Fin'; t.focus(); t.setSelectionRange(9, 30); })()`,
   );
   await page.evaluate(
-    `globalThis.chrome = { runtime: { sendMessage: async (message) => (globalThis.sentMessage = message, { ok: true, hasErrors: true, correctedText: 'Je suis allé à Lyon.', suspicious: false }) } }; ${bundle}; void 0`,
+    `globalThis.chrome = { runtime: { sendMessage: async (message) => (globalThis.sentMessage = message, { ok: true, hasErrors: true, correctedText: 'Je suis allé à Lyon.', suspicious: false }) } }; ${bundle}; globalThis.correctlyRun('correct', []); void 0`,
   );
   await page.until(`globalThis.correctlyPanel?.busy === false`);
   assert.deepEqual(await page.evaluate('globalThis.sentMessage'), {
@@ -605,6 +605,70 @@ try {
     'smart.js: one button on focus inside the field, hidden on blur, exact selection sent once',
   );
 
+  // V5.4: rewrite picker and cards with real layout (worker stubbed, the
+  // reply deliberately in a different order than requested).
+  await page.evaluate(`(() => {
+    globalThis.correctlyPanel?.close();
+    const t = document.getElementById('t');
+    t.value = "I can't attend the meeting tomorrow.";
+    t.focus(); t.setSelectionRange(0, t.value.length);
+    globalThis.sentMessages = [];
+    globalThis.chrome = { runtime: { id: 'test', onMessage: { addListener() {} },
+      sendMessage: async (message) => (globalThis.sentMessages.push(message), { ok: true, missing: [], candidates: [
+        { styleId: 'concise', text: "Can't attend tomorrow.", suspicious: false },
+        { styleId: 'formal', text: 'I am unable to attend the meeting tomorrow.', suspicious: false } ] }) } };
+    globalThis.correctlyRun('rewrite', ['formal', 'concise']);
+  })()`);
+  const rewritePanel = 'globalThis.correctlyPanel.root';
+  assert.equal(
+    await page.evaluate(
+      `${rewritePanel}.querySelectorAll('fieldset input:checked').length`,
+    ),
+    2,
+  );
+  assert.equal(
+    await page.evaluate('globalThis.sentMessages.length'),
+    0,
+    'opening the picker must not send',
+  );
+  await page.evaluate(
+    `[...${rewritePanel}.querySelectorAll('button')].find((b) => b.textContent === 'Generate rewrites').click()`,
+  );
+  await page.until(`${rewritePanel}.querySelectorAll('.card').length === 2`);
+  assert.deepEqual(await page.evaluate('globalThis.sentMessages'), [
+    {
+      type: 'correctly.v5.rewriteText',
+      text: "I can't attend the meeting tomorrow.",
+      styleIds: ['formal', 'concise'],
+    },
+  ]);
+  assert.deepEqual(
+    await page.evaluate(
+      `[...${rewritePanel}.querySelectorAll('.card strong')].map((n) => n.textContent)`,
+    ),
+    ['Formal', 'Concise'],
+  );
+  await page.evaluate(
+    `${rewritePanel}.querySelectorAll('.card input')[1].click()`,
+  );
+  assert.equal(
+    await page.evaluate(value),
+    "I can't attend the meeting tomorrow.",
+    'choosing a card must not edit',
+  );
+  await page.evaluate('globalThis.correctlyPanel.apply()');
+  assert.equal(await page.evaluate(value), "Can't attend tomorrow.");
+  await page.evaluate('globalThis.correctlyPanel.undo()');
+  assert.equal(
+    await page.evaluate(value),
+    "I can't attend the meeting tomorrow.",
+  );
+  step(
+    'C03',
+    'PASS',
+    'rewrite: picker sends nothing, one request for 2 styles, cards in requested order, chosen card applied, undo',
+  );
+
   // Step 15: no console output containing the key; only approved hosts.
   const leaked = evidence.consoleMessages.filter((item) =>
     item.text.includes(DUMMY_KEY),
@@ -640,8 +704,8 @@ try {
   browser?.kill();
   await delay(500);
   await rm(profile, { recursive: true, force: true }).catch(() => {});
-  await mkdir('docs/v5.3/evidence', { recursive: true });
-  const out = `docs/v5.3/evidence/browser-${browserName}.json`;
+  await mkdir('docs/v5.4/evidence', { recursive: true });
+  const out = `docs/v5.4/evidence/browser-${browserName}.json`;
   await writeFile(out, JSON.stringify(evidence, null, 2) + '\n');
   console.log('Evidence written to ' + out);
   process.exit(exitCode);

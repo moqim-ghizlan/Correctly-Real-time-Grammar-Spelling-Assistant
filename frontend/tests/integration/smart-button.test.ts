@@ -1,10 +1,14 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { NOTICES, correctInPage } from '../../src/content/correction';
+import { runInPage } from '../../src/content/correction';
 import {
   installSmartButton,
   type SmartButton,
 } from '../../src/content/smart-button';
-import { CORRECT_TEXT, SMART_BUTTON_OFF } from '../../src/shared/contracts';
+import {
+  CORRECT_TEXT,
+  OPEN_REWRITE,
+  SMART_BUTTON_OFF,
+} from '../../src/shared/contracts';
 
 const ID = 'correctlyextensionid';
 let sendMessage: ReturnType<typeof vi.fn>;
@@ -33,6 +37,7 @@ beforeEach(() => {
   delete state.correctlySmartButton;
   delete state.correctlyPanel;
   sendMessage = vi.fn(() => new Promise(() => undefined));
+  sendMessage.mockName('sendMessage');
   vi.stubGlobal('chrome', {
     runtime: {
       id: ID,
@@ -153,7 +158,7 @@ describe('activation', () => {
     textarea!.focus();
     textarea!.select();
     smart.correct();
-    correctInPage(document); // the shortcut's injected script, same frame
+    runInPage(document, 'correct'); // the shortcut's injected script, same frame
     expect(sendMessage).toHaveBeenCalledTimes(1);
   });
 });
@@ -174,10 +179,32 @@ describe('turning the setting off', () => {
 
 describe('injected-trigger notices', () => {
   it('M05: an unreachable-frame notice is shown and nothing is sent', () => {
-    correctInPage(document, NOTICES.unreachable);
+    runInPage(document, 'unreachable');
     const panel = (globalThis as { correctlyPanel?: { root: ShadowRoot } })
       .correctlyPanel;
     expect(panel?.root.textContent).toContain('cannot reach this editor');
     expect(sendMessage).not.toHaveBeenCalled();
+  });
+});
+
+describe('V5.4 rewrite action', () => {
+  it('asks the worker to open the picker here; synthetic clicks are ignored', () => {
+    const [textarea] = editors(
+      '<textarea></textarea>',
+    ) as HTMLTextAreaElement[];
+    textarea!.value = 'Salut';
+    textarea!.focus();
+    textarea!.select();
+    smart.rewriteButton.click();
+    expect(sendMessage).not.toHaveBeenCalled();
+    const press = new MouseEvent('mousedown', {
+      bubbles: true,
+      cancelable: true,
+    });
+    smart.rewriteButton.dispatchEvent(press);
+    expect(press.defaultPrevented).toBe(true);
+    smart.rewrite();
+    expect(sendMessage).toHaveBeenCalledWith({ type: OPEN_REWRITE });
+    expect(document.activeElement).toBe(textarea);
   });
 });

@@ -24,7 +24,25 @@ describe('settings defaults and validation', () => {
       safety: { dailyTestAttemptLimit: 20 },
       correction: { consent: false },
       triggers: { keyboard: true, contextMenu: true, smartButton: false },
+      rewrite: { enabled: true, defaultStyles: ['professional'] },
     });
+  });
+
+  it('V5.4: default styles keep known IDs in order, dedupe, and recover Professional', () => {
+    const styles = (defaultStyles: unknown) =>
+      normalizeSettings({ rewrite: { defaultStyles } }).rewrite.defaultStyles;
+    expect(styles(['funny', 'formal', 'funny', 'evil'])).toEqual([
+      'funny',
+      'formal',
+    ]);
+    expect(styles(['evil'])).toEqual(['professional']);
+    expect(styles('formal')).toEqual(['professional']);
+    expect(normalizeSettings({ rewrite: { enabled: 0 } }).rewrite.enabled).toBe(
+      true,
+    );
+    expect(
+      normalizeSettings({ rewrite: { enabled: false } }).rewrite.enabled,
+    ).toBe(false);
   });
 
   it('V5.3: shortcut and menu default on, smart button only when stored true', () => {

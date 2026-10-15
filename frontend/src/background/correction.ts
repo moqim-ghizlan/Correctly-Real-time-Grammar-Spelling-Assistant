@@ -45,7 +45,7 @@ export function splitEdges(text: string): [string, string, string] {
 // Links, emails and numbers must survive a correction unchanged.
 const PROTECTED =
   /[a-z][a-z0-9+.-]*:\/\/\S+|[^\s@]+@[^\s@]+\.[^\s@]+|\d+(?:[.,]\d+)*/giu;
-const protectedTokens = (text: string) =>
+export const protectedTokens = (text: string) =>
   (text.match(PROTECTED) ?? []).sort().join('\n');
 
 export type ParsedCorrection =

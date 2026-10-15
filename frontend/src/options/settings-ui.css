@@ -118,6 +118,23 @@ label {
   margin: 10px 0 6px;
 }
 
+fieldset.styles {
+  margin: 10px 0 0;
+  padding: 6px 12px 10px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+}
+
+fieldset.styles legend {
+  padding: 0 4px;
+  color: var(--muted);
+}
+
+fieldset.styles label.check {
+  margin: 6px 0;
+  font-weight: 400;
+}
+
 label.check {
   display: flex;
   align-items: flex-start;

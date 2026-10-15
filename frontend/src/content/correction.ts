@@ -1,9 +1,18 @@
 import {
   CORRECT_TEXT,
   MAX_CORRECTION_CODE_POINTS,
+  REWRITE_TEXT,
   toCorrectionResult,
   type CorrectionResult,
 } from '../shared/contracts';
+import {
+  REWRITE_STYLES,
+  normalizeStyleIds,
+  styleLabel,
+  toRewriteResult,
+  type RewriteCandidate,
+  type RewriteStyleId,
+} from '../shared/rewrite';
 
 // Runs in the page's isolated world, injected on an explicit trigger (toolbar,
 // shortcut, context menu) or loaded with the opt-in smart button. It never
@@ -15,6 +24,7 @@ export const NOTICES = {
   select: 'Select the text to correct, then ask Correctly again.',
   notEditable:
     'Select text inside a text box or editor. Correctly does not send other page text.',
+  rewriteOff: 'Rewrite is turned off in the Correctly settings.',
   unreachable:
     'Correctly cannot reach this editor (embedded from another site). Copy the text into a regular text box.',
   sensitive:
@@ -179,6 +189,15 @@ button {
 button.primary { background: var(--accent); border-color: var(--accent); color: var(--accent-text); }
 button:disabled { opacity: 0.5; cursor: not-allowed; }
 button:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+fieldset { margin: 8px 0 0; padding: 6px 10px 8px; border: 1px solid var(--border); border-radius: 8px; }
+legend { padding: 0 4px; font-size: 12px; color: var(--muted); }
+.choice { display: flex; gap: 8px; align-items: baseline; margin: 4px 0; }
+.choice small { color: var(--muted); }
+.card { display: block; margin-top: 8px; padding: 8px 10px; border: 1px solid var(--border); border-radius: 8px; cursor: pointer; }
+.card:has(input:checked) { border-color: var(--accent); }
+.card strong { margin-left: 6px; }
+.card .text { margin-top: 4px; }
+.missing { margin: 8px 0 0; color: var(--muted); }
 [hidden] { display: none !important; }
 `;
 
@@ -190,6 +209,8 @@ export class CorrectionPanel {
   busy = false;
   private snapshot: Snapshot | null = null;
   private corrected = '';
+  /** 'Correction' or 'Rewrite': only wording differs; Apply/Undo are shared. */
+  private noun = 'Correction';
   private suspicious = false;
   private composing = false;
   private changed = false;
@@ -201,10 +222,24 @@ export class CorrectionPanel {
     value: string;
   } | null = null;
   private readonly ui: Record<
-    'status' | 'texts' | 'original' | 'corrected' | 'note',
+    | 'status'
+    | 'title'
+    | 'texts'
+    | 'original'
+    | 'corrected'
+    | 'note'
+    | 'picker'
+    | 'pickerOriginal'
+    | 'styles'
+    | 'cards',
     HTMLElement
   > &
-    Record<'apply' | 'copy' | 'undo' | 'close', HTMLButtonElement>;
+    Record<'apply' | 'copy' | 'undo' | 'close' | 'generate', HTMLButtonElement>;
+  private readonly make: <K extends keyof HTMLElementTagNameMap>(
+    tag: K,
+    className: string,
+    text?: string,
+  ) => HTMLElementTagNameMap[K];
 
   constructor(doc: Document) {
     this.host = doc.createElement('correctly-panel');
@@ -238,25 +273,54 @@ export class CorrectionPanel {
     );
     const note = make('p', 'note');
     note.setAttribute('aria-live', 'polite');
+    const picker = make('div', 'picker');
+    const pickerOriginal = make('p', 'text');
+    pickerOriginal.dir = 'auto';
+    const styles = make('fieldset', '');
+    styles.append(make('legend', '', 'Styles'));
+    picker.append(
+      make('h2', '', 'Original'),
+      pickerOriginal,
+      styles,
+      make(
+        'p',
+        'missing',
+        'All chosen styles are generated in ONE Gemini request, which may count against your quota.',
+      ),
+    );
+    picker.hidden = true;
+    const cards = make('div', 'cards');
+    cards.setAttribute('role', 'radiogroup');
+    cards.setAttribute('aria-label', 'Rewrites');
+    cards.hidden = true;
+    const generate = make('button', 'primary', 'Generate rewrites');
     const apply = make('button', 'primary', 'Apply');
     const copy = make('button', '', 'Copy');
     const undo = make('button', '', 'Undo correction');
     const close = make('button', '', 'Cancel');
     const actions = make('div', 'actions');
-    actions.append(apply, copy, undo, close);
-    panel.append(make('p', 'title', 'Correctly'), status, texts, note, actions);
+    actions.append(generate, apply, copy, undo, close);
+    const title = make('p', 'title', 'Correctly — Correction');
+    panel.append(title, status, texts, picker, cards, note, actions);
     this.root.append(style, panel);
     this.ui = {
       status,
+      title,
       texts,
       original,
       corrected,
       note,
+      picker,
+      pickerOriginal,
+      styles,
+      cards,
+      generate,
       apply,
       copy,
       undo,
       close,
     };
+    this.make = make;
 
     apply.addEventListener('click', () => this.apply());
     copy.addEventListener('click', () => void this.copy());
@@ -272,13 +336,13 @@ export class CorrectionPanel {
   private show(
     status: string,
     tone: 'info' | 'error',
-    buttons: ('apply' | 'copy' | 'undo')[] = [],
+    buttons: ('apply' | 'copy' | 'undo' | 'generate')[] = [],
   ) {
     this.ui.status.textContent = status;
     this.ui.status.dataset.tone = tone;
-    for (const name of ['apply', 'copy', 'undo'] as const)
+    for (const name of ['apply', 'copy', 'undo', 'generate'] as const)
       this.ui[name].hidden = !buttons.includes(name);
-    this.ui.texts.hidden = !this.corrected;
+    this.ui.texts.hidden = !this.corrected || this.noun === 'Rewrite';
   }
 
   /** A refusal that sent nothing. */
@@ -393,7 +457,9 @@ export class CorrectionPanel {
       before: snapshot.text,
       value: field.value,
     };
-    this.show('Correction applied.', 'info', ['copy', 'undo']);
+    for (const input of this.ui.cards.querySelectorAll('input'))
+      input.disabled = true;
+    this.show(`${this.noun} applied.`, 'info', ['copy', 'undo']);
     this.ui.note.textContent = '';
     this.ui.close.textContent = 'Close';
     this.refresh();
@@ -430,8 +496,160 @@ export class CorrectionPanel {
       this.writing = false;
     }
     this.applied = null;
-    this.show('Correction undone.', 'info', ['copy']);
+    this.show(`${this.noun} undone.`, 'info', ['copy']);
     this.ui.close.focus();
+  }
+
+  /** Opens the style picker. Nothing is sent until Generate rewrites. */
+  startRewrite(
+    snapshot: Snapshot,
+    defaults: readonly RewriteStyleId[],
+    send: (text: string, styleIds: RewriteStyleId[]) => Promise<unknown>,
+  ): void {
+    this.snapshot = snapshot;
+    this.watch(snapshot.field, true);
+    this.noun = 'Rewrite';
+    this.ui.title.textContent = 'Correctly — Rewrite';
+    this.ui.undo.textContent = 'Undo rewrite';
+    this.ui.pickerOriginal.textContent = snapshot.text;
+    for (const style of REWRITE_STYLES) {
+      const label = this.make('label', 'choice');
+      const box = this.make('input', '');
+      box.type = 'checkbox';
+      box.value = style.id;
+      box.checked = defaults.includes(style.id);
+      box.addEventListener('change', () => {
+        this.ui.generate.disabled = !this.chosenStyles().length;
+      });
+      label.append(
+        box,
+        this.make('span', '', style.label),
+        this.make('small', '', style.description),
+      );
+      this.ui.styles.append(label);
+    }
+    this.ui.picker.hidden = false;
+    this.ui.generate.disabled = !this.chosenStyles().length;
+    this.ui.generate.onclick = () => void this.generateRewrites(send);
+    this.show('Choose one or more styles, then Generate rewrites.', 'info', [
+      'generate',
+    ]);
+    this.ui.styles.querySelector('input')?.focus();
+  }
+
+  /** Checked styles, in catalog order. */
+  private chosenStyles(): RewriteStyleId[] {
+    return normalizeStyleIds(
+      [...this.ui.styles.querySelectorAll('input')]
+        .filter((box) => box.checked)
+        .map((box) => box.value),
+    );
+  }
+
+  async generateRewrites(
+    send: (text: string, styleIds: RewriteStyleId[]) => Promise<unknown>,
+  ): Promise<void> {
+    const snapshot = this.snapshot;
+    const styles = this.chosenStyles();
+    // In-flight guard: a double click never makes a second paid request.
+    if (this.busy || !snapshot || !styles.length) return;
+    this.busy = true;
+    const inputs = [...this.ui.styles.querySelectorAll('input')];
+    for (const box of inputs) box.disabled = true;
+    this.show('Generating rewrites…', 'info', ['generate']);
+    this.ui.generate.disabled = true;
+    this.ui.close.textContent = 'Cancel';
+    let result;
+    try {
+      result = toRewriteResult(await send(snapshot.text, styles), styles);
+    } catch {
+      result = toRewriteResult(undefined, styles);
+    }
+    this.busy = false;
+    if (!this.host.isConnected) return;
+    if (!result.ok) {
+      // Retrying is always an explicit new click.
+      for (const box of inputs) box.disabled = false;
+      this.ui.generate.disabled = false;
+      this.ui.generate.textContent = 'Try again';
+      this.show(`${result.message} Your text was not changed.`, 'error', [
+        'generate',
+      ]);
+      return;
+    }
+    this.ui.picker.hidden = true;
+    this.renderCards(snapshot, result.candidates, result.missing);
+  }
+
+  private renderCards(
+    snapshot: Snapshot,
+    candidates: RewriteCandidate[],
+    missing: RewriteStyleId[],
+  ) {
+    const cards = this.ui.cards;
+    cards.replaceChildren(
+      this.make('h2', '', 'Original'),
+      Object.assign(this.make('p', 'text', snapshot.text), { dir: 'auto' }),
+    );
+    let first: HTMLInputElement | null = null;
+    for (const candidate of candidates) {
+      const card = this.make('label', 'card');
+      const radio = this.make('input', '');
+      radio.type = 'radio';
+      radio.name = 'candidate';
+      const same = candidate.text === snapshot.text;
+      radio.disabled = same;
+      radio.addEventListener('change', () => this.select(candidate));
+      card.append(
+        radio,
+        this.make('strong', '', styleLabel(candidate.styleId)),
+      );
+      card.append(
+        same
+          ? this.make(
+              'p',
+              'missing',
+              'No meaningful rewrite was generated for this style.',
+            )
+          : Object.assign(this.make('p', 'text', candidate.text), {
+              dir: 'auto',
+            }),
+      );
+      cards.append(card);
+      if (!same && !first) {
+        first = radio;
+        radio.checked = true;
+        this.select(candidate);
+      }
+    }
+    if (missing.length)
+      cards.append(
+        this.make(
+          'p',
+          'missing',
+          `No rewrite was returned for: ${missing.map(styleLabel).join(', ')}.`,
+        ),
+      );
+    cards.hidden = false;
+    this.ui.close.textContent = 'Close';
+    if (!first) {
+      this.show('No meaningful rewrite was generated.', 'info');
+      this.ui.close.focus();
+      return;
+    }
+    this.show('Choose a rewrite, then Apply or Copy.', 'info', [
+      'apply',
+      'copy',
+    ]);
+    this.refresh();
+    first.focus();
+  }
+
+  /** Choosing a card only changes what Apply/Copy use; it never edits the page. */
+  private select(candidate: RewriteCandidate) {
+    this.corrected = candidate.text;
+    this.suspicious = candidate.suspicious;
+    this.refresh();
   }
 
   async copy(): Promise<void> {
@@ -470,20 +688,37 @@ export function startCorrection(
   return panel;
 }
 
+export type Intent = 'correct' | 'rewrite' | 'unreachable' | 'rewriteOff';
+
 /** The single entry point shared by every trigger in this frame. */
-export function correctInPage(doc: Document, notice?: string): void {
+export function runInPage(
+  doc: Document,
+  intent: Intent,
+  styles: readonly string[] = [],
+): void {
   // The isolated world keeps this global across injections and bundles, so an
   // in-flight request and the open panel are shared by all triggers.
   const state = globalThis as { correctlyPanel?: CorrectionPanel };
-  if (notice && !state.correctlyPanel?.busy) {
-    state.correctlyPanel?.close();
-    state.correctlyPanel = new CorrectionPanel(doc);
-    state.correctlyPanel.notice(notice);
-    return;
-  }
-  state.correctlyPanel = startCorrection(
-    doc,
-    (text) => chrome.runtime.sendMessage({ type: CORRECT_TEXT, text }),
-    state.correctlyPanel,
-  );
+  const previous = state.correctlyPanel;
+  if (previous?.busy && previous.host.isConnected) return;
+  previous?.close();
+  const panel = new CorrectionPanel(doc);
+  state.correctlyPanel = panel;
+  const snapshot =
+    intent === 'unreachable' || intent === 'rewriteOff'
+      ? NOTICES[intent]
+      : capture(doc);
+  if (typeof snapshot === 'string') return panel.notice(snapshot);
+  if (intent === 'rewrite') {
+    const defaults = normalizeStyleIds(styles);
+    panel.startRewrite(
+      snapshot,
+      defaults.length ? defaults : ['professional'],
+      (text, styleIds) =>
+        chrome.runtime.sendMessage({ type: REWRITE_TEXT, text, styleIds }),
+    );
+  } else
+    void panel.run(snapshot, (text) =>
+      chrome.runtime.sendMessage({ type: CORRECT_TEXT, text }),
+    );
 }

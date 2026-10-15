@@ -3,6 +3,7 @@ import type {
   CorrectionResult,
   FailureResult,
 } from '../shared/contracts';
+import type { RewriteResult, RewriteStyleId } from '../shared/rewrite';
 import {
   CorrectlyError,
   errorMessage,
@@ -29,6 +30,7 @@ import {
   type GeminiReply,
   type GeminiResult,
 } from './gemini-client';
+import { REWRITE_TIMEOUT_MS, parseRewrite, rewriteBody } from './rewrite';
 import { UsageGuard } from './usage-guard';
 
 export interface ControllerDeps {
@@ -57,7 +59,7 @@ type Ready = {
 };
 
 /**
- * Handles TEST_CONNECTION and CORRECT_TEXT. Requests run one at a time; each
+ * Handles TEST_CONNECTION, CORRECT_TEXT and REWRITE_TEXT. Requests run one at a time; each
  * one is reserved in the usage ledger before the network is touched and is
  * never retried.
  */
@@ -88,6 +90,14 @@ export class ConnectionController {
   /** One Gemini request that both detects and corrects errors in `text`. */
   correct(text: string): Promise<CorrectionResult> {
     return this.enqueue(() => this.runCorrection(text));
+  }
+
+  /** One Gemini request returning one rewrite per requested style. */
+  rewrite(
+    text: string,
+    styleIds: readonly RewriteStyleId[],
+  ): Promise<RewriteResult> {
+    return this.enqueue(() => this.runRewrite(text, styleIds));
   }
 
   /** Guards that must not consume an attempt, then the reservation. */
@@ -147,8 +157,17 @@ export class ConnectionController {
     };
   }
 
-  private async runCorrection(text: string): Promise<CorrectionResult> {
-    const [lead, core, trail] = splitEdges(text);
+  /**
+   * The shared text path: consent and quota checks, exactly ONE Gemini call,
+   * strict parsing, usage settled once. Edge whitespace never reaches the
+   * model and is put back by the caller.
+   */
+  private async generate<T>(
+    core: string,
+    body: string,
+    timeoutMs: number,
+    parse: (raw: string) => T | null,
+  ): Promise<{ ok: true; parsed: T } | FailureResult> {
     if (!core) return failure('UNKNOWN_ERROR');
     const start = await this.begin(true);
     if (!start.ok) return start;
@@ -160,9 +179,9 @@ export class ConnectionController {
           apiKey: start.apiKey,
           modelId: start.modelId,
           fetchImpl: this.deps.fetchImpl,
-          timeoutMs: this.deps.timeoutMs ?? CORRECTION_TIMEOUT_MS,
+          timeoutMs: this.deps.timeoutMs ?? timeoutMs,
         },
-        correctionBody(core),
+        body,
       );
     } catch {
       reply = { ok: false, code: 'UNKNOWN_ERROR' };
@@ -171,7 +190,7 @@ export class ConnectionController {
     // A truncated (MAX_TOKENS) or refused (SAFETY…) answer is never parsed.
     const parsed =
       candidate && (candidate.finishReason ?? 'STOP') === 'STOP'
-        ? parseCorrection(candidate.text, core)
+        ? parse(candidate.text)
         : null;
     await this.guard
       .complete(start.localDate, {
@@ -181,7 +200,20 @@ export class ConnectionController {
       .catch(() => undefined);
 
     if (!reply.ok) return failure(reply.code, reply.httpStatus);
-    if (!parsed) return failure('INVALID_RESPONSE');
+    if (parsed === null) return failure('INVALID_RESPONSE');
+    return { ok: true, parsed };
+  }
+
+  private async runCorrection(text: string): Promise<CorrectionResult> {
+    const [lead, core, trail] = splitEdges(text);
+    const result = await this.generate(
+      core,
+      correctionBody(core),
+      CORRECTION_TIMEOUT_MS,
+      (raw) => parseCorrection(raw, core),
+    );
+    if (!result.ok) return result;
+    const { parsed } = result;
     return parsed.hasErrors
       ? {
           ok: true,
@@ -190,6 +222,28 @@ export class ConnectionController {
           suspicious: parsed.suspicious,
         }
       : { ok: true, hasErrors: false };
+  }
+
+  private async runRewrite(
+    text: string,
+    styleIds: readonly RewriteStyleId[],
+  ): Promise<RewriteResult> {
+    const [lead, core, trail] = splitEdges(text);
+    const result = await this.generate(
+      core,
+      rewriteBody(core, styleIds),
+      REWRITE_TIMEOUT_MS,
+      (raw) => parseRewrite(raw, core, styleIds),
+    );
+    if (!result.ok) return result;
+    return {
+      ok: true,
+      candidates: result.parsed.candidates.map((candidate) => ({
+        ...candidate,
+        text: lead + candidate.text + trail,
+      })),
+      missing: result.parsed.missing,
+    };
   }
 
   private async record(

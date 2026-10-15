@@ -12,8 +12,13 @@ export const TEST_CONNECTION = 'correctly.v5.testConnection';
 export const CORRECT_TEXT = 'correctly.v5.correctText';
 /** Sent by the options page to open tabs when the smart button is turned off. */
 export const SMART_BUTTON_OFF = 'correctly.v5.smartButtonOff';
-/** Manifest command name of the keyboard shortcut. */
+/** Sent by the injected content script with selected text and style IDs. */
+export const REWRITE_TEXT = 'correctly.v5.rewriteText';
+/** Sent by the smart button: asks the worker to open the rewrite picker here. */
+export const OPEN_REWRITE = 'correctly.v5.openRewrite';
+/** Manifest command names of the keyboard shortcuts. */
 export const CORRECT_COMMAND = 'correct-selection';
+export const REWRITE_COMMAND = 'rewrite-selection';
 /** Bounds cost and latency; longer selections are refused, never truncated. */
 export const MAX_CORRECTION_CODE_POINTS = 2000;
 // A reply may double the length (2× + 50 code points, see parseCorrection);

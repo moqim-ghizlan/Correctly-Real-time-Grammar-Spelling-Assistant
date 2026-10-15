@@ -7,6 +7,7 @@ import {
 } from '../shared/errors';
 import { localDate } from '../shared/local-date';
 import { GEMINI_MODELS, isAllowedModelId, modelLabel } from '../shared/models';
+import { REWRITE_STYLES, normalizeStyleIds } from '../shared/rewrite';
 import {
   emptyConnection,
   emptyUsage,
@@ -167,6 +168,7 @@ export class SettingsPage {
 
   async init(): Promise<void> {
     this.populateModels();
+    this.populateStyles();
     this.bind();
     void this.renderShortcut();
     try {
@@ -222,7 +224,42 @@ export class SettingsPage {
     );
   }
 
+  private populateStyles() {
+    const fieldset = this.el('rewrite-styles');
+    for (const style of REWRITE_STYLES) {
+      const label = this.doc.createElement('label');
+      label.className = 'check';
+      const box = this.doc.createElement('input');
+      box.type = 'checkbox';
+      box.value = style.id;
+      box.disabled = true;
+      box.dataset.rewriteStyle = '';
+      const text = this.doc.createElement('span');
+      text.textContent = `${style.label} — ${style.description}`;
+      label.append(box, text);
+      fieldset.append(label);
+    }
+  }
+
+  private get styleBoxes(): HTMLInputElement[] {
+    return [
+      ...this.doc.querySelectorAll<HTMLInputElement>(
+        'input[data-rewrite-style]',
+      ),
+    ];
+  }
+
   private bind() {
+    this.el<HTMLInputElement>('rewrite-enabled').addEventListener(
+      'change',
+      () => {
+        void this.saveRewrite();
+      },
+    );
+    for (const box of this.styleBoxes)
+      box.addEventListener('change', () => {
+        void this.saveRewrite();
+      });
     this.el<HTMLButtonElement>('toggle-key').addEventListener('click', () => {
       if (this.keyInput.type === 'password') {
         this.keyInput.type = 'text';
@@ -286,8 +323,10 @@ export class SettingsPage {
       'trigger-menu',
       'trigger-smart',
       'open-shortcuts',
+      'rewrite-enabled',
     ])
       this.el<HTMLInputElement>(id).disabled = !enabled;
+    for (const box of this.styleBoxes) box.disabled = !enabled;
     this.renderButtons(enabled);
   }
 
@@ -352,6 +391,12 @@ export class SettingsPage {
       settings.triggers.contextMenu;
     this.el<HTMLInputElement>('trigger-smart').checked =
       settings.triggers.smartButton;
+    this.el<HTMLInputElement>('rewrite-enabled').checked =
+      settings.rewrite.enabled;
+    for (const box of this.styleBoxes)
+      box.checked = settings.rewrite.defaultStyles.some(
+        (id) => id === box.value,
+      );
     const limitInput = this.el<HTMLInputElement>('daily-limit');
     if (this.doc.activeElement !== limitInput)
       limitInput.value = String(settings.safety.dailyTestAttemptLimit);
@@ -539,6 +584,32 @@ export class SettingsPage {
       this.message('triggers-message', 'Entry points saved.', 'ok');
     } catch {
       this.message('triggers-message', errorMessage('STORAGE_ERROR'), 'error');
+    }
+    this.render();
+  }
+
+  async saveRewrite(): Promise<void> {
+    const enabled = this.el<HTMLInputElement>('rewrite-enabled').checked;
+    const defaultStyles = normalizeStyleIds(
+      this.styleBoxes.filter((box) => box.checked).map((box) => box.value),
+    );
+    if (!defaultStyles.length) {
+      this.message(
+        'rewrite-message',
+        'Keep at least one default style. The previous choice is kept.',
+        'error',
+      );
+      this.render();
+      return;
+    }
+    try {
+      await this.update((settings) => ({
+        ...settings,
+        rewrite: { enabled, defaultStyles },
+      }));
+      this.message('rewrite-message', 'Rewrite settings saved.', 'ok');
+    } catch {
+      this.message('rewrite-message', errorMessage('STORAGE_ERROR'), 'error');
     }
     this.render();
   }
