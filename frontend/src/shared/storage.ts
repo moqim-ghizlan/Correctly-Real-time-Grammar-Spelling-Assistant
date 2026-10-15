@@ -1,6 +1,7 @@
 import { DEFAULT_DEBOUNCE_MS } from './constants';
 import { isLanguage, type Language } from '../correction/language';
 export interface Settings {
+  sentenceCorrection: boolean;
   enabled: boolean;
   language: Language;
   debounceMs: number;
@@ -10,6 +11,7 @@ export interface Settings {
   customDictionary: string[];
 }
 export const DEFAULT_SETTINGS: Settings = {
+  sentenceCorrection: true,
   enabled: true,
   language: 'auto',
   debounceMs: DEFAULT_DEBOUNCE_MS,
@@ -34,6 +36,7 @@ export function normalizeSettings(value: unknown): Settings {
           .slice(0, 500)
       : [];
   return {
+    sentenceCorrection: boolean('sentenceCorrection'),
     enabled: boolean('enabled'),
     language: isLanguage(data.language) ? data.language : 'auto',
     debounceMs:

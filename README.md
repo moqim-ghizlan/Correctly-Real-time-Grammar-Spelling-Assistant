@@ -4,11 +4,14 @@ Extension Chrome/Brave gratuite : orthographe et grammaire en français, en angl
 
 ## Organisation du projet
 
+**V4 RC1** ajoute les raccourcis personnels locaux, la correction groupée par phrase avec aperçu, une automatisation prudente de l’espacement et un bouton Annuler. Les options permettent de gérer les raccourcis, qui fonctionnent sans moteur et indépendamment du bouton de correction ; les domaines désactivés restent respectés. Les nouvelles mutations s’abstiennent sur les structures riches complexes. Voir [les nouveautés et limites](docs/V4_CHANGELOG.md), [les tests réellement exécutés](docs/V4_TEST_REPORT.md) et [les validations finales restantes](docs/V4_RELEASE_CHECKLIST.md). Le Setup candidat est `artifacts/release/Correctly-V4-RC1-Setup.exe` ; l’extension reste séparée dans `Correctly-Extension.zip`. Ce n’est pas une release finale approuvée.
+
 - **`frontend/`** : extension Chrome/Brave, code TypeScript, interface, assets, manifest, tests et configurations Vite/Vitest/TypeScript.
 - **`backend/`** : serveur Windows Python, tray, moteur privé, runtime Java, tests et configuration PyInstaller.
 - **`installer/`** : installateur Windows Inno Setup.
 - **`scripts/`** : commandes de développement, vérification et fabrication communes.
-- **`docs/`** : guides et rapports ; anciens plans regroupés dans `docs/plans/`.
+- **`docs/`** : guides et rapports.
+- **`plans/`** : plans de version et récapitulatif, nommés `Correctly_<description>_<version>.md`.
 - **`dist/`** : extension compilée à charger dans Chrome, au même emplacement.
 - **`artifacts/release/`** : Setup, ZIP extension et checksums à envoyer.
 
@@ -53,7 +56,7 @@ Le mode Auto est limité au français et à l’anglais : quelques mots courants
 
 L’icône de l’extension permet de changer la langue, désactiver la correction globalement ou sur le domaine courant, ouvrir les paramètres et vérifier la disponibilité du moteur. Les paramètres ajoutent le délai, les catégories et un dictionnaire personnel sensible à la casse.
 
-Les textes restent en mémoire temporaire. Seuls les paramètres et les mots ajoutés volontairement au dictionnaire sont enregistrés avec `chrome.storage.local`. La connexion au moteur utilise uniquement l’adresse locale ; aucune télémétrie.
+Les textes restent en mémoire temporaire. Seuls les paramètres, les mots ajoutés volontairement au dictionnaire et les raccourcis créés par l’utilisateur sont enregistrés avec `chrome.storage.local`, dans ce profil de navigateur. La connexion au moteur utilise uniquement l’adresse locale ; aucune télémétrie.
 
 ## Développement
 
@@ -77,7 +80,7 @@ npm run fixture
 - Aucun fonctionnement sur les pages internes Chrome/Brave, le Chrome Web Store et les pages où les content scripts sont interdits.
 - Si le serveur est indisponible, les nouvelles analyses sont suspendues 10 secondes. Nouvelle tentative lors d’une saisie ou d’une nouvelle analyse, sans boucle de retry.
 
-Voir [l’architecture](docs/ARCHITECTURE.md), [les tests manuels](docs/MANUAL_TESTS.md) et [le suivi du plan](docs/IMPLEMENTATION.md).
+Voir [le récapitulatif du projet et de la V4](plans/Correctly_recap_v4.md), [la spécification V4](plans/Correctly_plan_v4.md), [l’architecture](docs/ARCHITECTURE.md), [les tests manuels](docs/MANUAL_TESTS.md) et [le suivi du plan](docs/IMPLEMENTATION.md).
 
 ## Construire le serveur Windows V3
 

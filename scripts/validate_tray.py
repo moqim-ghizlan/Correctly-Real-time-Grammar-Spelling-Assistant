@@ -1,5 +1,6 @@
 """Real Windows pystray lifecycle, automatically controlled using its menu callbacks."""
 from datetime import datetime, timezone
+import argparse
 import json
 from pathlib import Path
 import sys
@@ -15,6 +16,9 @@ from correctly_server.tray import Tray
 
 
 def main():
+    parser = argparse.ArgumentParser()
+    parser.add_argument('--report', type=Path, default=ROOT / 'docs/validation/tray-validation.json')
+    args = parser.parse_args()
     engine = Engine(Paths(ROOT / "backend/vendor"), Settings(port=18083))
     ui = Tray(engine, ROOT / "artifacts/tray-diagnostics")
     result = {"executed_at": datetime.now(timezone.utc).isoformat(), "passed": []}
@@ -34,8 +38,13 @@ def main():
             ui.refresh()
             assert "prêt" in ui.icon.title
             result["passed"].append("real Windows tray icon/title reaches ready")
-            ui.submit(ui.test)
+            test_completed = threading.Event()
+            def probe():
+                ui.test()
+                test_completed.set()
+            ui.submit(probe)
             wait(lambda: not ui.busy.is_set())
+            assert test_completed.is_set(), 'FR/EN tray action failed; see tray diagnostics'
             ui.submit(lambda: None)
             wait(lambda: not ui.busy.is_set())
             result["passed"].append("FR/EN tray action completes without blocking")
@@ -60,7 +69,8 @@ def main():
     assert engine.state == State.STOPPED and engine.process is None
     result["passed"].append("tray quit shuts down icon and owned JVM")
     result["ok"] = True
-    (ROOT / "docs/validation/tray-validation.json").write_text(json.dumps(result, indent=2) + "\n", encoding="utf-8")
+    args.report.parent.mkdir(parents=True, exist_ok=True)
+    args.report.write_text(json.dumps(result, indent=2) + "\n", encoding="utf-8")
     print(json.dumps(result, indent=2))
 
 

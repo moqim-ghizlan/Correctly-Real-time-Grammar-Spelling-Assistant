@@ -6,6 +6,9 @@
 #ifndef MyAppVersion
   #define MyAppVersion "3.1.0"
 #endif
+#ifndef MyOutputBase
+  #define MyOutputBase "Correctly-V3.1-Setup"
+#endif
 #ifndef BundleDir
   #define BundleDir "..\artifacts\v3.1\Correctly-V3-Windows-x64"
 #endif
@@ -45,7 +48,7 @@ UsePreviousTasks=yes
 CloseApplications=no
 RestartApplications=no
 OutputDir={#ReleaseDir}
-OutputBaseFilename=Correctly-V3.1-Setup
+OutputBaseFilename={#MyOutputBase}
 #if TestMode == "1"
 Compression=zip
 #else

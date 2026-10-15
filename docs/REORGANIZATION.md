@@ -6,7 +6,7 @@ Les commandes npm restent à la racine ; les configurations utilisent des chemin
 
 Les scripts Python/PowerShell et le chemin de l’icône Inno Setup sont adaptés à `backend/`. L’environnement Python déplacé a été remis à jour depuis son interpréteur de base et ses lanceurs console régénérés ; `pip.exe` fonctionne depuis le nouvel emplacement. Les versions de dépendances de build sont vérifiées par le constructeur existant.
 
-Les plans sont archivés dans `docs/plans/`. Un repère `plan_correctly_v3.md` reste à la racine pour que les anciens EXE portables reconnaissent encore ce dossier comme un dépôt de développement. Le code actuel utilise aussi `createSetup.cmd` comme repère pour empêcher l’autostart d’un build conservé dans le dépôt.
+Les plans et le r?capitulatif sont regroup?s dans `plans/`, avec des noms `Correctly_<description>_<version>.md`. Le rep?re historique `plan_correctly_v3.md` a ?t? retir? de la racine ; le code actuel utilise `createSetup.cmd` pour emp?cher l?autostart d?un build conserv? dans le d?p?t.
 
 Les paquets déjà fabriqués et le serveur portable actif ne sont pas déplacés. Les rapports V3/V3.1 du 14 octobre décrivent les chemins et les checksums de cette date ; les chemins actuels sont ceux indiqués ici et dans les README. Le manifeste et les checksums sous `artifacts/release` font foi pour la dernière reconstruction.
 

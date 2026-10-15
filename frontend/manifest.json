@@ -1,7 +1,8 @@
 {
   "manifest_version": 3,
   "name": "Correctly",
-  "version": "0.2.0",
+  "version": "3.99.0",
+  "version_name": "4.0.0-rc.1",
   "description": "Correction locale de l’orthographe et de la grammaire en français et en anglais.",
   "permissions": ["storage", "contextMenus", "activeTab"],
   "host_permissions": ["http://127.0.0.1/*", "http://localhost/*"],

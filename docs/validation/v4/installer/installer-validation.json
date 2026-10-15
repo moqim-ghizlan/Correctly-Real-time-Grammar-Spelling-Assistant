@@ -1,0 +1,29 @@
+{
+  "executed_at": "2026-10-15T07:44:24.179081+00:00",
+  "test_mode": true,
+  "windows": "Windows-10-10.0.19045-SP0",
+  "elevated": false,
+  "install_path": "C:\\Users\\moqim\\AppData\\Local\\Temp\\Correctly essai été 5rxfeb82\\Correctly",
+  "passed": [
+    "initial per-user installation: all 2350 bundle checksums, registry, uninstaller",
+    "setup ran under a non-elevated Windows token",
+    "default checked autostart creates a COM shortcut with the tray ownership marker",
+    "reinstall: disable, preserve disabled selection, re-enable without duplicate shortcuts",
+    "version upgrade preserves user file, installation path and enabled autostart",
+    "installed EXE in Unicode/space path: private FR/EN with no Java/Python/Node on PATH",
+    "duplicate installed smoke EXE refuses a second JVM on the test port",
+    "shutdown control excludes active portable Correctly at a different executable path",
+    "installed complete engine: strict 11-case FR/EN/Auto/Unicode equivalence",
+    "foreign shortcut blocks installation and remains unchanged",
+    "uninstall removes program, HKCU registration and managed autostart; preserves user file",
+    "uninstall preserves a replaced foreign startup shortcut",
+    "real Startup links and existing production listener on 8081 unchanged"
+  ],
+  "not_tested": [
+    "clean Windows without installed development runtimes",
+    "Windows sign-out/reboot and default-directory production installation",
+    "live installed tray while another Correctly V3 owns the session singleton",
+    "Chrome/Brave authenticated sites and antivirus/SmartScreen interactive behavior"
+  ],
+  "ok": true
+}

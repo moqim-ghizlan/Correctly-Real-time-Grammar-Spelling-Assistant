@@ -20,7 +20,16 @@ export function isInsideCorrectlyUI(node: Node): boolean {
   return false;
 }
 function allowed(element: HTMLElement): boolean {
+  const metadata = [
+    element.getAttribute('autocomplete'),
+    element.getAttribute('name'),
+    element.id,
+    element.getAttribute('aria-label'),
+  ].join(' ');
   if (
+    /(?:password|one-time|otp|credit|cc-|card.?number|cvc|cvv|secret|verification|security.?code)/iu.test(
+      metadata,
+    ) ||
     isInsideCorrectlyUI(element) ||
     element.matches(':disabled') ||
     element.closest('[contenteditable="false"]')

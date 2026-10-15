@@ -3,7 +3,8 @@ param(
     [string]$BundlePath,
     [string]$OutputDir,
     [string]$ISCCPath,
-    [switch]$TestMode
+    [switch]$TestMode,
+    [ValidatePattern('^[A-Za-z0-9.-]+$')][string]$SetupName = 'Correctly-V3.1-Setup'
 )
 $ErrorActionPreference = 'Stop'
 $repo = Split-Path $PSScriptRoot -Parent
@@ -39,12 +40,13 @@ if ($LASTEXITCODE -ne 0) { throw 'Installer input validation failed' }
 $testValue = '0'
 if ($TestMode) { $testValue = '1' }
 $compileLog = Join-Path $stage 'compiler.log'
-& $compiler "/DMyAppVersion=$Version" "/DBundleDir=$bundle" "/DReleaseDir=$stage" "/DTestMode=$testValue" "$repo/installer/Correctly.iss" | Tee-Object -FilePath $compileLog | Select-String -Pattern '^Compiler engine version:|Correctly compiler version:|^Error|^Successful compile'
+& $compiler "/DMyAppVersion=$Version" "/DMyOutputBase=$SetupName" "/DBundleDir=$bundle" "/DReleaseDir=$stage" "/DTestMode=$testValue" "$repo/installer/Correctly.iss" | Tee-Object -FilePath $compileLog | Select-String -Pattern '^Compiler engine version:|Correctly compiler version:|^Error|^Successful compile'
 if ($LASTEXITCODE -ne 0) { throw "ISCC failed; staging retained at $stage" }
 $versionMatch = [regex]::Match((Get-Content -LiteralPath $compileLog -Raw), 'Compiler engine version: Inno Setup (\d+\.\d+\.\d+)')
 if (-not $versionMatch.Success) { throw 'Compiler version evidence missing' }
 $compilerVersion = $versionMatch.Groups[1].Value
-$setup = Join-Path $stage 'Correctly-V3.1-Setup.exe'
+$setupFile = $SetupName + '.exe'
+$setup = Join-Path $stage $setupFile
 if (-not (Test-Path -LiteralPath $setup)) { throw 'Compiler did not produce the expected EXE' }
 $inputs = Get-Content -LiteralPath "$stage/bundle-files.json" -Raw | ConvertFrom-Json
 $release = [ordered]@{
@@ -63,10 +65,10 @@ $release = [ordered]@{
 }
 $release | ConvertTo-Json | Set-Content -LiteralPath "$stage/release-manifest.json" -Encoding UTF8
 @(
-    ($release.setup_sha256 + '  Correctly-V3.1-Setup.exe'),
+    ($release.setup_sha256 + '  ' + $setupFile),
     ($release.extension_sha256 + '  Correctly-Extension.zip')
 ) | Set-Content -LiteralPath "$stage/SHA256SUMS.txt" -Encoding ASCII
-$names = @('Correctly-V3.1-Setup.exe', 'Correctly-Extension.zip', 'release-manifest.json', 'bundle-files.json', 'SHA256SUMS.txt')
+$names = @($setupFile, 'Correctly-Extension.zip', 'release-manifest.json', 'bundle-files.json', 'SHA256SUMS.txt')
 $previous = Join-Path $stage 'previous-release'
 foreach ($name in $names) {
     $destination = Join-Path $output $name
@@ -76,5 +78,5 @@ foreach ($name in $names) {
     }
     Copy-Item -LiteralPath (Join-Path $stage $name) -Destination $destination
 }
-Write-Output "Built: $output/Correctly-V3.1-Setup.exe"
+Write-Output "Built: $output/$setupFile"
 Write-Output "Bytes: $($release.setup_bytes); SHA-256: $($release.setup_sha256); test mode: $TestMode"

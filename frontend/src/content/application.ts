@@ -13,9 +13,12 @@ import {
 import { observeFields } from './observers';
 import { Highlighter, type Annotation } from './highlighter';
 import { SuggestionPopup } from './suggestion-popup';
-import { enabledOnSite, type Settings } from '../shared/storage';
+import { type Settings } from '../shared/storage';
 import type { CorrectionMatch } from '../correction/correction-types';
 import { sendMessage } from '../shared/messages';
+import { EMPTY_SHORTCUTS, type ShortcutSettings } from '../shared/shortcuts';
+import { createUiHost } from './overlay';
+import { createEditorAdapter } from './editor-adapter';
 interface Entry {
   state: FieldState;
   controller: CorrectionController;
@@ -36,12 +39,20 @@ export class Application {
   private nextId = 0;
   private context: { entry: Entry; match: CorrectionMatch } | undefined;
   private menuSignature = '';
+  private undoUi: ReturnType<typeof createUiHost> | undefined;
+  private statusUi: ReturnType<typeof createUiHost> | undefined;
+  private replacingSelection = false;
   constructor(
     private settings: Settings,
     private check: CheckText,
+    private shortcuts: ShortcutSettings = EMPTY_SHORTCUTS,
   ) {}
   start(root: HTMLElement = document.body) {
-    if (!enabledOnSite(this.settings, location.hostname)) return;
+    if (
+      this.settings.disabledSites.includes(location.hostname) ||
+      (!this.settings.enabled && !this.shortcuts.enabled)
+    )
+      return;
     this.stopObserver = observeFields(
       root === document.body ? document.documentElement : root,
       () => this.prune(),
@@ -65,6 +76,7 @@ export class Application {
     ])
       document.addEventListener(type, this.interaction, true);
     document.addEventListener('selectionchange', this.selectionChanged);
+    document.addEventListener('visibilitychange', this.visibilityChanged);
     let focused = document.activeElement;
     while (focused?.shadowRoot?.activeElement)
       focused = focused.shadowRoot.activeElement;
@@ -95,6 +107,7 @@ export class Application {
       render,
     );
     const input = () => controller.changed();
+    controller.setUndoNotice(() => this.showUndo(controller));
     const click = (event: Event) => {
       if (!(event instanceof MouseEvent)) return;
       const annotation = highlighter.hit(event.clientX, event.clientY);
@@ -150,6 +163,12 @@ export class Application {
       annotation.rect,
       (replacement) => this.correct(entry, annotation.match, replacement),
       () => entry.controller.ignore(annotation.match.id),
+      entry.controller.sentenceReview(annotation.match),
+      (choices) => {
+        if (!entry.controller.correctSentence(annotation.match, choices))
+          this.editRefused(entry, annotation.match);
+      },
+      entry.controller.sentenceUnavailableReason(annotation.match),
     );
     this.popupField = field;
   }
@@ -160,7 +179,22 @@ export class Application {
   private correct(entry: Entry, match: CorrectionMatch, replacement: string) {
     this.setContext(undefined);
     this.closePopup();
-    entry.controller.replaceMatch(match, replacement);
+    if (!entry.controller.replaceMatch(match, replacement))
+      this.editRefused(entry, match);
+  }
+  private editRefused(entry: Entry, match: CorrectionMatch) {
+    this.statusUi?.host.remove();
+    this.statusUi = createUiHost();
+    this.statusUi.host.removeAttribute('aria-hidden');
+    const notice = document.createElement('p');
+    notice.setAttribute('role', 'status');
+    notice.textContent =
+      createEditorAdapter(entry.state.element).getText() !== match.sourceText
+        ? 'Correction non appliquée : résultat périmé. Attendez une nouvelle analyse.'
+        : 'Correction non appliquée : le champ ou sa sélection ne permet pas cette modification.';
+    notice.style.cssText =
+      'position:fixed;bottom:64px;right:16px;padding:12px;background:white;color:black;border:2px solid #2563eb;border-radius:8px;font:14px system-ui;max-width:360px';
+    this.statusUi.root.append(notice);
   }
   applyContext() {
     const target = this.context;
@@ -176,6 +210,8 @@ export class Application {
   }
   private activate(field: EditableField | null) {
     if (field === this.activeEditor) return;
+    this.undoUi?.host.remove();
+    this.statusUi?.host.remove();
     this.closePopup();
     this.setContext(undefined);
     if (this.activeEditor) {
@@ -197,6 +233,12 @@ export class Application {
     this.activate(field);
     if (!field) return;
     const entry = this.entries.get(field)!;
+    if (entry.controller.transaction.active) return;
+    if (event.type === 'beforeinput') {
+      const selection = createEditorAdapter(field).getSelection();
+      this.replacingSelection =
+        !!selection && selection.start !== selection.end;
+    }
     if (event.type === 'compositionstart') {
       entry.state.composing = true;
       entry.controller.dispose();
@@ -207,13 +249,38 @@ export class Application {
       entry.controller.changed();
       entry.controller.schedule();
     } else if (event.type === 'input') {
+      this.statusUi?.host.remove();
       if (event instanceof InputEvent && event.isComposing) {
         entry.state.composing = true;
         entry.controller.dispose();
       }
+      if (event instanceof InputEvent)
+        entry.controller.typed(event, this.shortcuts, this.replacingSelection);
+      this.replacingSelection = false;
       entry.controller.changed();
     }
   };
+  private visibilityChanged = () => {
+    for (const entry of this.entries.values()) {
+      if (document.visibilityState === 'hidden') entry.controller.dispose();
+      else entry.controller.schedule();
+    }
+  };
+  private showUndo(controller: CorrectionController) {
+    this.undoUi?.host.remove();
+    this.undoUi = createUiHost();
+    this.undoUi.host.removeAttribute('aria-hidden');
+    const button = document.createElement('button');
+    button.textContent = 'Annuler la modification Correctly';
+    button.style.cssText =
+      'position:fixed;bottom:16px;right:16px;pointer-events:auto;padding:10px;background:white;color:black;border:2px solid #2563eb;border-radius:8px;font:14px system-ui';
+    button.addEventListener('pointerdown', (event) => event.preventDefault());
+    button.onclick = () => {
+      if (controller.undo()) this.undoUi?.host.remove();
+      else button.textContent = 'Annulation indisponible : texte modifié';
+    };
+    this.undoUi.root.append(button);
+  }
   private selectionChanged = () => {
     const tree = this.activeEditor?.getRootNode();
     const selection =
@@ -309,6 +376,8 @@ export class Application {
       }
   }
   dispose() {
+    this.statusUi?.host.remove();
+    this.undoUi?.host.remove();
     this.stopObserver?.();
     this.resizeObserver?.disconnect();
     cancelAnimationFrame(this.frame);
@@ -330,6 +399,7 @@ export class Application {
     ])
       document.removeEventListener(type, this.interaction, true);
     document.removeEventListener('selectionchange', this.selectionChanged);
+    document.removeEventListener('visibilitychange', this.visibilityChanged);
     this.activeEditor = null;
   }
 }

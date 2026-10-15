@@ -1,0 +1,112 @@
+{
+  "ok": true,
+  "startup_seconds": 11.777,
+  "state": "RUNNING",
+  "pid": 11124,
+  "languages": {
+    "fr": 1,
+    "en-US": 1
+  },
+  "responses": {
+    "fr": {
+      "matches": [
+        {
+          "message": "Vouliez-vous dire \u00ab\u00a0je suis\u00a0\u00bb\u202f?",
+          "shortMessage": "",
+          "replacements": [
+            {
+              "value": "je suis"
+            }
+          ],
+          "offset": 0,
+          "length": 6,
+          "context": {
+            "text": "je sui content",
+            "offset": 0,
+            "length": 6
+          },
+          "sentence": "je sui content",
+          "type": {
+            "typeName": "Other"
+          },
+          "rule": {
+            "id": "JE_SUI",
+            "subId": "1",
+            "sourceFile": "grammar.xml",
+            "description": "Typo\u00a0: je suis",
+            "issueType": "uncategorized",
+            "category": {
+              "id": "CAT_GRAMMAIRE",
+              "name": "Grammaire"
+            }
+          },
+          "ignoreForIncompleteSentence": false,
+          "contextForSureMatch": 0
+        }
+      ],
+      "language": {
+        "name": "French",
+        "code": "fr",
+        "detectedLanguage": {
+          "name": "French",
+          "code": "fr",
+          "confidence": 0.99987525,
+          "source": "+fallback"
+        }
+      }
+    },
+    "en-US": {
+      "matches": [
+        {
+          "message": "Possible agreement error \u2014 use the base form here.",
+          "shortMessage": "",
+          "replacements": [
+            {
+              "value": "have"
+            }
+          ],
+          "offset": 2,
+          "length": 3,
+          "context": {
+            "text": "I has a car",
+            "offset": 2,
+            "length": 3
+          },
+          "sentence": "I has a car",
+          "type": {
+            "typeName": "Other"
+          },
+          "rule": {
+            "id": "BASE_FORM",
+            "subId": "2",
+            "sourceFile": "grammar.xml",
+            "description": "base form after I/you/we/they",
+            "issueType": "grammar",
+            "urls": [
+              {
+                "value": "https://languagetool.org/insights/post/grammar-subject-verb-agreement/#1-singular-subjects-must-go-with-singular-verbs-and-plural-subjects-with-plural-verbs"
+              }
+            ],
+            "category": {
+              "id": "GRAMMAR",
+              "name": "Grammar"
+            }
+          },
+          "ignoreForIncompleteSentence": true,
+          "contextForSureMatch": 4
+        }
+      ],
+      "language": {
+        "name": "English (US)",
+        "code": "en-US",
+        "detectedLanguage": {
+          "name": "Irish",
+          "code": "ga-IE",
+          "confidence": 0.9968127,
+          "source": "+fallback"
+        }
+      }
+    }
+  },
+  "stopped": true
+}

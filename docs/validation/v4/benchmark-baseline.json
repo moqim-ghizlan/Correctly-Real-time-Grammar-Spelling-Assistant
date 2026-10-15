@@ -1,0 +1,36 @@
+{
+  "recorded_at": "2026-10-15T07:43:34.768Z",
+  "browser": "Chrome/155.0.8059.80",
+  "browser_path": "C:/Program Files/BraveSoftware/Brave-Browser/Application/brave.exe",
+  "extension": "C:\\Users\\moqim\\Desktop\\work\\Correctly-Real-time-Grammar-Spelling-Assistant\\artifacts\\v4-baseline-source\\dist",
+  "method": "120 synchronous input events per length, timers debounced; excludes network latency; no stored field contents",
+  "measurements": [
+    {
+      "prefix_utf16": 100,
+      "iterations": 120,
+      "median_ms": 0.20000000298023224,
+      "p95_ms": 0.7000000029802322,
+      "maximum_ms": 1.2000000029802322
+    },
+    {
+      "prefix_utf16": 5000,
+      "iterations": 120,
+      "median_ms": 0.20000000298023224,
+      "p95_ms": 0.5,
+      "maximum_ms": 3.0999999940395355
+    },
+    {
+      "prefix_utf16": 50000,
+      "iterations": 120,
+      "median_ms": 0.4000000059604645,
+      "p95_ms": 1,
+      "maximum_ms": 1.5
+    }
+  ],
+  "heap": {
+    "usedSize": 2733916,
+    "totalSize": 5242880,
+    "embedderHeapUsedSize": 5063864,
+    "backingStorageSize": 6717649
+  }
+}

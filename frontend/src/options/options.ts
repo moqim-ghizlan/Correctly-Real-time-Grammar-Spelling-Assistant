@@ -10,6 +10,7 @@ const message = document.querySelector<HTMLElement>('#message')!;
 async function initialize() {
   const settings = await loadSettings();
   input('enabled').checked = settings.enabled;
+  input('sentence-correction').checked = settings.sentenceCorrection;
   language.value = settings.language;
   input('delay').value = String(settings.debounceMs);
   input('spelling').checked = settings.spellingEnabled;
@@ -20,6 +21,7 @@ async function initialize() {
 }
 async function save() {
   const settings: Settings = {
+    sentenceCorrection: input('sentence-correction').checked,
     enabled: input('enabled').checked,
     language: isLanguage(language.value) ? language.value : 'auto',
     debounceMs: Number(input('delay').value),

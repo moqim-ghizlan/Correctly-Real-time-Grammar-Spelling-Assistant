@@ -1,11 +1,18 @@
 import { createServer } from 'node:http';
 import { spawn } from 'node:child_process';
-import { mkdtemp, readFile, rm } from 'node:fs/promises';
+import { mkdtemp, readFile, rm, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join, resolve, dirname } from 'node:path';
 import process from 'node:process';
-const { console, URLSearchParams, fetch, WebSocket, setTimeout, clearTimeout } =
-  globalThis;
+const {
+  console,
+  URL,
+  URLSearchParams,
+  fetch,
+  WebSocket,
+  setTimeout,
+  clearTimeout,
+} = globalThis;
 import assert from 'node:assert/strict';
 
 // This checks the real extension/browser pipeline against a deterministic local
@@ -13,6 +20,7 @@ import assert from 'node:assert/strict';
 const browserPath =
   process.env.CORRECTLY_BROWSER_PATH ??
   'C:/Program Files/BraveSoftware/Brave-Browser/Application/brave.exe';
+const extensionPath = resolve(process.env.CORRECTLY_EXTENSION_PATH ?? 'dist');
 const profile = await mkdtemp(join(tmpdir(), 'correctly-v2-audit-'));
 const requests = [];
 let realEngine = false;
@@ -53,6 +61,7 @@ const listen = (server, port) =>
   });
 const delay = (ms) => new Promise((done) => setTimeout(done, ms));
 let browser, socket, workerSocket;
+let extensionBase;
 let sequence = 0;
 const pending = new Map(),
   errors = [];
@@ -125,6 +134,26 @@ const correct = async (setup, read, expected) => {
   await until('(' + read + ') === ' + JSON.stringify(expected));
   assert.equal(await evaluate(dialogs + '.length'), 0);
 };
+const chooseSentenceChange = async (fragment = null) => {
+  const point = await until(`(() => {
+    const panel=(${dialogs})[0];
+    const label=[...panel?.querySelectorAll('fieldset label')??[]].find(node=>${JSON.stringify(fragment)} === null || node.textContent.trim().startsWith(${JSON.stringify(fragment + ' →')}));
+    const box=label?.querySelector('input');
+    if(!box)return null;
+    box.scrollIntoView({block:'nearest'});
+    const r=box.getBoundingClientRect();return {x:r.x+r.width/2,y:r.y+r.height/2};
+  })()`);
+  await click(point.x, point.y);
+};
+const applySentence = async () => {
+  const point = await until(`(() => {
+    const button=(${dialogs}).flatMap(p=>[...p.querySelectorAll('button')]).find(b=>b.textContent==='Corriger cette phrase' && !b.disabled);
+    if(!button)return null;
+    button.scrollIntoView({block:'nearest'});
+    const r=button.getBoundingClientRect();return {x:r.x+r.width/2,y:r.y+r.height/2};
+  })()`);
+  await click(point.x, point.y);
+};
 try {
   try {
     await listen(engine, 8081);
@@ -152,8 +181,8 @@ try {
       '--no-default-browser-check',
       '--remote-debugging-port=0',
       '--user-data-dir=' + profile,
-      '--disable-extensions-except=' + resolve('dist'),
-      '--load-extension=' + resolve('dist'),
+      '--disable-extensions-except=' + extensionPath,
+      '--load-extension=' + extensionPath,
       'about:blank',
     ],
     { windowsHide: true, stdio: 'ignore' },
@@ -209,6 +238,7 @@ try {
         target.url.endsWith('/service-worker.js'),
     );
     if (worker) {
+      extensionBase = 'chrome-extension://' + new URL(worker.url).hostname;
       workerSocket = new WebSocket(worker.webSocketDebuggerUrl);
       await new Promise((done, fail) => {
         workerSocket.addEventListener('open', done, { once: true });
@@ -325,7 +355,367 @@ try {
   );
   assert.ok(requests.every((text) => text.length <= 5000));
   console.log('PASS dynamic large editor with paragraph-local analysis');
+  if (process.argv.includes('--v4')) {
+    const fixtureUrl = 'http://127.0.0.1:' + site.address().port + '/';
+    await call('Page.navigate', {
+      url: extensionBase + '/src/options/options.html',
+    });
+    await until(
+      'document.querySelector("#shortcut-controls")?.disabled === false',
+    );
+    await evaluate(
+      'document.querySelector("#shortcut-trigger").value="bjr";document.querySelector("#shortcut-replacement").value="Bonjour";document.querySelector("#shortcut-form").requestSubmit()',
+    );
+    await until(
+      'document.querySelector("#shortcut-list").textContent.includes("Bonjour")',
+    );
+    await call('Page.reload');
+    await until(
+      'document.querySelector("#shortcut-list")?.textContent.includes("Bonjour")',
+    );
+    console.log('PASS V4 options creation and persistence across page reload');
+    await evaluate(
+      'document.querySelector("#shortcut-trigger").value="BJR";document.querySelector("#shortcut-replacement").value="Duplicate";document.querySelector("#shortcut-trigger").dispatchEvent(new Event("input",{bubbles:true}))',
+    );
+    assert.equal(
+      await evaluate(
+        'document.querySelector("#shortcut-trigger").checkValidity()',
+      ),
+      false,
+    );
+    await evaluate(
+      'document.querySelector("#shortcut-cancel").click();document.querySelector("#shortcut-list button").click();document.querySelector("#shortcut-replacement").value="Bonsoir";document.querySelector("#shortcut-form").requestSubmit()',
+    );
+    await until(
+      'document.querySelector("#shortcut-list").textContent.includes("Bonsoir")',
+    );
+    await evaluate(
+      'document.querySelector("#shortcut-status").textContent="";document.querySelector("#shortcut-list input").click()',
+    );
+    await until(
+      'document.querySelector("#shortcut-status").textContent.includes("enregistrés") && !document.querySelector("#shortcut-list input").checked',
+    );
+    await evaluate(
+      'window.confirm=()=>true;document.querySelectorAll("#shortcut-list button")[1].click()',
+    );
+    await until('document.querySelector("#shortcut-list").children.length===0');
+    await evaluate(
+      'document.querySelector("#shortcut-trigger").value="bjr";document.querySelector("#shortcut-replacement").value="Bonjour";document.querySelector("#shortcut-form").requestSubmit()',
+    );
+    await until(
+      'document.querySelector("#shortcut-list").textContent.includes("Bonjour")',
+    );
+    console.log(
+      'PASS V4 immediate duplicate validation, edit, entry disable and confirmed delete',
+    );
+    await evaluate(
+      `document.querySelector("#shortcut-trigger").value="cpg";document.querySelector("#shortcut-replacement").value="Ce n'est pas grave";document.querySelector("#shortcut-form").requestSubmit()`,
+    );
+    await until(
+      'document.querySelector("#shortcut-list").textContent.includes("Ce n\'est pas grave")',
+    );
+    await call('Page.navigate', { url: fixtureUrl });
+    await until(
+      'document.querySelector("#native") && document.querySelector("[data-correctly-ui]")',
+    );
+    await evaluate(
+      'const field=document.querySelector("#native");field.value="";field.focus();globalThis.v4Events=0;field.addEventListener("input",event=>{if(event.inputType==="insertReplacementText")globalThis.v4Events++})',
+    );
+    await call('Input.insertText', { text: 'bjr' });
+    await call('Input.insertText', { text: ' ' });
+    await until('document.querySelector("#native").value === "Bonjour "');
+    assert.equal(await evaluate('globalThis.v4Events'), 1);
+    await evaluate(
+      '[...document.querySelectorAll("[data-correctly-ui]")].flatMap(host=>[...host.shadowRoot.querySelectorAll("button")]).find(button=>button.textContent.includes("Annuler la modification")).click()',
+    );
+    assert.equal(
+      await evaluate('document.querySelector("#native").value'),
+      'bjr ',
+    );
+    console.log(
+      'PASS V4 real typing expands once, preserves separator and explicit Undo',
+    );
+    await evaluate(
+      'document.querySelector("#native").value="";document.querySelector("#native").focus()',
+    );
+    await call('Input.insertText', { text: 'abjr' });
+    await call('Input.insertText', { text: ' ' });
+    assert.equal(
+      await evaluate('document.querySelector("#native").value'),
+      'abjr ',
+    );
+    await evaluate(
+      'document.querySelector("#native").value="";document.querySelector("#native").focus()',
+    );
+    await call('Input.insertText', { text: 'bjr' });
+    await call('Input.insertText', { text: ',' });
+    assert.equal(
+      await evaluate('document.querySelector("#native").value'),
+      'Bonjour,',
+    );
+    console.log('PASS V4 exact tokens and punctuation');
+    // Feedback matrix: browser-native typing, real selection/focus, all three
+    // supported field shapes. Do not treat a token without a separator as a bug.
+    await evaluate(`(() => {
+      const input=document.createElement('input'); input.id='feedback-text'; input.type='text';
+      const simple=document.createElement('div'); simple.id='feedback-simple'; simple.contentEditable='true';
+      document.body.prepend(input,simple);
+    })()`);
+    for (const selector of ['#native', '#feedback-text', '#feedback-simple']) {
+      for (const separator of [' ', ',', '.']) {
+        await evaluate(
+          `(() => {const f=document.querySelector(${JSON.stringify(selector)}); if('value' in f)f.value='';else f.textContent=''; f.focus();})()`,
+        );
+        await call('Input.insertText', { text: 'cpg' });
+        const read = `(() => {const f=document.querySelector(${JSON.stringify(selector)});return 'value' in f?f.value:f.textContent})()`;
+        assert.equal(await evaluate(read), 'cpg');
+        await call('Input.insertText', { text: separator });
+        try {
+          await until(
+            `(${read}).replace(/\u00a0/g, ' ') === ${JSON.stringify("Ce n'est pas grave" + separator)}`,
+          );
+        } catch (error) {
+          console.log(
+            'Feedback field diagnostic:',
+            await evaluate(
+              `document.querySelector(${JSON.stringify(selector)}).outerHTML`,
+            ),
+          );
+          throw error;
+        }
+      }
+      console.log(
+        'PASS feedback cpg expansion: ' + selector + ', space/comma/period',
+      );
+    }
+    for (const selector of ['#native', '#feedback-text', '#feedback-simple']) {
+      await correct(
+        `(() => {const f=document.querySelector(${JSON.stringify(selector)});if('value' in f)f.value='Before. Je sui ici.';else f.textContent='Before. Je sui ici.';f.focus();if('value' in f)f.setSelectionRange(f.value.length,f.value.length);else document.getSelection().setBaseAndExtent(f.firstChild,f.textContent.length,f.firstChild,f.textContent.length);f.dispatchEvent(new InputEvent('input',{bubbles:true}));})()`,
+        `(() => {const f=document.querySelector(${JSON.stringify(selector)});return 'value' in f?f.value:f.textContent})()`,
+        'Before. Je suis ici.',
+      );
+      console.log(
+        'PASS feedback individual click in second sentence: ' + selector,
+      );
+    }
+    for (const selector of ['#native', '#feedback-text', '#feedback-simple']) {
+      await evaluate(
+        `(() => {const f=document.querySelector(${JSON.stringify(selector)});if('value' in f)f.value='Je sui ici';else f.textContent='Je sui ici';f.focus();if('value' in f)f.setSelectionRange(1,1);else document.getSelection().setBaseAndExtent(f.firstChild,1,f.firstChild,1);f.dispatchEvent(new InputEvent('input',{bubbles:true}));})()`,
+      );
+      await until(lines + '.length > 0');
+      const reviewPoint = await until(
+        '(()=>{const r=(' +
+          lines +
+          ')[0]?.getBoundingClientRect();return r?{x:r.x+r.width/2,y:r.y-2}:null})()',
+      );
+      await click(reviewPoint.x, reviewPoint.y);
+      await until(
+        dialogs + '.some(p=>p.querySelector("[data-sentence-choice]"))',
+      );
+      assert.equal(
+        await evaluate(
+          dialogs +
+            '.some(p=>p.querySelector("[data-sentence-choice]:checked"))',
+        ),
+        false,
+      );
+      await chooseSentenceChange();
+      await until(
+        dialogs +
+          '.some(p=>p.textContent.includes("Avant : Je sui ici") && p.textContent.includes("Après : Je suis ici"))',
+      );
+      await applySentence();
+      assert.equal(
+        await evaluate(
+          `(() => {const f=document.querySelector(${JSON.stringify(selector)});return 'value' in f?f.value:f.textContent})()`,
+        ),
+        'Je suis ici',
+      );
+      console.log(
+        'PASS feedback whole sentence preview with caret near beginning and no final punctuation: ' +
+          selector,
+      );
+    }
+
+    await evaluate(
+      'document.querySelector("#native").value="";document.querySelector("#native").focus()',
+    );
+    await call('Input.insertText', { text: 'Je sui ici.' });
+    await until(lines + '.length > 0');
+    const point = await until(
+      '(()=>{const r=(' +
+        lines +
+        ')[0]?.getBoundingClientRect();return r?{x:r.x+r.width/2,y:r.y-2}:null})()',
+    );
+    await click(point.x, point.y);
+    await until(
+      dialogs +
+        '.some(panel=>[...panel.querySelectorAll("button")].some(button=>button.textContent==="Corriger cette phrase"))',
+    );
+    await chooseSentenceChange();
+    await applySentence();
+    assert.equal(
+      await evaluate('document.querySelector("#native").value'),
+      'Je suis ici.',
+    );
+    console.log(
+      'PASS V4 sentence preview and grouped correction with real LanguageTool',
+    );
+    if (realEngine) {
+      await evaluate(
+        `(() => {const f=document.querySelector('#native');f.value='Je sui ici. Tu es la.';f.focus();f.setSelectionRange(11,11);f.scrollTop=0;f.dispatchEvent(new InputEvent('input',{bubbles:true}));})()`,
+      );
+      await until(lines + '.length > 0');
+      await evaluate(
+        `(() => {const f=document.querySelector('#native');f.setSelectionRange(f.value.length,f.value.length);})()`,
+      );
+      await delay(700);
+      const transitionPoint = await until(
+        '(()=>{const r=(' +
+          lines +
+          ').at(-1)?.getBoundingClientRect();return r?{x:r.x+r.width/2,y:r.y-2}:null})()',
+      );
+      await click(transitionPoint.x, transitionPoint.y);
+      await until(
+        dialogs + '.some(p=>p.textContent.includes("Avant : Tu es la."))',
+      );
+      await chooseSentenceChange();
+      await applySentence();
+      assert.equal(
+        await evaluate('document.querySelector("#native").value'),
+        'Je sui ici. Tu es là.',
+      );
+      console.log(
+        'PASS updated feedback leaving an offset-zero sentence window triggers second-sentence analysis',
+      );
+      const feedbackText =
+        "Bonjour, je m'appelles Moqim, je vis en Français depuis 5 an. J'aimera bien de demandé de me donné les cordonnés de ta tata.";
+      const firstCorrected =
+        "Bonjour, je m'appelle Moqim, je vis en français depuis 5 ans. J'aimera bien de demandé de me donné les cordonnés de ta tata.";
+      await evaluate(`(() => {
+        const f=document.querySelector('#native');f.value=${JSON.stringify(feedbackText)};f.focus();f.setSelectionRange(1,1);f.scrollTop=0;f.scrollIntoView();f.dispatchEvent(new InputEvent('input',{bubbles:true}));
+      })()`);
+      await until(lines + '.length > 0');
+      const namePoint = await until(
+        '(()=>{const r=(' +
+          lines +
+          ')[0]?.getBoundingClientRect();return r?{x:r.x+r.width/2,y:r.y-2}:null})()',
+      );
+      await click(namePoint.x, namePoint.y);
+      await until(
+        dialogs +
+          '.some(p=>[...p.querySelectorAll("fieldset label")].some(n=>n.textContent.includes("Moqim")))',
+      );
+      assert.equal(
+        await evaluate(
+          dialogs +
+            '.some(p=>p.querySelector("[data-sentence-choice]:checked"))',
+        ),
+        false,
+      );
+      assert.equal(
+        await evaluate(
+          dialogs +
+            '.some(p=>[...p.querySelectorAll("fieldset label")].some(n=>n.textContent.includes("aimera")))',
+        ),
+        false,
+      );
+      await chooseSentenceChange('appelles');
+      await chooseSentenceChange('Français');
+      await chooseSentenceChange('an');
+      await until(
+        dialogs +
+          '.some(p=>p.textContent.includes("Après : Bonjour, je m\'appelle Moqim, je vis en français depuis 5 ans."))',
+      );
+      await applySentence();
+      assert.equal(
+        await evaluate('document.querySelector("#native").value'),
+        firstCorrected,
+      );
+      console.log(
+        'PASS updated feedback first sentence: three chosen edits, Moqim and second sentence preserved',
+      );
+      await evaluate(
+        `(() => {const f=document.querySelector('#native');f.focus();f.setSelectionRange(f.value.length,f.value.length);f.scrollTop=f.scrollHeight;})()`,
+      );
+      await delay(500);
+      const secondPoint = await until(
+        '(()=>{const r=(' +
+          lines +
+          ').at(-1)?.getBoundingClientRect();return r?{x:r.x+r.width/2,y:r.y-2}:null})()',
+      );
+      await click(secondPoint.x, secondPoint.y);
+      await until(
+        dialogs +
+          '.some(p=>[...p.querySelectorAll("fieldset label")].some(n=>n.textContent.includes("aimera")))',
+      );
+      assert.equal(
+        await evaluate(
+          dialogs +
+            '.some(p=>[...p.querySelectorAll("fieldset label")].some(n=>n.textContent.includes("Moqim")))',
+        ),
+        false,
+      );
+      await chooseSentenceChange('aimera');
+      await applySentence();
+      assert.equal(
+        await evaluate('document.querySelector("#native").value'),
+        firstCorrected.replace("J'aimera", "J'aimerai"),
+      );
+      console.log(
+        'PASS updated feedback second sentence reviewed separately; first sentence unchanged',
+      );
+      await evaluate(
+        'document.querySelector("#native").value="";document.querySelector("#native").focus()',
+      );
+      await call('Input.insertText', { text: 'Hello  world' });
+      assert.equal(
+        await evaluate('document.querySelector("#native").value'),
+        'Hello  world',
+      );
+      await call('Input.insertText', { text: '.' });
+      await until('document.querySelector("#native").value === "Hello world."');
+      console.log(
+        'PASS V4 real LanguageTool spacing auto-transaction only after sentence completion',
+      );
+    }
+  }
   assert.deepEqual(errors, []);
+  if (process.argv.includes('--benchmark')) {
+    const measurements = await evaluate(`(() => {
+      const field = document.createElement('textarea'); document.body.prepend(field); field.focus();
+      const results = [];
+      for (const size of [100, 5000, 50000]) {
+        const prefix = 'a'.repeat(size) + '\\n'; const samples = [];
+        for (let index = 0; index < 120; index++) {
+          field.value = prefix + 'Measured typing ' + index; field.setSelectionRange(field.value.length, field.value.length);
+          const start = performance.now();
+          field.dispatchEvent(new InputEvent('input', { bubbles: true, inputType: 'insertText', data: 'x' }));
+          samples.push(performance.now() - start);
+        }
+        samples.sort((a,b)=>a-b); results.push({ prefix_utf16: size, iterations: samples.length, median_ms: samples[60], p95_ms: samples[114], maximum_ms: samples[119] });
+      }
+      field.remove(); return results;
+    })()`);
+    const report = {
+      recorded_at: new Date().toISOString(),
+      browser: (await call('Browser.getVersion')).product,
+      browser_path: browserPath,
+      extension: extensionPath,
+      method:
+        '120 synchronous input events per length, timers debounced; excludes network latency; no stored field contents',
+      measurements,
+      heap: await call('Runtime.getHeapUsage'),
+    };
+    await writeFile(
+      process.env.CORRECTLY_BENCHMARK_REPORT ??
+        'docs/validation/v4/benchmark-current.json',
+      JSON.stringify(report, null, 2) + '\n',
+    );
+    console.log(
+      'PASS bounded typing benchmark: ' + JSON.stringify(measurements),
+    );
+  }
   console.log('PASS removed editor cleanup; no JavaScript exceptions');
   console.log(
     'Browser audit passed (' +

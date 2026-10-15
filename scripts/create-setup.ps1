@@ -1,5 +1,6 @@
 param(
-    [ValidatePattern('^\d+\.\d+\.\d+$')][string]$Version,
+    [ValidatePattern('^\d+\.\d+\.\d+$')][string]$Version = '3.99.0',
+    [ValidatePattern('^[A-Za-z0-9.-]+$')][string]$SetupName = 'Correctly-V4-RC1-Setup',
     [switch]$CheckOnly,
     [switch]$NoOpen
 )
@@ -56,12 +57,12 @@ try {
     if ($LASTEXITCODE -ne 0) { throw 'La compilation du serveur a echoue.' }
 
     Write-Host '[3/3] Creation du Setup, du ZIP extension et des checksums...'
-    & "$PSScriptRoot/build-installer.ps1" -Version $Version -BundlePath "$buildDir/Correctly-V3-Windows-x64" -OutputDir $release -ISCCPath $compilerPath
-    if (-not (Test-Path -LiteralPath "$release/Correctly-V3.1-Setup.exe")) { throw 'Setup final introuvable.' }
+    & "$PSScriptRoot/build-installer.ps1" -Version $Version -SetupName $SetupName -BundlePath "$buildDir/Correctly-V3-Windows-x64" -OutputDir $release -ISCCPath $compilerPath
+    if (-not (Test-Path -LiteralPath "$release/$SetupName.exe")) { throw 'Setup final introuvable.' }
 
     Write-Host ''
     Write-Host 'Termine ! Les fichiers a envoyer sont dans artifacts\release :'
-    Write-Host '  Correctly-V3.1-Setup.exe'
+    Write-Host "  $SetupName.exe"
     Write-Host '  Correctly-Extension.zip'
     Write-Host '  SHA256SUMS.txt'
     Write-Host 'Les anciens builds sont conserves. La compilation ne remplace pas les tests de validation.'

@@ -48,6 +48,91 @@ function match(text: string, offset: number, length: number) {
     text,
   )[0]!;
 }
+it('explains unavailable sentence edits and labels both sides of a manual preview', () => {
+  const popup = new SuggestionPopup();
+  const anchor = { left: 20, top: 20, width: 30, height: 20 };
+  const source = match('je sui ici', 3, 3);
+  popup.show(
+    source,
+    anchor,
+    () => {},
+    () => {},
+    null,
+    () => {},
+    'Éditeur non pris en charge',
+  );
+  const host = document.querySelector('[data-correctly-ui]')!;
+  expect(host.shadowRoot?.querySelector('[role=status]')?.textContent).toBe(
+    'Éditeur non pris en charge',
+  );
+  expect(host.shadowRoot?.textContent).not.toContain('Corriger cette phrase');
+  popup.show(
+    source,
+    anchor,
+    () => {},
+    () => {},
+    {
+      segment: {
+        start: 0,
+        end: source.sourceText.length,
+        text: source.sourceText,
+        complete: false,
+      },
+      matches: [source],
+      unavailableCount: 0,
+    },
+    () => {},
+  );
+  expect(host.shadowRoot?.textContent).toContain('Avant : je sui ici');
+  const checkbox = host.shadowRoot!.querySelector<HTMLInputElement>(
+    '[data-sentence-choice]',
+  )!;
+  const apply = [...host.shadowRoot!.querySelectorAll('button')].find(
+    (button) => button.textContent === 'Corriger cette phrase',
+  )!;
+  expect(checkbox.checked).toBe(false);
+  expect(apply.disabled).toBe(true);
+  checkbox.click();
+  expect(host.shadowRoot?.textContent).toContain('Après : je suis ici');
+  expect(apply.disabled).toBe(false);
+  popup.dispose();
+});
+it('keeps an unchecked name intact and submits exactly the selected replacement', () => {
+  const popup = new SuggestionPopup();
+  const text = 'Moqim sui ici.';
+  const name = { ...match(text, 0, 5), replacements: ['Mois', 'Moi'] };
+  const verb = { ...match(text, 6, 3), replacements: ['suis', 'suit'] };
+  const apply = vi.fn();
+  popup.show(
+    verb,
+    { left: 0, top: 0, width: 10, height: 10 },
+    () => {},
+    () => {},
+    {
+      segment: { start: 0, end: text.length, text, complete: true },
+      matches: [name, verb],
+      unavailableCount: 0,
+    },
+    apply,
+  );
+  const root = document.querySelector('[data-correctly-ui]')!.shadowRoot!;
+  const choices = root.querySelectorAll<HTMLInputElement>(
+    '[data-sentence-choice]',
+  );
+  expect([...choices].every((choice) => !choice.checked)).toBe(true);
+  choices[1]!.click();
+  const alternative = root.querySelectorAll('select')[1]!;
+  alternative.value = 'suit';
+  alternative.dispatchEvent(new Event('change', { bubbles: true }));
+  expect(root.textContent).toContain('Après : Moqim suit ici.');
+  [...root.querySelectorAll('button')]
+    .find((button) => button.textContent === 'Corriger cette phrase')!
+    .click();
+  expect(apply).toHaveBeenCalledExactlyOnceWith([
+    { match: verb, replacement: 'suit' },
+  ]);
+  popup.dispose();
+});
 describe('replacement', () => {
   it.each([
     ['abc', 0, 1, 'z', 'zbc'],

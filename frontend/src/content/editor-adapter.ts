@@ -13,6 +13,7 @@ export interface EditorSelection {
 export interface EditorAdapter {
   getText(): string;
   getSelection(): EditorSelection | null;
+  setSelection(selection: EditorSelection): boolean;
   replaceRange(match: CorrectionMatch, replacement: string): boolean;
 }
 export function createEditorAdapter(field: EditableField): EditorAdapter {
@@ -20,6 +21,35 @@ export function createEditorAdapter(field: EditableField): EditorAdapter {
     getText: () => getTextFromField(field),
     replaceRange: (match, replacement) =>
       applyReplacement(field, match, replacement),
+    setSelection: ({ start, end }) => {
+      if (start < 0 || end < start || end > getTextFromField(field).length)
+        return false;
+      field.focus({ preventScroll: true });
+      if (
+        field instanceof HTMLInputElement ||
+        field instanceof HTMLTextAreaElement
+      ) {
+        if (field.selectionStart === null) return false;
+        field.setSelectionRange(start, end);
+        return true;
+      }
+      const tree = field.getRootNode();
+      const selection =
+        (
+          tree as ShadowRoot & { getSelection?: () => Selection | null }
+        ).getSelection?.() ?? field.ownerDocument.getSelection();
+      const model = getEditableTextModel(field);
+      const first = model.points[start],
+        last = model.points[end];
+      if (!selection || !first || !last) return false;
+      selection.setBaseAndExtent(
+        first.node,
+        first.offset,
+        last.node,
+        last.offset,
+      );
+      return true;
+    },
     getSelection: () => {
       if (
         field instanceof HTMLInputElement ||

@@ -17,6 +17,10 @@
       </header>
       <form id="settings">
         <fieldset id="controls" disabled>
+          <label class="row" for="sentence-correction"
+            ><span>Correction par phrase (automatique prudente)</span
+            ><input id="sentence-correction" type="checkbox"
+          /></label>
           <label class="row" for="enabled"
             ><span>Activer la correction</span
             ><input id="enabled" type="checkbox"
@@ -69,6 +73,38 @@
         <p id="message" role="status"></p>
       </form>
       <hr />
+      <section aria-labelledby="shortcut-title">
+        <h2 id="shortcut-title">Raccourcis de texte</h2>
+        <p class="hint">
+          Exemple : bjr → Bonjour, puis espace ou ponctuation. Stockage local à
+          ce profil ; non partagé entre navigateurs et potentiellement supprimé
+          avec l’extension. Évitez les données sensibles.
+        </p>
+        <label class="row" for="shortcuts-enabled"
+          ><span>Activer les raccourcis</span
+          ><input id="shortcuts-enabled" type="checkbox" disabled
+        /></label>
+        <form id="shortcut-form">
+          <fieldset id="shortcut-controls" disabled>
+            <label class="group" for="shortcut-trigger"
+              >Abréviation<input id="shortcut-trigger" maxlength="32" required
+            /></label>
+            <label class="group" for="shortcut-replacement"
+              >Remplacer par<textarea
+                id="shortcut-replacement"
+                maxlength="2000"
+                required
+              ></textarea>
+            </label>
+            <button type="submit" id="shortcut-submit">Ajouter</button>
+            <button type="button" id="shortcut-cancel">
+              Annuler l’édition
+            </button>
+          </fieldset>
+        </form>
+        <p id="shortcut-status" role="status"></p>
+        <ul id="shortcut-list"></ul>
+      </section>
       <p class="hint">
         Moteur : http://127.0.0.1:8081. Aucun service distant ni sauvegarde des
         textes. Les champs de plus de 5 000 caractères sont ignorés dans cette
@@ -76,5 +112,6 @@
       </p>
     </main>
     <script type="module" src="./options.ts"></script>
+    <script type="module" src="./shortcuts-ui.ts"></script>
   </body>
 </html>
