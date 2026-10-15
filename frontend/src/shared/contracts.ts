@@ -19,6 +19,8 @@ export const TRANSLATE_TEXT = 'correctly.v5.translateText';
 /** Sent by the smart button: asks the worker to open a picker in that frame. */
 export const OPEN_REWRITE = 'correctly.v5.openRewrite';
 export const OPEN_TRANSLATE = 'correctly.v5.openTranslate';
+/** Sent by the page script: is the smart button on, which shortcuts are active. */
+export const PAGE_CONFIG = 'correctly.v5.pageConfig';
 /** Manifest command names of the keyboard shortcuts. */
 export const CORRECT_COMMAND = 'correct-selection';
 export const REWRITE_COMMAND = 'rewrite-selection';

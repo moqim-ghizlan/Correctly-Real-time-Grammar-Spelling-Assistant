@@ -1,4 +1,4 @@
-# Correctly V5.5
+# Correctly V5.6
 
 Personal Chrome/Brave extension (Manifest V3, TypeScript): an on-demand AI
 writing assistant using your own Gemini API key.
@@ -29,7 +29,12 @@ writing assistant using your own Gemini API key.
   Arabic, Turkish, German, Spanish) and, for Arabic, **Modern Standard** or
   **Syrian colloquial**; optionally tick styles. **One** Gemini request
   detects, translates and styles; then Apply, Copy or Cancel.
-- Text shortcuts, more providers and statistics arrive in later V5 releases
+- **Text shortcuts (V5.6).** In the settings, turn on **Text shortcuts**
+  (asks for site access), add e.g. `bjr` → `Bonjour`; typing `bjr` then a
+  space or `, ; : . ! ?` expands it locally — no internet, no AI, no quota.
+  Up to 500 entries, JSON export/import with preview. Shortcuts found in text
+  you correct, rewrite or translate are kept unchanged by default.
+- More providers, usage limits and statistics arrive in later V5 releases
   (plans in [`v5/`](v5/)).
 
 V1–V4 (LanguageTool engine, Windows server and installer) are archived in Git:
@@ -49,7 +54,7 @@ npm run lint
 Optional:
 
 ```powershell
-npm run package        # release/Correctly-V5.5-Extension.zip (+ .sha256)
+npm run package        # release/Correctly-V5.6-Extension.zip (+ .sha256)
 npm run test:browser   # real-browser smoke test (Brave by default)
 node scripts/verify-browser.mjs --browser=chrome
 ```
@@ -99,11 +104,12 @@ synced, not encrypted). Use it only on your own computer and profile.
 | `frontend/tests/`           | unit and integration tests                                |
 | `frontend/manifest.json`    | the only manifest (copied to `dist/` by Vite)             |
 | `scripts/`                  | dist audit, packaging, dev watch, browser smoke test      |
-| `docs/v5.1/` … `docs/v5.5/` | architecture, security, test reports, checklists          |
+| `docs/v5.1/` … `docs/v5.6/` | architecture, security, test reports, checklists          |
 | `v5/`                       | V5.1–V5.x specifications                                  |
 | `plans/`                    | V1–V4 plans (history)                                     |
 
-See [docs/v5.5/V5.5_REPORT.md](docs/v5.5/V5.5_REPORT.md),
+See [docs/v5.6/V5.6_REPORT.md](docs/v5.6/V5.6_REPORT.md),
+[docs/v5.5/V5.5_REPORT.md](docs/v5.5/V5.5_REPORT.md),
 [docs/v5.4/V5.4_REPORT.md](docs/v5.4/V5.4_REPORT.md),
 [docs/v5.3/V5.3_REPORT.md](docs/v5.3/V5.3_REPORT.md),
 [docs/v5.2/V5.2_REPORT.md](docs/v5.2/V5.2_REPORT.md),

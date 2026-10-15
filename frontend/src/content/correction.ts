@@ -55,8 +55,18 @@ export const NOTICES = {
     'A number, link or email address differs from your text. Check it and copy it if it is right; Apply is disabled.',
 } as const;
 
-const SENSITIVE_AUTOCOMPLETE =
-  /\b(?:cc-|one-time-code|current-password|new-password)/i;
+// Same exclusions as V4: credentials, payment and secrets by any label, and
+// code/rich editors whose hidden textareas must never be rewritten.
+const SENSITIVE =
+  /(?:password|one-time|otp|credit|cc-|card|cvc|cvv|secret|token|verification|security.?code)/iu;
+const CODE_OR_RICH_EDITOR =
+  '.monaco-editor, .CodeMirror, .cm-editor, .ace_editor, pre, code, [data-slate-editor], .ProseMirror, .ql-editor, [data-lexical-editor]';
+const isSensitiveField = (el: Element) =>
+  SENSITIVE.test(
+    ['autocomplete', 'name', 'id', 'aria-label']
+      .map((name) => el.getAttribute(name) ?? '')
+      .join(' '),
+  ) || !!el.closest(CODE_OR_RICH_EDITOR);
 
 /** Only textareas and type=text inputs are ever read or written. */
 const isTextField = (el: Element | null): el is TextField =>
@@ -65,10 +75,7 @@ const isTextField = (el: Element | null): el is TextField =>
 
 /** A focused field the smart button may offer to correct (Apply-capable). */
 export const isEligibleField = (el: Element | null): el is TextField =>
-  isTextField(el) &&
-  !el.disabled &&
-  !el.readOnly &&
-  !SENSITIVE_AUTOCOMPLETE.test(el.getAttribute('autocomplete') ?? '');
+  isTextField(el) && !el.disabled && !el.readOnly && !isSensitiveField(el);
 
 /** Follows focus into open shadow roots (closed ones stop at their host). */
 export function deepActiveElement(doc: Document): Element | null {
@@ -96,10 +103,7 @@ export function capture(doc: Document): Snapshot | string {
     active instanceof HTMLInputElement ||
     active instanceof HTMLTextAreaElement
   ) {
-    if (
-      !isTextField(active) ||
-      SENSITIVE_AUTOCOMPLETE.test(active.getAttribute('autocomplete') ?? '')
-    )
+    if (!isTextField(active) || isSensitiveField(active))
       return NOTICES.sensitive;
     const start = active.selectionStart ?? 0;
     const end = active.selectionEnd ?? 0;

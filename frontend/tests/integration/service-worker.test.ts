@@ -3,6 +3,7 @@ import {
   CORRECT_TEXT,
   OPEN_REWRITE,
   OPEN_TRANSLATE,
+  PAGE_CONFIG,
   REWRITE_TEXT,
   TEST_CONNECTION,
   TRANSLATE_TEXT,
@@ -637,6 +638,66 @@ describe('V5.5 translation', () => {
     await send({ type: OPEN_TRANSLATE }, { ...contentSender, frameId: 3 });
     await vi.waitFor(() => expect(executeScript).toHaveBeenCalledTimes(2));
     expectInjected([3], ['translate', ['friendly'], PREFS]);
+    expect(fetcher).not.toHaveBeenCalled();
+  });
+});
+
+describe('V5.6 text shortcuts', () => {
+  const store = (enabled: boolean) => ({
+    schemaVersion: 2,
+    revision: 1,
+    enabled,
+    shortcuts: [
+      {
+        id: 'a',
+        trigger: 'bjr',
+        replacement: 'Bonjour',
+        enabled: true,
+        protectTriggerInAi: true,
+        protectReplacementInAi: false,
+      },
+      {
+        id: 'b',
+        trigger: 'off',
+        replacement: 'disabled one',
+        enabled: false,
+        protectTriggerInAi: true,
+        protectReplacementInAi: false,
+      },
+    ],
+  });
+
+  it('PAGE_CONFIG gives the page only enabled pairs, never settings or the key', async () => {
+    await configure(true, { smartButton: true });
+    area.data.set('correctly.v5.shortcuts', store(true));
+    const { handled, reply } = await send({ type: PAGE_CONFIG }, contentSender);
+    expect(handled).toBe(true);
+    expect(reply).toEqual({
+      smartButton: true,
+      shortcuts: [{ trigger: 'bjr', replacement: 'Bonjour' }],
+    });
+    expect(JSON.stringify(reply)).not.toContain(FAKE_KEY);
+    area.data.set('correctly.v5.shortcuts', store(false));
+    expect(
+      (await send({ type: PAGE_CONFIG }, contentSender)).reply,
+    ).toMatchObject({
+      shortcuts: [],
+    });
+    for (const [message, sender] of [
+      [{ type: PAGE_CONFIG }, optionsSender],
+      [{ type: PAGE_CONFIG }, { ...contentSender, id: 'other' }],
+      [{ type: PAGE_CONFIG, all: true }, contentSender],
+    ] as [unknown, chrome.runtime.MessageSender][])
+      expect((await send(message, sender)).handled).toBe(false);
+    expect(fetcher).not.toHaveBeenCalled();
+  });
+
+  it('the page script is registered for shortcuts alone (smart button off) once access is granted', async () => {
+    await configure(true);
+    area.data.set('correctly.v5.shortcuts', store(true));
+    granted = true;
+    onStorageChanged({ 'correctly.v5.shortcuts': {} }, 'local');
+    await vi.waitFor(() => expect(registerContentScripts).toHaveBeenCalled());
     expect(fetcher).not.toHaveBeenCalled();
   });
 });

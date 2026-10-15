@@ -20,9 +20,11 @@ const codePoints = (text: string) => [...text].length;
  * The user's text travels as its own content part, never inside the system
  * instruction. JSON mode is requested; the shape is enforced by parseCorrection.
  */
-export function correctionBody(text: string): string {
+export function correctionBody(text: string, note = ''): string {
   return JSON.stringify({
-    systemInstruction: { parts: [{ text: SYSTEM_INSTRUCTION }] },
+    systemInstruction: {
+      parts: [{ text: [SYSTEM_INSTRUCTION, note].filter(Boolean).join('\n') }],
+    },
     contents: [{ role: 'user', parts: [{ text }] }],
     generationConfig: {
       temperature: 0,

@@ -1,0 +1,30 @@
+{
+  "format": "correctly-personal-shortcuts",
+  "schemaVersion": 2,
+  "exportedAt": "2026-10-15T12:00:00.000Z",
+  "shortcuts": [
+    { "trigger": "bjr", "replacement": "Bonjour" },
+    { "trigger": "bsr", "replacement": "Bonsoir" },
+    { "trigger": "mrc", "replacement": "Merci beaucoup" },
+    { "trigger": "stp", "replacement": "s'il te plaît" },
+    { "trigger": "svp", "replacement": "s'il vous plaît" },
+    { "trigger": "cad", "replacement": "c'est-à-dire" },
+    { "trigger": "rdv", "replacement": "rendez-vous" },
+    { "trigger": "asap", "replacement": "as soon as possible" },
+    { "trigger": "ty", "replacement": "Thank you!" },
+    { "trigger": "adr", "replacement": "12 rue de la Paix, 75002 Paris" },
+    {
+      "trigger": "sig",
+      "replacement": "Cordialement,\nMoqim",
+      "protectReplacementInAi": true
+    },
+    { "trigger": "slm", "replacement": "السلام عليكم" },
+    { "trigger": "tst", "replacement": "Test 😀" },
+    { "trigger": "cbj", "replacement": "ma phrase perso" },
+    {
+      "trigger": "off",
+      "replacement": "ne doit jamais s'étendre",
+      "enabled": false
+    }
+  ]
+}

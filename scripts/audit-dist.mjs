@@ -101,8 +101,8 @@ export function auditDist(distDir) {
 
   // B01 — manifest shape and minimal permissions.
   if (manifest.manifest_version !== 3) fail('manifest_version must be 3');
-  if (manifest.version !== '5.5.0') fail('version must be 5.5.0');
-  if (!String(manifest.name ?? '').includes('V5.5')) fail('name must say V5.5');
+  if (manifest.version !== '5.6.0') fail('version must be 5.6.0');
+  if (!String(manifest.name ?? '').includes('V5.6')) fail('name must say V5.6');
   // activeTab + scripting: inject content.js into the clicked tab only.
   if (!same(manifest.permissions, PERMISSIONS))
     fail(`permissions must be exactly ${JSON.stringify(PERMISSIONS)}`);
@@ -115,7 +115,7 @@ export function auditDist(distDir) {
     'web_accessible_resources',
   ])
     if (key in manifest) fail(`unexpected manifest key: ${key}`); // B04
-  if (manifest.action?.default_popup) fail('no popup is expected in V5.5');
+  if (manifest.action?.default_popup) fail('no popup is expected in V5.6');
   if (!same(manifest.optional_host_permissions ?? [], OPTIONAL_HOSTS))
     fail(
       `optional_host_permissions must be exactly ${JSON.stringify(OPTIONAL_HOSTS)}`,

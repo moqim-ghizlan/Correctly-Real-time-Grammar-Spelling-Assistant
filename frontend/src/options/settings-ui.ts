@@ -708,11 +708,12 @@ export class SettingsPage {
         this.render();
         return;
       }
-      if (!on) await this.deps.disableSmartButton?.();
       await this.update((settings) => ({
         ...settings,
         triggers: { ...settings.triggers, smartButton: on },
       }));
+      // After saving "off": access is released only if shortcuts don't need it.
+      if (!on) await this.deps.disableSmartButton?.();
       this.message(
         'triggers-message',
         on

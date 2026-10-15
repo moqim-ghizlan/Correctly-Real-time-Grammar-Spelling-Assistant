@@ -34,9 +34,16 @@ export function rewriteInstruction(
 export function rewriteBody(
   text: string,
   styleIds: readonly RewriteStyleId[],
+  note = '',
 ): string {
   return JSON.stringify({
-    systemInstruction: { parts: [{ text: rewriteInstruction(styleIds) }] },
+    systemInstruction: {
+      parts: [
+        {
+          text: [rewriteInstruction(styleIds), note].filter(Boolean).join('\n'),
+        },
+      ],
+    },
     contents: [{ role: 'user', parts: [{ text }] }],
     generationConfig: {
       temperature: 0.7,

@@ -53,10 +53,19 @@ export function translationInstruction(
 export function translationBody(
   text: string,
   request: Omit<TranslateTextRequest, 'type' | 'text'>,
+  note = '',
 ): string {
   const count = translationKeys(request.styleIds).length;
   return JSON.stringify({
-    systemInstruction: { parts: [{ text: translationInstruction(request) }] },
+    systemInstruction: {
+      parts: [
+        {
+          text: [translationInstruction(request), note]
+            .filter(Boolean)
+            .join('\n'),
+        },
+      ],
+    },
     contents: [{ role: 'user', parts: [{ text }] }],
     generationConfig: {
       temperature: request.styleIds.length ? 0.7 : 0.2,

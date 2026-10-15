@@ -20,6 +20,9 @@ import {
   type ErrorCode,
 } from '../shared/errors';
 import { isAllowedModelId } from '../shared/models';
+import { shield, type Shield } from '../shared/protection';
+import type { Candidate } from '../shared/rewrite';
+import { loadShortcuts } from '../shared/shortcuts';
 import {
   loadConnection,
   loadSettings,
@@ -50,6 +53,8 @@ export interface ControllerDeps {
   now?: () => Date;
   today?: () => string;
   isOnline?: () => boolean;
+  /** Tests only: deterministic placeholder namespace. */
+  placeholderTag?: () => string;
 }
 
 const failure = (code: ErrorCode, httpStatus?: number): FailureResult => ({
@@ -221,13 +226,49 @@ export class ConnectionController {
     return { ok: true, parsed };
   }
 
+  /**
+   * V5.6: masks protected shortcut text in the request copy only. Uses the
+   * dictionary as it is now; the map lives for this one request.
+   */
+  private async protect(core: string): Promise<Shield> {
+    const loaded = await loadShortcuts(this.deps.area).catch(() => null);
+    return shield(
+      core,
+      loaded && !loaded.damaged ? loaded.store.shortcuts : [],
+      this.deps.placeholderTag,
+    );
+  }
+
+  /** Restores each candidate; ones that lost or altered a placeholder become missing. */
+  private static restoreAll<K extends string>(
+    parsed: { candidates: Candidate<K>[]; missing: K[] },
+    guard: Shield,
+  ): { candidates: Candidate<K>[]; missing: K[] } | null {
+    const candidates: Candidate<K>[] = [];
+    const missing = [...parsed.missing];
+    for (const candidate of parsed.candidates) {
+      const text = guard.restore(candidate.text);
+      if (text === null) missing.push(candidate.styleId);
+      else candidates.push({ ...candidate, text });
+    }
+    return candidates.length ? { candidates, missing } : null;
+  }
+
   private async runCorrection(text: string): Promise<CorrectionResult> {
     const [lead, core, trail] = splitEdges(text);
+    const guard = await this.protect(core);
     const result = await this.generate(
       core,
-      correctionBody(core),
+      correctionBody(guard.text, guard.note),
       CORRECTION_TIMEOUT_MS,
-      (raw) => parseCorrection(raw, core),
+      (raw) => {
+        const parsed = parseCorrection(raw, guard.text);
+        if (!parsed?.hasErrors) return parsed;
+        const restored = guard.restore(parsed.correctedText);
+        return restored === null
+          ? null
+          : { ...parsed, correctedText: restored };
+      },
     );
     if (!result.ok) return result;
     const { parsed } = result;
@@ -246,11 +287,15 @@ export class ConnectionController {
     styleIds: readonly RewriteStyleId[],
   ): Promise<RewriteResult> {
     const [lead, core, trail] = splitEdges(text);
+    const guard = await this.protect(core);
     const result = await this.generate(
       core,
-      rewriteBody(core, styleIds),
+      rewriteBody(guard.text, styleIds, guard.note),
       REWRITE_TIMEOUT_MS,
-      (raw) => parseRewrite(raw, core, styleIds),
+      (raw) => {
+        const parsed = parseRewrite(raw, guard.text, styleIds);
+        return parsed && ConnectionController.restoreAll(parsed, guard);
+      },
     );
     if (!result.ok) return result;
     return {
@@ -295,11 +340,17 @@ export class ConnectionController {
   }: TranslateTextRequest): Promise<CandidatesResult<TranslationKey>> {
     const [lead, core, trail] = splitEdges(text);
     const keys = translationKeys(options.styleIds);
+    const guard = await this.protect(core);
     const result = await this.generate(
       core,
-      translationBody(core, options),
+      translationBody(guard.text, options, guard.note),
       REWRITE_TIMEOUT_MS,
-      (raw) => parseTranslation(raw, core, keys),
+      (raw) => {
+        const parsed = parseTranslation(raw, guard.text, keys);
+        if (!parsed || parsed.sameLanguage) return parsed;
+        const restored = ConnectionController.restoreAll(parsed, guard);
+        return restored && { sameLanguage: false as const, ...restored };
+      },
     );
     if (!result.ok) return result;
     const { parsed } = result;

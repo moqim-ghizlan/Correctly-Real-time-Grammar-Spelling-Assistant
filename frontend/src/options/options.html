@@ -3,7 +3,7 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <title>Correctly V5.5 — Settings</title>
+    <title>Correctly V5.6 — Settings</title>
     <link rel="icon" href="/icons/icon-48.png" />
     <link rel="stylesheet" href="./settings-ui.css" />
   </head>
@@ -18,13 +18,13 @@
           height="40"
         />
         <div>
-          <h1>Correctly V5.5</h1>
+          <h1>Correctly V5.6</h1>
           <p class="subtitle">Personal AI writing assistant</p>
         </div>
       </header>
       <p class="scope">
         Correctly corrects, rewrites or translates the text you select, on
-        request only. Text shortcuts arrive in a later V5 release.
+        request only, and expands your personal text shortcuts locally.
       </p>
 
       <section class="card" aria-labelledby="gemini-title">
@@ -233,6 +233,139 @@
           it before sending anything important.
         </p>
         <p id="translation-message" class="message" aria-live="polite"></p>
+      </section>
+
+      <section class="card" aria-labelledby="shortcuts-title">
+        <h2 id="shortcuts-title">Text shortcuts</h2>
+        <label class="check" for="shortcuts-enabled">
+          <input id="shortcuts-enabled" type="checkbox" disabled />
+          <span
+            >Expand my shortcuts while I type (asks for access to all sites;
+            turning it off removes that access if the smart button is off)</span
+          >
+        </label>
+        <p class="hint">
+          Type a shortcut followed by a space or <code>, ; : . ! ?</code> to
+          replace it locally — no internet, no AI, no quota. Never on paste, Tab
+          or Enter, and never in password, payment, code or rich editors.
+          Shortcuts are stored only in this browser profile (not synced): export
+          a backup.
+        </p>
+        <p id="shortcuts-status" class="message" aria-live="polite"></p>
+
+        <form id="shortcut-form" novalidate>
+          <label class="stack" for="shortcut-trigger"
+            >Shortcut (1–32 letters or digits)
+            <input
+              id="shortcut-trigger"
+              type="text"
+              maxlength="32"
+              autocomplete="off"
+              autocapitalize="off"
+              spellcheck="false"
+              disabled
+            />
+          </label>
+          <label class="stack" for="shortcut-replacement"
+            >Replacement text
+            <textarea
+              id="shortcut-replacement"
+              rows="2"
+              maxlength="2000"
+              disabled
+            ></textarea>
+          </label>
+          <label class="check" for="shortcut-entry-enabled">
+            <input
+              id="shortcut-entry-enabled"
+              type="checkbox"
+              checked
+              disabled
+            />
+            <span>Enabled</span>
+          </label>
+          <label class="check" for="shortcut-protect-trigger">
+            <input
+              id="shortcut-protect-trigger"
+              type="checkbox"
+              checked
+              disabled
+            />
+            <span
+              >Keep this shortcut unchanged when I ask Correctly to correct,
+              rewrite or translate</span
+            >
+          </label>
+          <label class="check" for="shortcut-protect-replacement">
+            <input id="shortcut-protect-replacement" type="checkbox" disabled />
+            <span
+              >Also keep the replacement text unchanged (for names, signatures
+              or codes — not for common words like “Bonjour”)</span
+            >
+          </label>
+          <div class="actions">
+            <button id="shortcut-save" type="submit" class="primary" disabled>
+              Add shortcut
+            </button>
+            <button id="shortcut-cancel" type="button" class="ghost" hidden>
+              Cancel edit
+            </button>
+          </div>
+          <p id="shortcut-message" class="message" aria-live="polite"></p>
+        </form>
+
+        <div class="key-row list-head">
+          <label class="stack" for="shortcut-search"
+            >Search
+            <input id="shortcut-search" type="search" disabled />
+          </label>
+          <span id="shortcut-count" class="hint">0 / 500</span>
+        </div>
+        <p id="shortcut-empty" class="hint">No shortcuts saved yet.</p>
+        <ul id="shortcut-list" class="shortcut-list"></ul>
+
+        <h3>Backup</h3>
+        <div class="actions">
+          <button id="shortcut-export" type="button" class="ghost" disabled>
+            Export JSON
+          </button>
+          <label class="file" for="shortcut-import"
+            >Import JSON
+            <input
+              id="shortcut-import"
+              type="file"
+              accept="application/json,.json"
+              disabled
+            />
+          </label>
+        </div>
+        <div id="import-preview" class="import" hidden>
+          <p id="import-summary"></p>
+          <fieldset class="styles">
+            <legend>If a shortcut already exists</legend>
+            <label class="check"
+              ><input type="radio" name="import-policy" value="skip" checked />
+              <span>Keep mine (add only new ones)</span></label
+            >
+            <label class="check"
+              ><input type="radio" name="import-policy" value="overwrite" />
+              <span>Replace mine with the file's version</span></label
+            >
+            <label class="check"
+              ><input type="radio" name="import-policy" value="replaceAll" />
+              <span>Replace ALL my shortcuts with the file</span></label
+            >
+          </fieldset>
+          <div class="actions">
+            <button id="import-confirm" type="button" class="primary">
+              Import
+            </button>
+            <button id="import-cancel" type="button" class="ghost">
+              Cancel
+            </button>
+          </div>
+        </div>
+        <p id="import-message" class="message" aria-live="polite"></p>
       </section>
 
       <section class="card" aria-labelledby="limit-title">

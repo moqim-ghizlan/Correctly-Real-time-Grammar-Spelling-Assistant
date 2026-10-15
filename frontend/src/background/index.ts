@@ -2,6 +2,7 @@ import {
   CORRECT_COMMAND,
   OPEN_REWRITE,
   OPEN_TRANSLATE,
+  PAGE_CONFIG,
   REWRITE_COMMAND,
   TRANSLATE_COMMAND,
   isCorrectTextRequest,
@@ -10,6 +11,7 @@ import {
 } from '../shared/contracts';
 import { errorMessage, isRetryable } from '../shared/errors';
 import { isRewriteTextRequest } from '../shared/rewrite';
+import { SHORTCUTS_KEY, loadShortcuts } from '../shared/shortcuts';
 import { isTranslateTextRequest } from '../shared/translate';
 import {
   browserStorage,
@@ -208,14 +210,38 @@ export async function installMenu(area: StorageArea): Promise<void> {
     );
 }
 
-/** Keeps the opt-in smart-button script registered across updates. */
+/**
+ * What the opt-in page script may do: show the smart button, and expand which
+ * shortcuts (enabled ones only, when expansion is on). Never the settings.
+ */
+export async function pageConfig(area: StorageArea) {
+  const [settings, loaded] = await Promise.all([
+    loadSettings(area),
+    loadShortcuts(area),
+  ]);
+  const { store } = loaded;
+  return {
+    smartButton: settings.triggers.smartButton,
+    shortcuts:
+      store.enabled && !loaded.damaged
+        ? store.shortcuts
+            .filter((s) => s.enabled)
+            .map(({ trigger, replacement }) => ({ trigger, replacement }))
+        : [],
+  };
+}
+
+/** Keeps the opt-in page script registered across updates. */
 export async function syncSmartScript(area: StorageArea): Promise<void> {
-  const settings = await loadSettings(area);
+  const [settings, loaded] = await Promise.all([
+    loadSettings(area),
+    loadShortcuts(area),
+  ]);
   const granted = await chrome.permissions.contains({ origins: ALL_SITES });
   await chrome.scripting
     .unregisterContentScripts({ ids: [SMART_SCRIPT_ID] })
     .catch(() => undefined);
-  if (settings.triggers.smartButton && granted)
+  if ((settings.triggers.smartButton || loaded.store.enabled) && granted)
     await chrome.scripting.registerContentScripts([
       {
         id: SMART_SCRIPT_ID,
@@ -254,6 +280,14 @@ export function registerServiceWorker(
       isTranslateTextRequest(message)
     )
       task = controller.translate(message);
+    else if (
+      isContentScriptSender(sender, chrome.runtime.id) &&
+      !!message &&
+      typeof message === 'object' &&
+      Object.keys(message).join() === 'type' &&
+      (message as { type?: unknown }).type === PAGE_CONFIG
+    )
+      task = pageConfig(area);
     else {
       // Smart button → open the picker in that frame; nothing is replied.
       const action = openAction(message);
@@ -304,7 +338,11 @@ export function registerServiceWorker(
     void syncSmartScript(area).catch(() => undefined);
   });
   chrome.storage.onChanged.addListener((changes, areaName) => {
-    if (areaName !== 'local' || !(STORAGE_KEYS.settings in changes)) return;
+    if (
+      areaName !== 'local' ||
+      !(STORAGE_KEYS.settings in changes || SHORTCUTS_KEY in changes)
+    )
+      return;
     void loadSettings(area)
       .then((settings) =>
         Promise.all([

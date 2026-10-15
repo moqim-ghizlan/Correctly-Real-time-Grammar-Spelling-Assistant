@@ -1,9 +1,9 @@
 {
   "manifest_version": 3,
-  "name": "Correctly V5.5",
-  "version": "5.5.0",
-  "version_name": "5.5.0",
-  "description": "Personal AI writing assistant (V5.5: correct, rewrite or translate selected text with Gemini).",
+  "name": "Correctly V5.6",
+  "version": "5.6.0",
+  "version_name": "5.6.0",
+  "description": "Personal AI writing assistant (V5.6: correct, rewrite or translate selected text with Gemini; local text shortcuts).",
   "minimum_chrome_version": "120",
   "permissions": ["activeTab", "contextMenus", "scripting", "storage"],
   "optional_host_permissions": ["<all_urls>"],

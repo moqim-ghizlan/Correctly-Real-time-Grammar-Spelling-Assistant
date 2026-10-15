@@ -1,6 +1,6 @@
 // Real-browser smoke test for V5.3 (V5.1 checklist steps 3–6, 8, 9, 11, 15,
 // the V5.2 content script, V5.3 shortcut/smart button, V5.4 rewrite and
-// V5.5 translation).
+// V5.5 translation and V5.6 text shortcuts).
 // Loads dist/ unpacked in a throwaway profile, drives the settings page over
 // the Chrome DevTools Protocol and records network/console evidence.
 //
@@ -32,7 +32,7 @@ const browserPath = BROWSERS[browserName] ?? browserName;
 const offline = Boolean(args.offline);
 const extensionPath = resolve('dist');
 const DUMMY_KEY = 'CORRECTLY_TEST_SENTINEL_KEY_dummy_000000';
-const profile = await mkdtemp(join(tmpdir(), 'correctly-v55-'));
+const profile = await mkdtemp(join(tmpdir(), 'correctly-v56-'));
 const delay = (ms) => new Promise((done) => setTimeout(done, ms));
 
 const evidence = {
@@ -305,8 +305,8 @@ try {
   await openOptions();
   await wakeWorker(extensionId);
   const manifest = await page.evaluate('chrome.runtime.getManifest()');
-  assert.equal(manifest.version, '5.5.0');
-  assert.equal(manifest.name, 'Correctly V5.5');
+  assert.equal(manifest.version, '5.6.0');
+  assert.equal(manifest.name, 'Correctly V5.6');
   const command = (
     await page.evaluate(
       `chrome.commands.getAll().then((all) => all.map(({ name, shortcut }) => ({ name, shortcut })))`,
@@ -465,9 +465,9 @@ try {
       format: 'png',
       captureBeyondViewport: true,
     });
-    await mkdir('docs/v5.5/evidence', { recursive: true });
+    await mkdir('docs/v5.6/evidence', { recursive: true });
     await writeFile(
-      `docs/v5.5/evidence/options-${browserName}-${width}.png`,
+      `docs/v5.6/evidence/options-${browserName}-${width}.png`,
       Buffer.from(shot.data, 'base64'),
     );
   }
@@ -572,7 +572,9 @@ try {
     globalThis.correctlyPanel?.close();
     document.activeElement?.blur();
     globalThis.chrome = { runtime: { id: 'test', onMessage: { addListener() {} },
-      sendMessage: async (message) => (globalThis.sentMessage = message, { ok: true, hasErrors: false }) } };
+      sendMessage: async (message) => message.type === 'correctly.v5.pageConfig'
+        ? { smartButton: true, shortcuts: [{ trigger: 'bjr', replacement: 'Bonjour' }] }
+        : (globalThis.sentMessage = message, { ok: true, hasErrors: false }) } };
   })()`);
   await page.evaluate(`${smartBundle}; void 0`);
   const buttons = `document.querySelectorAll('correctly-smart-button').length`;
@@ -606,6 +608,32 @@ try {
     'smart.js: one button on focus inside the field, hidden on blur, exact selection sent once',
   );
 
+  // V5.6: real typing (trusted input events over CDP) expands a shortcut
+  // locally, keeps the separator and the caret, and sends nothing.
+  await page.evaluate(
+    `(() => { globalThis.correctlyPanel?.close(); const t = document.getElementById('t'); t.value = ''; t.focus(); globalThis.sentMessage = null; })()`,
+  );
+  await page.call('Input.insertText', { text: 'Salut bjr' });
+  await page.call('Input.insertText', { text: ',' });
+  await page.until(`document.getElementById('t').value === 'Salut Bonjour,'`);
+  assert.equal(
+    await page.evaluate(`document.getElementById('t').selectionStart`),
+    'Salut Bonjour,'.length,
+  );
+  await page.call('Input.insertText', { text: ' abjr ' });
+  await delay(200);
+  assert.equal(
+    await page.evaluate(`document.getElementById('t').value`),
+    'Salut Bonjour, abjr ',
+    'a partial word must not expand',
+  );
+  assert.equal(await page.evaluate('globalThis.sentMessage'), null);
+  step(
+    'C05',
+    'PASS',
+    'shortcut: real typed "bjr," → "Bonjour," locally, caret after separator, "abjr" untouched, nothing sent',
+  );
+
   // V5.4: rewrite picker and cards with real layout (worker stubbed, the
   // reply deliberately in a different order than requested).
   await page.evaluate(`(() => {
@@ -615,7 +643,7 @@ try {
     t.focus(); t.setSelectionRange(0, t.value.length);
     globalThis.sentMessages = [];
     globalThis.chrome = { runtime: { id: 'test', onMessage: { addListener() {} },
-      sendMessage: async (message) => (globalThis.sentMessages.push(message), { ok: true, missing: [], candidates: [
+      sendMessage: async (message) => message.type === 'correctly.v5.pageConfig' ? {} : (globalThis.sentMessages.push(message), { ok: true, missing: [], candidates: [
         { styleId: 'concise', text: "Can't attend tomorrow.", suspicious: false },
         { styleId: 'formal', text: 'I am unable to attend the meeting tomorrow.', suspicious: false } ] }) } };
     globalThis.correctlyRun('rewrite', ['formal', 'concise']);
@@ -678,7 +706,7 @@ try {
     t.focus(); t.setSelectionRange(0, t.value.length);
     globalThis.sentMessages = [];
     globalThis.chrome = { runtime: { id: 'test', onMessage: { addListener() {} },
-      sendMessage: async (message) => (globalThis.sentMessages.push(message), { ok: true, missing: [], candidates: [
+      sendMessage: async (message) => message.type === 'correctly.v5.pageConfig' ? {} : (globalThis.sentMessages.push(message), { ok: true, missing: [], candidates: [
         { styleId: 'neutral', text: 'مرحبا، فيك تقلي إمتى رح تكون فاضي بكرا؟', suspicious: false } ] }) } };
     globalThis.correctlyRun('translate', ['professional'], { source: 'auto', target: 'ar', arabicVariant: 'syrian' });
   })()`);
@@ -756,8 +784,8 @@ try {
   browser?.kill();
   await delay(500);
   await rm(profile, { recursive: true, force: true }).catch(() => {});
-  await mkdir('docs/v5.5/evidence', { recursive: true });
-  const out = `docs/v5.5/evidence/browser-${browserName}.json`;
+  await mkdir('docs/v5.6/evidence', { recursive: true });
+  const out = `docs/v5.6/evidence/browser-${browserName}.json`;
   await writeFile(out, JSON.stringify(evidence, null, 2) + '\n');
   console.log('Evidence written to ' + out);
   process.exit(exitCode);
