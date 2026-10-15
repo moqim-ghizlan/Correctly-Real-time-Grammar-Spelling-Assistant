@@ -1,12 +1,7 @@
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import {
-  loadSettings,
-  saveUsage,
-  STORAGE_KEYS,
-} from '../../src/shared/storage';
-import { emptyUsage } from '../../src/shared/settings';
+import { loadSettings, STORAGE_KEYS } from '../../src/shared/storage';
 import { SettingsPage } from '../../src/options/settings-ui';
 import {
   FakeStorage,
@@ -15,8 +10,8 @@ import {
   jsonResponse,
 } from '../helpers/fake-storage';
 
-// General settings (consent, entry points, styles, languages, daily limit).
-// API keys and routes: providers-ui.test.ts.
+// General settings (consent, entry points, styles, languages). API keys and
+// routes: providers-ui.test.ts; usage limits (V5.8): limits-ui.test.ts.
 
 const html = readFileSync(
   join(import.meta.dirname, '../../src/options/options.html'),
@@ -27,7 +22,6 @@ const body = html.slice(html.indexOf('<body>') + 6, html.indexOf('</body>'));
 let area: FakeStorage;
 let fetchImpl: ReturnType<typeof vi.fn<typeof fetch>>;
 let confirm: ReturnType<typeof vi.fn<(question: string) => boolean>>;
-const TODAY = '2026-10-15';
 
 const $ = <T extends HTMLElement = HTMLElement>(id: string) =>
   document.getElementById(id) as T;
@@ -35,11 +29,7 @@ const text = (id: string) => $(id).textContent?.trim();
 
 async function openPage() {
   document.body.innerHTML = body;
-  const page = new SettingsPage(document, {
-    area,
-    confirm,
-    today: () => TODAY,
-  });
+  const page = new SettingsPage(document, { area, confirm });
   await page.init();
   return page;
 }
@@ -53,11 +43,8 @@ beforeEach(() => {
 });
 
 describe('initial state', () => {
-  it('S01: shows cap 20 and enables controls after load', async () => {
+  it('S01: enables controls after load', async () => {
     await openPage();
-    expect($<HTMLInputElement>('daily-limit').value).toBe('20');
-    expect(text('usage-attempted')).toBe('0 of 20');
-    expect(text('usage-remaining')).toBe('20');
     expect($<HTMLInputElement>('correction-consent').disabled).toBe(false);
     expect($('app').getAttribute('aria-busy')).toBe('false');
   });
@@ -66,23 +53,15 @@ describe('initial state', () => {
     area.failGet = true;
     await openPage();
     expect(text('consent-message')).toContain('Browser storage');
-    expect($<HTMLInputElement>('daily-limit').disabled).toBe(true);
     expect($<HTMLInputElement>('correction-consent').disabled).toBe(true);
   });
 
   it('opening and changing settings never touches the network', async () => {
     const page = await openPage();
-    $<HTMLInputElement>('daily-limit').value = '5';
-    await page.saveLimit();
+    $<HTMLInputElement>('correction-consent').checked = true;
+    await page.saveConsent();
     await page.reload();
     expect(fetchImpl).not.toHaveBeenCalled();
-  });
-
-  it('Q03/Q05: at the cap the page shows the limit (all providers together)', async () => {
-    await saveUsage(area, { ...emptyUsage(TODAY), testAttempts: 20 });
-    await openPage();
-    expect(text('usage-attempted')).toBe('20 of 20');
-    expect(text('usage-remaining')).toBe('0');
   });
 
   it('never renders a legacy V5.1 key', async () => {
@@ -117,12 +96,7 @@ describe('V5.3 entry points', () => {
     deps: Partial<ConstructorParameters<typeof SettingsPage>[1]>,
   ) {
     document.body.innerHTML = body;
-    const page = new SettingsPage(document, {
-      area,
-      confirm,
-      today: () => TODAY,
-      ...deps,
-    });
+    const page = new SettingsPage(document, { area, confirm, ...deps });
     await page.init();
     return page;
   }
@@ -171,23 +145,6 @@ describe('V5.3 entry points', () => {
     await page.saveSmartButton();
     expect(disableSmartButton).toHaveBeenCalledTimes(1);
     expect((await loadSettings(area)).triggers.smartButton).toBe(false);
-  });
-});
-
-describe('daily limit setting', () => {
-  it('S08: rejects invalid values and keeps the previous limit', async () => {
-    const page = await openPage();
-    for (const value of ['abc', '0', '101', '2.5', '']) {
-      $<HTMLInputElement>('daily-limit').value = value;
-      await page.saveLimit();
-      expect($('limit-message').dataset.tone).toBe('error');
-      expect($<HTMLInputElement>('daily-limit').value).toBe('20');
-    }
-    expect(area.data.has(STORAGE_KEYS.settings)).toBe(false);
-    $<HTMLInputElement>('daily-limit').value = '3';
-    await page.saveLimit();
-    expect(text('usage-attempted')).toBe('0 of 3');
-    expect((await loadSettings(area)).safety.dailyTestAttemptLimit).toBe(3);
   });
 });
 

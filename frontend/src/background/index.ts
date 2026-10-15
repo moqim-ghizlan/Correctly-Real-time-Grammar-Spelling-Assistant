@@ -1,5 +1,6 @@
 import {
   CORRECT_COMMAND,
+  OPEN_LIMITS,
   OPEN_REWRITE,
   OPEN_TRANSLATE,
   PAGE_CONFIG,
@@ -43,6 +44,8 @@ export const MENU_REWRITE = 'correctly-rewrite-selection';
 export const MENU_TRANSLATE = 'correctly-translate-selection';
 export const MENU_TRANSLATE_REWRITE = 'correctly-translate-rewrite-selection';
 const ALL_SITES = ['<all_urls>'];
+/** "Manage limits" opens this fixed extension page, nothing else. */
+export const LIMITS_PAGE = 'src/options/options.html#usage-limits';
 
 /** Only pages bundled in this extension may talk to the worker. */
 export function isTrustedSender(
@@ -291,6 +294,8 @@ export function registerServiceWorker(
     .setAccessLevel?.({ accessLevel: 'TRUSTED_CONTEXTS' })
     .catch(() => undefined);
   void migrateLegacyKey(area).catch(() => undefined);
+  // Usage limits: created/imported once, then requests a stopped worker left
+  // behind are settled. Retried before the next request if this fails.
   void controller.reconcile().catch(() => undefined);
 
   chrome.runtime.onMessage.addListener((message: unknown, sender, reply) => {
@@ -323,7 +328,18 @@ export function registerServiceWorker(
       (message as { type?: unknown }).type === PAGE_CONFIG
     )
       task = pageConfig(area);
-    else {
+    else if (
+      isContentScriptSender(sender, chrome.runtime.id) &&
+      !!message &&
+      typeof message === 'object' &&
+      Object.keys(message).join() === 'type' &&
+      (message as { type?: unknown }).type === OPEN_LIMITS
+    ) {
+      void chrome.tabs
+        .create({ url: chrome.runtime.getURL(LIMITS_PAGE) })
+        .catch(() => undefined);
+      return false;
+    } else {
       // Smart button → open the picker in that frame; nothing is replied.
       const action = openAction(message);
       if (action && isContentScriptSender(sender, chrome.runtime.id))

@@ -13,12 +13,14 @@ import {
   type RewriteStyleId,
 } from '../../src/shared/rewrite';
 import { emptyUsage, normalizeSettings } from '../../src/shared/settings';
-import { loadUsage, saveSettings, saveUsage } from '../../src/shared/storage';
+import { saveSettings, saveUsage } from '../../src/shared/storage';
 import {
   FakeStorage,
   FAKE_KEY,
+  changePolicy,
   geminiOk,
   jsonResponse,
+  usageToday,
 } from '../helpers/fake-storage';
 
 const ALL = REWRITE_STYLES.map((style) => style.id);
@@ -221,11 +223,16 @@ describe('ConnectionController.rewrite', () => {
       expect(result).toMatchObject({ ok: true, missing: [] });
       expect(result.ok && result.candidates).toHaveLength(styles.length);
     }
-    expect(await loadUsage(area, today)).toMatchObject({
-      testAttempts: 3,
+    // POL-022: one operation per generation, whatever the number of styles.
+    expect(await usageToday()).toMatchObject({
+      attempts: 3,
       completed: 3,
-      inputTokensObserved: 90,
-      outputTokensObserved: 270,
+      inputTokens: 90,
+      outputTokens: 270,
+    });
+    expect((await usageToday()).snapshot.usage['task:rewrite|daily']).toEqual({
+      counted: 3,
+      reserved: 0,
     });
   });
 
@@ -248,12 +255,18 @@ describe('ConnectionController.rewrite', () => {
       code: 'CONSENT_REQUIRED',
     });
     await configure();
-    await saveUsage(area, { ...emptyUsage(today), testAttempts: 20 });
+    await saveUsage(area, {
+      ...emptyUsage(today),
+      testAttempts: 20,
+    });
     expect(await controller().rewrite('x', ['formal'])).toMatchObject({
-      code: 'LOCAL_DAILY_LIMIT',
+      code: 'QUOTA_EXCEEDED',
     });
     expect(fetchImpl).not.toHaveBeenCalled();
-    await saveUsage(area, emptyUsage(today));
+    await changePolicy((policy) => {
+      policy.global.daily.max = 40;
+      return policy;
+    });
     fetchImpl.mockResolvedValueOnce(
       jsonResponse(200, geminiOk('Here are your rewrites: ...')),
     );

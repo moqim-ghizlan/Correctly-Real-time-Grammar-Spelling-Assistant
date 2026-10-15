@@ -1,4 +1,4 @@
-# Correctly V5.7
+# Correctly V5.8
 
 Personal Chrome/Brave extension (Manifest V3, TypeScript): an on-demand AI
 writing assistant using your own Google Gemini and/or OpenAI API keys.
@@ -39,9 +39,15 @@ writing assistant using your own Google Gemini and/or OpenAI API keys.
   (Correction, Rewrite, Translation, Translate & rewrite, or the default).
   A missing, disabled or refused key stops the action with a message:
   Correctly never switches to another key, model or provider by itself and
-  never retries. One daily limit covers every provider and key.
-- Advanced limits and statistics arrive in later V5 releases (plans in
-  [`v5/`](v5/)).
+  never retries.
+- **Usage limits (V5.8).** Daily, weekly and monthly limits on AI requests:
+  in total, per action, and optionally per provider and per key. Warnings
+  at 80 % and 95 %, a hard local stop at 100 % (before anything is sent),
+  **Pause all AI requests**, and an explicit time zone. Limits are enforced
+  atomically in the extension's own IndexedDB, so several tabs or a worker
+  restart cannot exceed them. They count requests in this browser profile,
+  not money. See [docs/v5.8/USER_GUIDE.md](docs/v5.8/USER_GUIDE.md).
+- Full statistics arrive in a later V5 release (plans in [`v5/`](v5/)).
 
 V1–V4 (LanguageTool engine, Windows server and installer) are archived in Git:
 tag `v4.0.0` contains the last V4 sources.
@@ -60,13 +66,13 @@ npm run lint
 Optional:
 
 ```powershell
-npm run package        # release/Correctly-V5.7-Extension.zip (+ .sha256)
+npm run package        # release/Correctly-V5.8-Extension.zip (+ .sha256)
 npm run test:browser   # real-browser smoke test (Brave by default)
 node scripts/verify-browser.mjs --browser=chrome
 ```
 
-`test:browser` sends three requests with dummy keys (Google model list and
-one test prompt, OpenAI model list; expected answer: invalid key, no cost).
+`test:browser` sends four requests with dummy keys (a model list and one
+test prompt to Google and to OpenAI; expected answer: invalid key, no cost).
 Add `--offline` to send none.
 
 ## Install in Chrome or Brave
@@ -79,7 +85,7 @@ Add `--offline` to send none.
 4. After rebuilding, click **Reload** on the extension card.
 
 Chrome and Brave profiles are separate: each keeps its own keys, routes,
-limit and counter.
+limits and usage.
 
 ## Use
 
@@ -101,16 +107,20 @@ limit and counter.
    **Apply**, **Copy** or **Cancel**.
    Without consent or a usable route for that action (or on `chrome://`
    pages) the button opens the settings instead.
-6. **Local safety limit**: at most 20 AI requests (tests and actions, all
-   providers and keys together) per day by default (1–100). The counter
-   resets at local midnight; the settings show today's requests per key,
-   model and action. It is a safety brake, **not** a billing limit — set spend
-   caps at Google and OpenAI. A request whose answer was lost (timeout) is
-   counted and may still be billed.
+6. **Usage limits**: at most 20 AI requests per day in total by default (your
+   previous daily limit is kept). Add weekly and monthly limits, and limits
+   per action, provider or key, in **Usage limits**. One request counts once,
+   whatever the number of styles. Key checks and text shortcuts never
+   count. The settings show used / remaining, the reset time and today's
+   requests per key, model and action. It is a safety brake, **not** a
+   billing limit — set spend caps at Google and OpenAI. A request whose
+   answer was lost (timeout) stays counted and may still be billed.
 
 Keys are stored in `chrome.storage.local` of this browser profile only (not
 synced, not exported, not encrypted), restricted to the extension's own pages
-and worker. Use them only on your own computer and profile.
+and worker. Use them only on your own computer and profile. Usage records
+(metadata only: never text, prompts or keys) are kept in the extension's
+IndexedDB.
 
 ## Repository layout
 
@@ -120,11 +130,12 @@ and worker. Use them only on your own computer and profile.
 | `frontend/tests/`           | unit and integration tests                                |
 | `frontend/manifest.json`    | the only manifest (copied to `dist/` by Vite)             |
 | `scripts/`                  | dist audit, packaging, dev watch, browser smoke test      |
-| `docs/v5.1/` … `docs/v5.7/` | architecture, security, test reports, checklists          |
+| `docs/v5.1/` … `docs/v5.8/` | architecture, security, test reports, checklists          |
 | `v5/`                       | V5.1–V5.x specifications                                  |
 | `plans/`                    | V1–V4 plans (history)                                     |
 
-See [docs/v5.7/V5.7_REPORT.md](docs/v5.7/V5.7_REPORT.md),
+See [docs/v5.8/V5.8_REPORT.md](docs/v5.8/V5.8_REPORT.md),
+[docs/v5.7/V5.7_REPORT.md](docs/v5.7/V5.7_REPORT.md),
 [docs/v5.6/V5.6_REPORT.md](docs/v5.6/V5.6_REPORT.md),
 [docs/v5.5/V5.5_REPORT.md](docs/v5.5/V5.5_REPORT.md),
 [docs/v5.4/V5.4_REPORT.md](docs/v5.4/V5.4_REPORT.md),

@@ -1,11 +1,14 @@
 import {
   CORRECT_TEXT,
   MAX_CORRECTION_CODE_POINTS,
+  OPEN_LIMITS,
   REWRITE_TEXT,
   TRANSLATE_TEXT,
   toCorrectionResult,
   type CorrectionResult,
 } from '../shared/contracts';
+import type { ErrorCode } from '../shared/errors';
+import { describeNote, type QuotaNote } from '../shared/quota';
 import {
   REWRITE_STYLES,
   normalizeStyleIds,
@@ -29,6 +32,14 @@ import {
 } from '../shared/translate';
 
 export type TranslationChoice = Omit<TranslateTextRequest, 'type' | 'text'>;
+
+/** Refusals by the V5.8 usage limits: nothing was sent. */
+const LIMIT_CODES: readonly ErrorCode[] = [
+  'QUOTA_EXCEEDED',
+  'AI_PAUSED',
+  'QUOTA_UNAVAILABLE',
+  'CLOCK_CHANGED',
+];
 
 // Runs in the page's isolated world, injected on an explicit trigger (toolbar,
 // shortcut, context menu) or loaded with the opt-in smart button. It never
@@ -200,6 +211,8 @@ h2 { margin: 8px 0 2px; font-size: 12px; text-transform: uppercase; color: var(-
 .text { margin: 0; white-space: pre-wrap; overflow-wrap: anywhere; user-select: text; }
 .note { margin: 8px 0 0; color: var(--warn); }
 .note:empty { display: none; }
+.quota { margin: 8px 0 0; color: var(--warn); font-size: 13px; }
+.quota:empty { display: none; }
 .actions { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 12px; }
 button {
   font: inherit; min-height: 32px; padding: 4px 12px; cursor: pointer;
@@ -230,6 +243,8 @@ export class CorrectionPanel {
   /** Closed root: page scripts cannot read or click into the panel. Exposed for tests. */
   readonly root: ShadowRoot;
   busy = false;
+  /** "Manage limits": asks the worker to open the usage limits page. */
+  openLimits: () => void = () => undefined;
   private snapshot: Snapshot | null = null;
   private corrected = '';
   /** 'Correction', 'Rewrite' or 'Translation': only wording differs. */
@@ -253,13 +268,17 @@ export class CorrectionPanel {
     | 'original'
     | 'corrected'
     | 'note'
+    | 'quota'
     | 'picker'
     | 'pickerOriginal'
     | 'styles'
     | 'cards',
     HTMLElement
   > &
-    Record<'apply' | 'copy' | 'undo' | 'close' | 'generate', HTMLButtonElement>;
+    Record<
+      'apply' | 'copy' | 'undo' | 'close' | 'generate' | 'limits',
+      HTMLButtonElement
+    >;
   private readonly make: <K extends keyof HTMLElementTagNameMap>(
     tag: K,
     className: string,
@@ -298,6 +317,9 @@ export class CorrectionPanel {
     );
     const note = make('p', 'note');
     note.setAttribute('aria-live', 'polite');
+    // Usage warnings (V5.8): plain text built from fixed labels and numbers.
+    const quota = make('p', 'quota');
+    quota.setAttribute('aria-live', 'polite');
     const picker = make('div', 'picker');
     const pickerOriginal = make('p', 'text');
     pickerOriginal.dir = 'auto';
@@ -323,10 +345,12 @@ export class CorrectionPanel {
     const copy = make('button', '', 'Copy');
     const undo = make('button', '', 'Undo correction');
     const close = make('button', '', 'Cancel');
+    const limits = make('button', '', 'Manage limits');
+    limits.hidden = true;
     const actions = make('div', 'actions');
-    actions.append(generate, apply, copy, undo, close);
+    actions.append(generate, apply, copy, undo, limits, close);
     const title = make('p', 'title', 'Correctly — Correction');
-    panel.append(title, status, texts, picker, cards, note, actions);
+    panel.append(title, status, texts, picker, cards, note, quota, actions);
     this.root.append(style, panel);
     this.ui = {
       status,
@@ -335,6 +359,7 @@ export class CorrectionPanel {
       original,
       corrected,
       note,
+      quota,
       picker,
       pickerOriginal,
       styles,
@@ -344,6 +369,7 @@ export class CorrectionPanel {
       copy,
       undo,
       close,
+      limits,
     };
     this.make = make;
 
@@ -351,6 +377,7 @@ export class CorrectionPanel {
     copy.addEventListener('click', () => void this.copy());
     undo.addEventListener('click', () => this.undo());
     close.addEventListener('click', () => this.close());
+    limits.addEventListener('click', () => this.openLimits());
     this.root.addEventListener('keydown', (event) => {
       if ((event as KeyboardEvent).key === 'Escape') this.close();
     });
@@ -368,6 +395,25 @@ export class CorrectionPanel {
     for (const name of ['apply', 'copy', 'undo', 'generate'] as const)
       this.ui[name].hidden = !buttons.includes(name);
     this.ui.texts.hidden = !this.corrected || this.noun === 'Rewrite';
+  }
+
+  /**
+   * The usage warning a request crossed, or the limit that refused it. Never
+   * moves the focus. "Manage limits" only opens Correctly's own settings.
+   */
+  private showQuota(
+    result:
+      | { ok: true; notice?: QuotaNote }
+      | { ok: false; code: ErrorCode; quota?: QuotaNote; notice?: QuotaNote },
+  ) {
+    const note = result.ok ? result.notice : (result.quota ?? result.notice);
+    this.ui.quota.textContent = note ? describeNote(note) : '';
+    this.ui.quota.setAttribute(
+      'aria-live',
+      note && (note.blocked || note.level === 100) ? 'assertive' : 'polite',
+    );
+    this.ui.limits.hidden =
+      !note && (result.ok || !LIMIT_CODES.includes(result.code));
   }
 
   /** A refusal that sent nothing. */
@@ -419,6 +465,7 @@ export class CorrectionPanel {
     this.busy = false;
     // Closed or superseded meanwhile: a late answer must change nothing.
     if (!this.host.isConnected) return;
+    this.showQuota(result);
     if (!result.ok) {
       this.show(`${result.message} Your text was not changed.`, 'error');
       this.ui.close.textContent = 'Close';
@@ -744,6 +791,7 @@ export class CorrectionPanel {
     }
     this.busy = false;
     if (!this.host.isConnected) return;
+    this.showQuota(result);
     if (!result.ok) {
       // Retrying is always an explicit new click.
       for (const control of controls) control.disabled = false;
@@ -892,6 +940,10 @@ export function runInPage(
   if (previous?.busy && previous.host.isConnected) return;
   previous?.close();
   const panel = new CorrectionPanel(doc);
+  panel.openLimits = () =>
+    void chrome.runtime
+      .sendMessage({ type: OPEN_LIMITS })
+      .catch(() => undefined);
   state.correctlyPanel = panel;
   const snapshot =
     intent === 'unreachable' || intent === 'rewriteOff'

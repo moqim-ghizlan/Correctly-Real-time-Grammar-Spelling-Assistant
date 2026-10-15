@@ -1,14 +1,16 @@
 // Real-browser smoke test (V5.1 checklist steps 3–6, 8, 9, 11, 15, the V5.2
 // content script, V5.3 shortcut/smart button, V5.4 rewrite, V5.5
-// translation, V5.6 text shortcuts and V5.7 provider keys and routes).
+// translation, V5.6 text shortcuts, V5.7 provider keys and routes and V5.8
+// usage limits on the real IndexedDB of the extension).
 // Loads dist/ unpacked in a throwaway profile, drives the settings page over
 // the Chrome DevTools Protocol and records network/console evidence.
 //
 //   node scripts/verify-browser.mjs [--browser=brave|chrome|<path>] [--offline]
 //
-// Without --offline, three requests are sent with dummy keys (expected answer:
-// invalid key): a model list and one test prompt to Google, a model list to
-// OpenAI. They cannot succeed or cost anything. No real key is used.
+// Without --offline, four requests are sent with dummy keys (expected answer:
+// invalid key): a model list and one test prompt to Google, a model list and
+// one test prompt (the winner of a 20-request race) to OpenAI. They cannot
+// succeed or cost anything. No real key is used.
 import { Buffer } from 'node:buffer';
 import { spawn } from 'node:child_process';
 import { mkdtemp, mkdir, readFile, rm, writeFile } from 'node:fs/promises';
@@ -34,7 +36,8 @@ const offline = Boolean(args.offline);
 const extensionPath = resolve('dist');
 const DUMMY_KEY = 'CORRECTLY_TEST_SENTINEL_KEY_dummy_000000';
 const DUMMY_OPENAI_KEY = 'CORRECTLY_TEST_SENTINEL_KEY_openai_dummy_0';
-const profile = await mkdtemp(join(tmpdir(), 'correctly-v57-'));
+const profile = await mkdtemp(join(tmpdir(), 'correctly-v58-'));
+const EVIDENCE = 'docs/v5.8/evidence';
 const delay = (ms) => new Promise((done) => setTimeout(done, ms));
 
 const evidence = {
@@ -181,6 +184,27 @@ async function clickTest(slot = 'default') {
   );
   await page.until(`${text(message)} !== ''`, 30000);
   return page.evaluate(text(message));
+}
+/** Usage line of one limit row of the V5.8 "Usage limits" section. */
+const capRow = (legend, period) => `(() => {
+  const set = [...document.querySelectorAll('fieldset.limits')].find(
+    (node) => node.querySelector('legend').textContent === ${JSON.stringify(legend)});
+  return [...set.querySelectorAll('.cap-row')].find(
+    (node) => node.querySelector('label span').textContent === ${JSON.stringify(period)});
+})()`;
+const TOTAL = 'Total (all actions, providers and keys)';
+const totalDaily = `${capRow(TOTAL, 'Daily')}.querySelector('.cap-usage').textContent`;
+/** Types a total daily limit and saves it like the owner would. */
+async function saveTotalDaily(value) {
+  await page.until(`!document.getElementById('limits-pause').disabled`);
+  await page.evaluate(`(() => {
+    const input = ${capRow(TOTAL, 'Daily')}.querySelector('input.cap-max');
+    input.value = ${JSON.stringify(String(value))};
+    input.dispatchEvent(new Event('input', { bubbles: true }));
+    document.getElementById('limits-message').textContent = '';
+    document.getElementById('limits-save').click();
+  })()`);
+  await page.until(`${text('limits-message')}.startsWith('Limits saved')`);
 }
 /** The worker's answer to a TEST_CONNECTION sent like the page sends it. */
 const sendTest = (slot = 'default') =>
@@ -354,8 +378,8 @@ try {
   await openOptions();
   await wakeWorker(extensionId);
   const manifest = await page.evaluate('chrome.runtime.getManifest()');
-  assert.equal(manifest.version, '5.7.0');
-  assert.equal(manifest.name, 'Correctly V5.7');
+  assert.equal(manifest.version, '5.8.0');
+  assert.equal(manifest.name, 'Correctly V5.8');
   assert.deepEqual(manifest.host_permissions, [
     'https://generativelanguage.googleapis.com/*',
     'https://api.openai.com/*',
@@ -381,12 +405,20 @@ try {
     await page.evaluate(text('route-summary-default')),
     /No default route/,
   );
-  assert.equal(
-    await page.evaluate(`document.getElementById('daily-limit').value`),
-    '20',
+  await page.until(`${text('limits-state')} === 'Active'`);
+  assert.match(
+    await page.evaluate(totalDaily),
+    /^Available — used 0 \/ 20, 20 remaining now\. Resets .+\)\.$/,
   );
-  assert.equal(await page.evaluate(text('usage-attempted')), '0 of 20');
-  step('M4', 'PASS', 'settings open: no key, no route, daily cap 20');
+  const dbs = await page.evaluate(
+    `indexedDB.databases().then((all) => all.map((d) => d.name))`,
+  );
+  assert(dbs.includes('correctly-v5-quota'), 'usage database must exist');
+  step(
+    'M4',
+    'PASS',
+    `settings open: no key, no route; usage limits created in IndexedDB (total 20/day); ${await page.evaluate(totalDaily)}`,
+  );
 
   // Step 6 / Scenario A: no route → blocked before any network access.
   assert.equal(
@@ -472,7 +504,7 @@ try {
     assert(
       listOpenAi.headerNames.some((n) => n.toLowerCase() === 'authorization'),
     );
-    assert.equal(await page.evaluate(text('usage-attempted')), '0 of 20');
+    assert.match(await page.evaluate(totalDaily), /used 0 \/ 20/);
     step(
       'M5d',
       'PASS',
@@ -489,7 +521,8 @@ try {
     );
     assert.equal(openaiRequests().length, 1, 'no switch to OpenAI on failure');
     assert.match(result, /rejected this API key|Offline|network/i);
-    assert.equal(await page.evaluate(text('usage-attempted')), '1 of 20');
+    // The worker's write reaches this page through IndexedDB + BroadcastChannel.
+    await page.until(`/used 1 \\/ 20/.test(${totalDaily})`);
     step(
       'M5b',
       'PASS',
@@ -499,18 +532,17 @@ try {
 
   // Step 8: cap 1 → blocked; reload → still blocked.
   const used = offline ? 0 : 1;
-  const sentBefore = providerRequests().length;
-  await page.evaluate(`(() => {
-    document.getElementById('daily-limit').value = '1';
-    document.getElementById('save-limit').click();
-  })()`);
-  await page.until(`${text('usage-attempted')} === '${used} of 1'`);
+  let sentBefore = providerRequests().length;
+  await saveTotalDaily(1);
+  await page.until(`/used ${used} \\/ 1/.test(${totalDaily})`);
   if (offline) {
     step('M8', 'SKIPPED', '--offline: cap test needs one dispatched attempt');
   } else {
-    assert.match(await clickTest('correction'), /Daily local limit reached/);
+    const refusal = await clickTest('correction');
+    assert.match(refusal, /usage limit is reached/);
+    assert.match(refusal, /Daily total AI request limit reached \(1 \/ 1\)/);
     await openOptions();
-    assert.match(await clickTest('default'), /Daily local limit reached/);
+    assert.match(await clickTest('default'), /usage limit is reached/);
     assert.equal(
       providerRequests().length,
       sentBefore,
@@ -532,9 +564,8 @@ try {
     await page.evaluate(text('route-summary-correction')),
     /OpenAI Test/,
   );
-  assert.equal(
-    await page.evaluate(`document.getElementById('daily-limit').value`),
-    '1',
+  await page.until(
+    `${capRow(TOTAL, 'Daily')}.querySelector('input.cap-max').value === '1'`,
   );
   await wakeWorker(extensionId);
   // Offline: the worker is only woken; a test would reach the provider.
@@ -542,13 +573,97 @@ try {
     ? { code: 'not sent (--offline)' }
     : await sendTest('correction');
   if (!offline) {
-    assert.equal(afterRestart.code, 'LOCAL_DAILY_LIMIT');
+    assert.equal(afterRestart.code, 'QUOTA_EXCEEDED');
+    assert.equal(afterRestart.quota?.used, 1);
     assert.equal(providerRequests().length, sentBefore);
   }
   step(
     'M9',
     'PASS',
     `worker stopped and woken by message; keys, routes and count persisted (${afterRestart.code ?? 'ok'})`,
+  );
+
+  // V5.8 L1: 20 simultaneous requests for the last slot in the real worker
+  // and IndexedDB → exactly one reaches the network (dummy OpenAI key).
+  if (!offline) {
+    await saveTotalDaily(2);
+    const before = openaiRequests().filter((r) => r.method === 'POST').length;
+    const started = Date.now();
+    const race =
+      await page.evaluate(`Promise.all(Array.from({ length: 20 }, () =>
+      chrome.runtime.sendMessage({ type: 'correctly.v5.testConnection', slot: 'correction' })))`);
+    const elapsed = Date.now() - started;
+    await delay(500);
+    const posts = openaiRequests().filter((r) => r.method === 'POST');
+    assert.equal(posts.length - before, 1, 'exactly one request may be sent');
+    assert.equal(race.filter((r) => r.code === 'QUOTA_EXCEEDED').length, 19);
+    assert.equal(race.filter((r) => r.code === 'INVALID_KEY').length, 1);
+    assert.equal(googleRequests().filter((r) => r.method === 'POST').length, 1);
+    await page.until(`/used 2 \\/ 2/.test(${totalDaily})`);
+    sentBefore = providerRequests().length;
+    step(
+      'L1',
+      'PASS',
+      `20 simultaneous requests for 1 slot: 1 sent (dummy key → INVALID_KEY), 19 refused locally (QUOTA_EXCEEDED) in ${elapsed} ms; no fallback to Gemini`,
+    );
+  } else step('L1', 'SKIPPED', '--offline: the race winner would be sent');
+
+  // V5.8 L2: Pause all AI blocks everything locally; admission latency of the
+  // real worker + IndexedDB (each refusal is one readwrite transaction).
+  await page.evaluate(`(() => {
+    const box = document.getElementById('limits-pause');
+    box.checked = true;
+    box.dispatchEvent(new Event('change'));
+  })()`);
+  await page.until(`${text('limits-state')} === 'AI paused'`);
+  const timings = [];
+  for (let i = 0; i < 30; i++) {
+    const begin = Date.now();
+    const paused = await sendTest('correction');
+    timings.push(Date.now() - begin);
+    assert.equal(paused.code, 'AI_PAUSED');
+  }
+  timings.sort((a, b) => a - b);
+  const p50 = timings[14];
+  const p95 = timings[28];
+  assert.equal(providerRequests().length, sentBefore);
+  await page.evaluate(`(() => {
+    const box = document.getElementById('limits-pause');
+    box.checked = false;
+    box.dispatchEvent(new Event('change'));
+  })()`);
+  await page.until(`${text('limits-state')} === 'Active'`);
+  evidence.admissionLatencyMs = { samples: timings.length, p50, p95 };
+  step(
+    'L2',
+    'PASS',
+    `Pause all AI: 30 requests refused locally (AI_PAUSED), zero network; message + admission round trip p50 ${p50} ms, p95 ${p95} ms`,
+  );
+
+  // V5.8 L3: the usage records hold metadata only (read from the extension
+  // page; web pages and content scripts cannot open this database).
+  const records = await page.evaluate(`new Promise((resolve, reject) => {
+    const open = indexedDB.open('correctly-v5-quota');
+    open.onerror = () => reject(open.error);
+    open.onsuccess = () => {
+      const db = open.result;
+      const names = [...db.objectStoreNames];
+      const tx = db.transaction(names);
+      const out = {};
+      for (const name of names) {
+        const request = tx.objectStore(name).getAll();
+        request.onsuccess = () => (out[name] = request.result);
+      }
+      tx.oncomplete = () => { db.close(); resolve(JSON.stringify(out)); };
+    };
+  })`);
+  for (const secret of [DUMMY_KEY, DUMMY_OPENAI_KEY, 'Reply with OK', 'Bearer'])
+    assert(!records.includes(secret), 'usage records must not hold ' + secret);
+  const stores = Object.keys(JSON.parse(records));
+  step(
+    'L3',
+    'PASS',
+    `IndexedDB stores ${stores.join(', ')}: no key, prompt or header inside (${records.length} bytes)`,
   );
 
   // Step 14: narrow width, keyboard order, screenshots (no key is on screen).
@@ -568,10 +683,24 @@ try {
       format: 'png',
       captureBeyondViewport: true,
     });
-    await mkdir('docs/v5.7/evidence', { recursive: true });
+    await mkdir(EVIDENCE, { recursive: true });
     await writeFile(
-      `docs/v5.7/evidence/options-${browserName}-${width}.png`,
+      `${EVIDENCE}/options-${browserName}-${width}.png`,
       Buffer.from(shot.data, 'base64'),
+    );
+    // The V5.8 section alone, readable at full scale.
+    const box = await page.evaluate(`(() => {
+      const r = document.getElementById('usage-limits').getBoundingClientRect();
+      return { x: r.left + scrollX, y: r.top + scrollY, width: r.width, height: r.height };
+    })()`);
+    const limitsShot = await page.call('Page.captureScreenshot', {
+      format: 'png',
+      captureBeyondViewport: true,
+      clip: { ...box, scale: 1 },
+    });
+    await writeFile(
+      `${EVIDENCE}/limits-${browserName}-${width}.png`,
+      Buffer.from(limitsShot.data, 'base64'),
     );
   }
   await page.call('Emulation.clearDeviceMetricsOverride');
@@ -900,8 +1029,8 @@ try {
   browser?.kill();
   await delay(500);
   await rm(profile, { recursive: true, force: true }).catch(() => {});
-  await mkdir('docs/v5.7/evidence', { recursive: true });
-  const out = `docs/v5.7/evidence/browser-${browserName}.json`;
+  await mkdir(EVIDENCE, { recursive: true });
+  const out = `${EVIDENCE}/browser-${browserName}.json`;
   await writeFile(out, JSON.stringify(evidence, null, 2) + '\n');
   console.log('Evidence written to ' + out);
   process.exit(exitCode);

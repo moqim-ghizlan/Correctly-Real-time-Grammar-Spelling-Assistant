@@ -8,7 +8,10 @@ export type ErrorCode =
   | 'MODEL_UNAVAILABLE'
   | 'MODEL_INCOMPATIBLE'
   | 'RATE_LIMITED'
-  | 'LOCAL_DAILY_LIMIT'
+  | 'QUOTA_EXCEEDED'
+  | 'AI_PAUSED'
+  | 'QUOTA_UNAVAILABLE'
+  | 'CLOCK_CHANGED'
   | 'CONSENT_REQUIRED'
   | 'NETWORK_ERROR'
   | 'TIMEOUT'
@@ -58,12 +61,27 @@ const COPY: Record<ErrorCode, { message: string; retryable: boolean }> = {
   },
   RATE_LIMITED: {
     message:
-      'The provider is rate-limiting requests, or your quota or billing limit is reached. No automatic switch was made; retry later.',
+      'The provider is rate-limiting requests, or your quota or billing limit at the provider is reached (this is not a Correctly usage limit). No automatic switch was made; retry later.',
     retryable: true,
   },
-  LOCAL_DAILY_LIMIT: {
+  QUOTA_EXCEEDED: {
     message:
-      'Daily local limit reached. Try tomorrow or adjust your safety setting.',
+      'A Correctly usage limit is reached, so no request was sent. See Correctly settings → Usage limits.',
+    retryable: false,
+  },
+  AI_PAUSED: {
+    message:
+      'AI requests are paused in Correctly settings → Usage limits. No request was sent. Text shortcuts still work.',
+    retryable: false,
+  },
+  QUOTA_UNAVAILABLE: {
+    message:
+      'Correctly cannot verify your usage limits right now. No AI request was sent. Open Correctly settings → Usage limits.',
+    retryable: true,
+  },
+  CLOCK_CHANGED: {
+    message:
+      "Your computer's clock moved back, so AI requests are paused until you confirm the time in Correctly settings → Usage limits. No request was sent.",
     retryable: false,
   },
   CONSENT_REQUIRED: {

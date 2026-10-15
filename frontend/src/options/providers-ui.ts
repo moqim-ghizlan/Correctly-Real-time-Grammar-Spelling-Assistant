@@ -5,7 +5,6 @@ import {
   toKeyCheckResult,
 } from '../shared/contracts';
 import { errorMessage } from '../shared/errors';
-import { localDate } from '../shared/local-date';
 import {
   MODEL_CATALOG,
   PROVIDERS,
@@ -38,8 +37,8 @@ import {
   type ProviderStore,
   type RouteSlot,
 } from '../shared/providers';
-import { emptyUsage, type DailyUsageRecord } from '../shared/settings';
-import { STORAGE_KEYS, loadUsage, type StorageArea } from '../shared/storage';
+import { describeNote } from '../shared/quota';
+import type { StorageArea } from '../shared/storage';
 import type { Tone } from './settings-ui';
 
 // V5.7 "AI providers": API-key profiles and the key + model each action
@@ -52,7 +51,6 @@ export interface ProvidersDeps {
   /** TEST_KEY / TEST_CONNECTION to the service worker. */
   send: (message: unknown) => Promise<unknown>;
   now?: () => Date;
-  today?: () => string;
   uiTimeoutMs?: number;
 }
 
@@ -68,21 +66,16 @@ type Draft = { credentialId: string; modelId: string };
 export class ProvidersSection {
   private store: ProviderStore = emptyProviders();
   private checks: Record<string, KeyCheck> = {};
-  private usage: DailyUsageRecord;
   private editing: ProviderProfile | null = null;
   private readonly drafts: Partial<Record<RouteSlot, Draft>> = {};
   /** Actions in progress ("key:<id>", "route:<slot>"): one at a time each. */
   private readonly busy = new Set<string>();
   private ready = false;
-  private readonly today: () => string;
 
   constructor(
     private readonly doc: Document,
     private readonly deps: ProvidersDeps,
-  ) {
-    this.today = deps.today ?? (() => localDate());
-    this.usage = emptyUsage(this.today());
-  }
+  ) {}
 
   private el<T extends HTMLElement>(id: string): T {
     const node = this.doc.getElementById(id);
@@ -110,14 +103,12 @@ export class ProvidersSection {
   async reload(): Promise<void> {
     try {
       const { area } = this.deps;
-      const [loaded, checks, usage] = await Promise.all([
+      const [loaded, checks] = await Promise.all([
         loadProfiles(area),
         area.get([CHECKS_KEY]),
-        loadUsage(area, this.today()),
       ]);
       this.store = loaded.store;
       this.checks = parseChecks(checks[CHECKS_KEY]);
-      this.usage = usage;
       this.ready = !loaded.damaged;
       if (loaded.damaged)
         this.message(
@@ -140,9 +131,7 @@ export class ProvidersSection {
 
   onStorageChanged(keys: string[]): void {
     if (
-      [PROVIDERS_KEY, SECRETS_KEY, CHECKS_KEY, STORAGE_KEYS.usage].some((key) =>
-        keys.includes(key),
-      )
+      [PROVIDERS_KEY, SECRETS_KEY, CHECKS_KEY].some((key) => keys.includes(key))
     )
       void this.reload();
   }
@@ -401,7 +390,7 @@ export class ProvidersSection {
     if (this.busy.has(id)) return;
     if (
       !this.deps.confirm(
-        `Send one tiny test prompt (“Reply with OK only.”, no page text) through the saved ${SLOT_LABELS[slot]} route? It counts toward your daily limit and may be billed by the provider.`,
+        `Send one tiny test prompt (“Reply with OK only.”, no page text) through the saved ${SLOT_LABELS[slot]} route? It counts as one request in your usage limits and may be billed by the provider.`,
       )
     )
       return;
@@ -423,7 +412,7 @@ export class ProvidersSection {
       } else
         this.message(
           `route-message-${slot}`,
-          `${result.message}${result.httpStatus ? ` (HTTP ${result.httpStatus})` : ''}`,
+          `${result.message}${result.httpStatus ? ` (HTTP ${result.httpStatus})` : ''}${result.quota ? ` ${describeNote(result.quota)}` : ''}`,
           'error',
         );
     } finally {
@@ -529,7 +518,6 @@ export class ProvidersSection {
         !this.ready || (id === 'profile-provider' && this.editing !== null);
     this.renderProfiles();
     this.renderRoutes();
-    this.renderUsage();
   }
 
   private renderProfiles() {
@@ -755,43 +743,5 @@ export class ProvidersSection {
     for (const node of [select, model]) node.disabled = !this.ready;
     box.append(legend, summary, keyLabel, modelLabel, note, actions, message);
     return box;
-  }
-
-  /** Today's requests per key, model and action (no text, no key). */
-  private renderUsage() {
-    const usage =
-      this.usage.localDate === this.today()
-        ? this.usage
-        : emptyUsage(this.today());
-    const rows: string[] = [];
-    let attributed = 0;
-    for (const [key, item] of Object.entries(usage.routes)) {
-      const [provider, id, , model, task] = key.split('|');
-      attributed += item.attempts;
-      if (!item.attempts) continue;
-      const profile = this.store.profiles.find((p) => p.id === id);
-      const who = profile
-        ? `${profile.label} (${isProviderId(provider) ? providerName(provider) : provider})`
-        : 'deleted key';
-      const action =
-        task === 'test' ? 'Test' : (SLOT_LABELS[task as RouteSlot] ?? task);
-      rows.push(
-        `${action} → ${who} • ${model}: ${item.attempts} request(s), ${item.completed} answered, ${item.failed} failed, ${item.unknown} unknown · ${item.inputTokens} in / ${item.outputTokens} out tokens`,
-      );
-    }
-    const legacy = usage.testAttempts - attributed;
-    if (legacy > 0)
-      rows.push(`Before V5.7 (not attributed): ${legacy} request(s)`);
-    if (usage.unknown)
-      rows.push(
-        `${usage.unknown} request(s) were sent but their answer was lost: they may be billed.`,
-      );
-    this.el('usage-routes').replaceChildren(
-      ...rows.map((text) => {
-        const item = this.doc.createElement('li');
-        item.textContent = text;
-        return item;
-      }),
-    );
   }
 }

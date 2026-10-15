@@ -12,7 +12,7 @@ import {
 } from '../../src/shared/providers';
 import { normalizeSettings } from '../../src/shared/settings';
 import { SHORTCUTS_KEY } from '../../src/shared/shortcuts';
-import { loadUsage, saveSettings, saveUsage } from '../../src/shared/storage';
+import { saveSettings } from '../../src/shared/storage';
 import {
   FAKE_KEY,
   FakeStorage,
@@ -23,7 +23,9 @@ import {
   jsonResponse,
   openaiOk,
   profile,
+  quotaStore,
   seedProviders,
+  usageToday,
 } from '../helpers/fake-storage';
 
 // V5.7: the same tasks through either provider, with the same local
@@ -253,7 +255,8 @@ describe('TASK: same contracts on both providers', () => {
       code: 'INVALID_RESPONSE',
     });
     expect(fetchImpl).toHaveBeenCalledTimes(1);
-    expect(await loadUsage(area, TODAY)).toMatchObject({
+    expect(await usageToday()).toMatchObject({
+      attempts: 1,
       failed: 1,
       unknown: 0,
     });
@@ -343,40 +346,36 @@ describe('RT/Q: routing, limits and lifecycle', () => {
     expect(hosts()).toEqual(['gemini', 'openai']);
   });
 
-  it('Q-13: a key deleted after the reservation is never called; the slot is given back', async () => {
+  it('Q-13/RACE-016: a key deleted after the reservation is never called; the slot is given back', async () => {
     routes({ default: OPENAI_ROUTE });
+    const quota = quotaStore();
+    // Delete the profile right after the reservation is committed.
+    const admit = quota.admit.bind(quota);
+    quota.admit = async (draft, now) => {
+      const admission = await admit(draft, now);
+      const { store } = await loadProviders(area);
+      await mutateProviders(
+        area,
+        deleteProfile(store.profiles.find((p) => p.id === OPENAI_ID)!),
+      );
+      return admission;
+    };
     const c = new ConnectionController({
       area,
       fetchImpl,
+      quota,
       today: () => TODAY,
       isOnline: () => true,
       operationId: () => 'operation-q13',
     });
-    // Delete the profile right after the reservation is written.
-    const set = area.set.bind(area);
-    area.set = async (items) => {
-      await set(items);
-      if (
-        'correctly.v5.usage' in items &&
-        Object.keys(
-          (items['correctly.v5.usage'] as { pending: object }).pending,
-        ).length
-      ) {
-        area.set = set;
-        const { store } = await loadProviders(area);
-        await mutateProviders(
-          area,
-          deleteProfile(store.profiles.find((p) => p.id === OPENAI_ID)!),
-        );
-      }
-    };
     expect(await c.correct('Fixd text')).toMatchObject({
       code: 'ROUTE_BROKEN',
     });
     expect(fetchImpl).not.toHaveBeenCalled();
-    expect(await loadUsage(area, TODAY)).toMatchObject({
-      testAttempts: 0,
-      pending: {},
+    expect(await usageToday()).toMatchObject({
+      attempts: 0,
+      reserved: 0,
+      inProgress: 0,
     });
   });
 
@@ -435,11 +434,10 @@ describe('RT/Q: routing, limits and lifecycle', () => {
       }),
     ]);
     expect(
-      results.filter((r) => !r.ok && r.code === 'LOCAL_DAILY_LIMIT'),
+      results.filter((r) => !r.ok && r.code === 'QUOTA_EXCEEDED'),
     ).toHaveLength(1);
     expect(fetchImpl).toHaveBeenCalledTimes(2);
-    const usage = await loadUsage(area, TODAY);
-    expect(usage.testAttempts).toBe(2);
+    expect((await usageToday()).attempts).toBe(2);
   });
 
   it('Q-01/Q-09: usage is attributed per provider, key, model and task; a timeout is billing-unknown', async () => {
@@ -458,16 +456,22 @@ describe('RT/Q: routing, limits and lifecycle', () => {
       code: 'TIMEOUT',
     });
     expect(fetchImpl).toHaveBeenCalledTimes(2);
-    const usage = await loadUsage(area, TODAY);
+    const usage = await usageToday();
     expect(usage).toMatchObject({
-      testAttempts: 2,
+      attempts: 2,
       completed: 1,
       unknown: 1,
       failed: 0,
-      pending: {},
+      reserved: 0,
     });
-    expect(usage.routes).toEqual({
-      [`openai|${OPENAI_ID}|1|gpt-5.6-luna|correction`]: {
+    expect(
+      [...usage.rows].sort((a, b) => a.task.localeCompare(b.task)),
+    ).toEqual([
+      {
+        task: 'correction',
+        provider: 'openai',
+        credentialId: OPENAI_ID,
+        modelId: 'gpt-5.6-luna',
         attempts: 1,
         completed: 1,
         failed: 0,
@@ -475,7 +479,11 @@ describe('RT/Q: routing, limits and lifecycle', () => {
         inputTokens: 30,
         outputTokens: 12,
       },
-      [`gemini|${GEMINI_ID}|1|gemini-3.1-flash-lite|rewrite`]: {
+      {
+        task: 'rewrite',
+        provider: 'gemini',
+        credentialId: GEMINI_ID,
+        modelId: 'gemini-3.1-flash-lite',
         attempts: 1,
         completed: 0,
         failed: 0,
@@ -483,37 +491,45 @@ describe('RT/Q: routing, limits and lifecycle', () => {
         inputTokens: 0,
         outputTokens: 0,
       },
+    ]);
+    expect(usage.snapshot.usage).toMatchObject({
+      'provider:openai|daily': { counted: 1 },
+      'provider:gemini|monthly': { counted: 1 },
+      'task:correction|weekly': { counted: 1 },
     });
     expect(JSON.stringify(usage)).not.toMatch(/Fine|SENTINEL/);
   });
 
-  it('Q-11: after a worker restart, pending requests become unknown and are never replayed', async () => {
-    const key = `openai|${OPENAI_ID}|1|gpt-5.6-luna|correction`;
-    await saveUsage(area, {
-      schemaVersion: 1,
-      localDate: TODAY,
-      testAttempts: 1,
-      completed: 0,
-      failed: 0,
-      unknown: 0,
-      inputTokensObserved: 0,
-      outputTokensObserved: 0,
-      routes: {
-        [key]: {
-          attempts: 1,
-          completed: 0,
-          failed: 0,
-          unknown: 0,
-          inputTokens: 0,
-          outputTokens: 0,
-        },
-      },
-      pending: { 'operation-lost': key },
+  it('Q-11/RACE-009/010: after a worker restart, sent requests become unknown and are never replayed', async () => {
+    routes({ default: OPENAI_ROUTE });
+    // A previous worker reserved two requests, marked one sent, then died.
+    const quota = quotaStore();
+    const now = Date.now();
+    await controller().reconcile();
+    const draft = {
+      bootId: 'previous-worker',
+      task: 'correction' as const,
+      provider: 'openai' as const,
+      credentialId: OPENAI_ID,
+      revision: 1,
+      modelId: 'gpt-5.6-luna',
+    };
+    await quota.admit({ ...draft, id: 'operation-sent' }, now);
+    await quota.dispatch('operation-sent', now);
+    await quota.admit({ ...draft, id: 'operation-unsent' }, now);
+    expect(await usageToday()).toMatchObject({
+      attempts: 1,
+      reserved: 1,
+      inProgress: 2,
     });
     await controller().reconcile();
-    const usage = await loadUsage(area, TODAY);
-    expect(usage).toMatchObject({ testAttempts: 1, unknown: 1, pending: {} });
-    expect(usage.routes[key]!.unknown).toBe(1);
+    // Sent: counted for good, billing unknown. Never sent: given back.
+    expect(await usageToday()).toMatchObject({
+      attempts: 1,
+      reserved: 0,
+      unknown: 1,
+      inProgress: 0,
+    });
     expect(fetchImpl).not.toHaveBeenCalled();
   });
 
@@ -563,7 +579,7 @@ describe('RT/Q: routing, limits and lifecycle', () => {
       code: 'NOT_CONFIGURED',
     });
     expect(fetchImpl).not.toHaveBeenCalled();
-    expect((await loadUsage(area, TODAY)).testAttempts).toBe(0);
+    expect((await usageToday()).attempts).toBe(0);
   });
 
   it('KEY-02 → RT-05: a key added in the settings works only once routed', async () => {

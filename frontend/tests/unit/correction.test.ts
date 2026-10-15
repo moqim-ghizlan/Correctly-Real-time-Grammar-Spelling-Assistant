@@ -8,13 +8,15 @@ import {
 } from '../../src/background/correction';
 import { geminiBody } from '../../src/background/gemini-client';
 import { normalizeSettings } from '../../src/shared/settings';
-import { loadUsage, saveSettings, saveUsage } from '../../src/shared/storage';
+import { saveSettings, saveUsage } from '../../src/shared/storage';
 import { emptyUsage } from '../../src/shared/settings';
 import {
   FakeStorage,
   FAKE_KEY,
   geminiOk,
   jsonResponse,
+  dumpQuota,
+  usageToday,
 } from '../helpers/fake-storage';
 
 const json = (hasErrors: unknown, correctedText: unknown) =>
@@ -195,12 +197,16 @@ describe('ConnectionController.correct', () => {
     expect(await controller(false).correct('x')).toMatchObject({
       code: 'NETWORK_ERROR',
     });
-    await saveUsage(area, { ...emptyUsage(today), testAttempts: 20 });
+    // V5.7's count for today is imported by V5.8: still at the cap.
+    await saveUsage(area, {
+      ...emptyUsage(today),
+      testAttempts: 20,
+    });
     expect(await controller().correct('x')).toMatchObject({
-      code: 'LOCAL_DAILY_LIMIT',
+      code: 'QUOTA_EXCEEDED',
     });
     expect(fetchImpl).not.toHaveBeenCalled();
-    expect((await loadUsage(area, today)).testAttempts).toBe(20);
+    expect((await usageToday()).attempts).toBe(20);
   });
 
   it('1.1/A13: a no-op correction still counts one attempt and its tokens', async () => {
@@ -210,13 +216,17 @@ describe('ConnectionController.correct', () => {
       hasErrors: false,
     });
     expect(fetchImpl).toHaveBeenCalledTimes(1);
-    expect(await loadUsage(area, today)).toMatchObject({
-      testAttempts: 1,
+    expect(await usageToday()).toMatchObject({
+      attempts: 1,
       completed: 1,
-      inputTokensObserved: 40,
-      outputTokensObserved: 12,
+      inputTokens: 40,
+      outputTokens: 12,
     });
     expect(area.dump()).not.toContain('Hello');
+    // SEC-013/SEC-014: the usage records hold metadata only.
+    const records = await dumpQuota();
+    expect(records).toContain('gemini-3.1-flash-lite');
+    expect(records).not.toMatch(/Hello|how are you|SENTINEL/);
   });
 
   it('A03/A04: provider errors are sanitized and never retried', async () => {
@@ -235,7 +245,7 @@ describe('ConnectionController.correct', () => {
       code: 'RATE_LIMITED',
     });
     expect(fetchImpl).toHaveBeenCalledTimes(2);
-    expect((await loadUsage(area, today)).failed).toBe(2);
+    expect((await usageToday()).failed).toBe(2);
   });
 
   it('A06: a timeout is reported and stays counted', async () => {
@@ -249,7 +259,7 @@ describe('ConnectionController.correct', () => {
         ),
     );
     expect(await controller().correct('x')).toMatchObject({ code: 'TIMEOUT' });
-    expect((await loadUsage(area, today)).testAttempts).toBe(1);
+    expect(await usageToday()).toMatchObject({ attempts: 1, unknown: 1 });
   });
 
   it('A10/A11/P16/GE-05/06/07: empty, refused or truncated answers never become a result', async () => {

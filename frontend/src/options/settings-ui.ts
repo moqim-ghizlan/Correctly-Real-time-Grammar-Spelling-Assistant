@@ -1,29 +1,20 @@
 import { errorMessage } from '../shared/errors';
-import { localDate } from '../shared/local-date';
 import { REWRITE_STYLES, normalizeStyleIds } from '../shared/rewrite';
 import {
   ARABIC_VARIANTS,
   LANGUAGES,
   normalizeTranslation,
 } from '../shared/translate';
-import {
-  emptyUsage,
-  parseDailyLimit,
-  DAILY_LIMIT_MAX,
-  DAILY_LIMIT_MIN,
-  type DailyUsageRecord,
-  type V51Settings,
-} from '../shared/settings';
+import type { V51Settings } from '../shared/settings';
 import {
   STORAGE_KEYS,
   loadSettings,
-  loadUsage,
   saveSettings,
   type StorageArea,
 } from '../shared/storage';
 
-// General settings: consent, entry points, rewrite/translation defaults and
-// the daily limit. API keys and routes: see providers-ui.ts.
+// General settings: consent, entry points, rewrite/translation defaults.
+// API keys and routes: providers-ui.ts; usage limits (V5.8): limits-ui.ts.
 
 export interface SettingsDeps {
   area: StorageArea;
@@ -35,7 +26,6 @@ export interface SettingsDeps {
   enableSmartButton?: () => Promise<boolean>;
   /** Unregisters it, drops the access and removes open buttons. */
   disableSmartButton?: () => Promise<void>;
-  today?: () => string;
   uiTimeoutMs?: number;
 }
 
@@ -43,16 +33,11 @@ export type Tone = 'neutral' | 'ok' | 'error' | 'info';
 
 export class SettingsPage {
   private settings: V51Settings | null = null;
-  private usage: DailyUsageRecord;
-  private readonly today: () => string;
 
   constructor(
     private readonly doc: Document,
     private readonly deps: SettingsDeps,
-  ) {
-    this.today = deps.today ?? (() => localDate());
-    this.usage = emptyUsage(this.today());
-  }
+  ) {}
 
   private el<T extends HTMLElement>(id: string): T {
     const node = this.doc.getElementById(id);
@@ -77,19 +62,12 @@ export class SettingsPage {
 
   /** Re-reads everything from storage (also used when another tab or the worker writes). */
   async reload(): Promise<void> {
-    const { area } = this.deps;
-    const [settings, usage] = await Promise.all([
-      loadSettings(area),
-      loadUsage(area, this.today()),
-    ]);
-    this.settings = settings;
-    this.usage = usage;
+    this.settings = await loadSettings(this.deps.area);
     this.render();
   }
 
   onStorageChanged(keys: string[]): void {
-    const ours: string[] = Object.values(STORAGE_KEYS);
-    if (keys.some((key) => ours.includes(key)))
+    if (keys.includes(STORAGE_KEYS.settings))
       void this.reload().catch(() => undefined);
   }
 
@@ -181,19 +159,10 @@ export class SettingsPage {
     this.el<HTMLButtonElement>('open-shortcuts').addEventListener('click', () =>
       this.deps.openShortcuts?.(),
     );
-    this.el<HTMLFormElement>('limit-form').addEventListener(
-      'submit',
-      (event) => {
-        event.preventDefault();
-        void this.saveLimit();
-      },
-    );
   }
 
   private setControlsEnabled(enabled: boolean) {
     for (const id of [
-      'daily-limit',
-      'save-limit',
       'correction-consent',
       'trigger-keyboard',
       'trigger-menu',
@@ -240,21 +209,6 @@ export class SettingsPage {
       box.checked = settings.rewrite.defaultStyles.some(
         (id) => id === box.value,
       );
-    const limitInput = this.el<HTMLInputElement>('daily-limit');
-    if (this.doc.activeElement !== limitInput)
-      limitInput.value = String(settings.safety.dailyTestAttemptLimit);
-    this.renderUsage();
-  }
-
-  renderUsage(): void {
-    if (!this.settings) return;
-    const limit = this.settings.safety.dailyTestAttemptLimit;
-    const attempted =
-      this.usage.localDate === this.today() ? this.usage.testAttempts : 0;
-    this.el('usage-attempted').textContent = `${attempted} of ${limit}`;
-    this.el('usage-remaining').textContent = String(
-      Math.max(0, limit - attempted),
-    );
   }
 
   /** Read-modify-write from fresh storage so other tabs' changes survive. */
@@ -264,33 +218,6 @@ export class SettingsPage {
     const fresh = await loadSettings(this.deps.area);
     this.settings = await saveSettings(this.deps.area, mutate(fresh));
     return this.settings;
-  }
-
-  async saveLimit(): Promise<void> {
-    const limit = parseDailyLimit(
-      this.el<HTMLInputElement>('daily-limit').value,
-    );
-    if (limit === null) {
-      this.message(
-        'limit-message',
-        `Enter a whole number from ${DAILY_LIMIT_MIN} to ${DAILY_LIMIT_MAX}. The previous limit is kept.`,
-        'error',
-      );
-      this.el<HTMLInputElement>('daily-limit').value = String(
-        this.settings?.safety.dailyTestAttemptLimit ?? '',
-      );
-      return;
-    }
-    try {
-      await this.update((settings) => ({
-        ...settings,
-        safety: { dailyTestAttemptLimit: limit },
-      }));
-      this.message('limit-message', `Daily limit saved: ${limit}.`, 'ok');
-    } catch {
-      this.message('limit-message', errorMessage('STORAGE_ERROR'), 'error');
-    }
-    this.render();
   }
 
   async saveConsent(): Promise<void> {

@@ -3,7 +3,7 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <title>Correctly V5.7 — Settings</title>
+    <title>Correctly V5.8 — Settings</title>
     <link rel="icon" href="/icons/icon-48.png" />
     <link rel="stylesheet" href="./settings-ui.css" />
   </head>
@@ -18,7 +18,7 @@
           height="40"
         />
         <div>
-          <h1>Correctly V5.7</h1>
+          <h1>Correctly V5.8</h1>
           <p class="subtitle">Personal AI writing assistant</p>
         </div>
       </header>
@@ -172,9 +172,9 @@
           on that click. Nothing changes until you click <strong>Apply</strong>,
           which is available in plain text boxes; elsewhere, copy the
           suggestion. Password, email, phone, URL, number and search fields are
-          never read. Each correction counts toward the daily limit below and
-          may incur charges from your provider. Suggestions can be wrong: check
-          them.
+          never read. Each correction counts as one request in the usage limits
+          below and may incur charges from your provider. Suggestions can be
+          wrong: check them.
         </p>
         <p id="consent-message" class="message" aria-live="polite"></p>
       </section>
@@ -227,7 +227,7 @@
         <p class="hint">
           You can change the styles each time before generating. All chosen
           styles are produced by <strong>one</strong> AI request (one request in
-          the daily limit), in the language of your text — no translation.
+          the usage limits), in the language of your text — no translation.
           Rewrites need an internet connection and may incur charges; they are
           suggestions to review, and nothing changes until you click Apply.
         </p>
@@ -402,50 +402,134 @@
         <p id="import-message" class="message" aria-live="polite"></p>
       </section>
 
-      <section class="card" aria-labelledby="limit-title">
-        <h2 id="limit-title">Local safety limit</h2>
-        <form id="limit-form" novalidate>
-          <label for="daily-limit"
-            >Maximum AI requests per day (all providers and keys
-            together)</label
+      <section class="card" id="usage-limits" aria-labelledby="limits-title">
+        <div class="card-head">
+          <h2 id="limits-title">Usage limits</h2>
+          <p id="limits-state" class="status" data-tone="neutral">
+            <span class="dot"></span>Loading…
+          </p>
+        </div>
+        <p class="hint">
+          These limits apply to AI generation requests made by Correctly in this
+          browser profile. They do not guarantee a maximum API bill. One request
+          is counted when it is sent (or may have been sent), whatever the
+          number of styles or languages in it; key checks and text shortcuts
+          never count. A request is allowed only if every limit that is on
+          allows it; at 100% the matching requests are blocked before anything
+          is sent.
+        </p>
+        <p id="limits-status" class="message" role="status"></p>
+        <div id="limits-repair" class="warning" hidden>
+          <p>
+            The saved usage limits are missing or damaged, so no AI request is
+            sent. Restoring safe defaults keeps all recorded usage.
+          </p>
+          <button id="limits-repair-button" type="button">
+            Restore safe limits
+          </button>
+        </div>
+        <div id="limits-clock" class="warning" hidden>
+          <p>
+            Your computer's clock moved back since the last request, so AI
+            requests are paused (a clock change must not reset limits). Check
+            the date and time, then confirm.
+          </p>
+          <button id="limits-clock-confirm" type="button">
+            My clock is correct
+          </button>
+        </div>
+        <ul
+          id="limits-alerts"
+          class="alerts"
+          aria-label="Usage warnings"
+          aria-live="polite"
+        ></ul>
+        <label class="check" for="limits-pause">
+          <input id="limits-pause" type="checkbox" disabled />
+          <span
+            >Pause all AI requests (correction, rewrite, translation and tests).
+            Text shortcuts keep working.</span
           >
-          <div class="key-row">
-            <input
-              id="daily-limit"
-              type="number"
-              inputmode="numeric"
-              min="1"
-              max="100"
-              step="1"
-              aria-describedby="limit-message limit-note"
+        </label>
+        <form id="limits-form" novalidate>
+          <div id="limits-groups"></div>
+          <p id="limits-global-error" class="message" data-tone="error"></p>
+          <details id="limits-advanced">
+            <summary>Limits per provider and per API key (optional)</summary>
+            <p class="hint">
+              These only add restrictions: they never give more than the total
+              and action limits allow. Correctly never switches to another key
+              or provider when one is blocked.
+            </p>
+            <div id="limits-advanced-groups"></div>
+          </details>
+          <fieldset class="route">
+            <legend>Warnings</legend>
+            <label class="check" for="limits-at80">
+              <input id="limits-at80" type="checkbox" disabled />
+              <span>Warn at 80% of a limit</span>
+            </label>
+            <label class="check" for="limits-at95">
+              <input id="limits-at95" type="checkbox" disabled />
+              <span>Warn at 95% of a limit</span>
+            </label>
+            <p class="hint">
+              At 100% the matching AI requests are always blocked. Warnings
+              appear next to the request that crossed them and here, once per
+              limit and period.
+            </p>
+          </fieldset>
+          <p class="hint">
+            Time zone of days, weeks (Monday to Sunday) and months:
+            <strong id="limits-timezone">—</strong>
+            <button
+              id="limits-timezone-change"
+              type="button"
+              class="ghost"
               disabled
+            >
+              Change…
+            </button>
+          </p>
+          <div id="limits-timezone-row" hidden>
+            <label for="limits-timezone-input">IANA time zone</label>
+            <input
+              id="limits-timezone-input"
+              list="limits-timezones"
+              autocomplete="off"
+              aria-describedby="limits-timezone-error"
             />
-            <button id="save-limit" type="submit" class="ghost" disabled>
-              Save limit
+            <datalist id="limits-timezones"></datalist>
+            <p class="hint">
+              Changing it never resets usage: the counts of the current day,
+              week and month carry over.
+            </p>
+          </div>
+          <p id="limits-timezone-error" class="message" data-tone="error"></p>
+          <div class="actions">
+            <button id="limits-save" type="submit" class="primary" disabled>
+              Save limits
+            </button>
+            <button id="limits-reload" type="button" hidden>
+              Reload saved limits
             </button>
           </div>
-          <p id="limit-message" class="message" aria-live="polite"></p>
+          <p id="limits-message" class="message" aria-live="polite"></p>
         </form>
-        <dl class="usage">
-          <div>
-            <dt>Requests today</dt>
-            <dd id="usage-attempted">0 of 20</dd>
-          </div>
-          <div>
-            <dt>Remaining</dt>
-            <dd id="usage-remaining">20</dd>
-          </div>
-        </dl>
+        <h3 class="subhead">Today by key, model and action</h3>
         <ul
           id="usage-routes"
           class="hint"
-          aria-label="Today by key and model"
+          aria-label="Today by key, model and action"
         ></ul>
+        <p id="limits-tracking" class="hint"></p>
         <p id="limit-note" class="hint">
-          Counted in this browser profile and reset at local midnight. This is a
-          safety brake, not a billing limit: one limit for all keys, and it does
-          not see other browsers, profiles or apps using the same accounts. Set
-          spend caps at
+          Limits apply to this browser profile only: other browsers, profiles,
+          devices or apps using the same keys are not counted, and clearing the
+          browser's data erases them. A request whose answer was lost (timeout)
+          stays counted and may still be billed. Requests cost different amounts
+          (tokens), so a request limit is not a spending limit: set spend caps
+          at
           <a
             href="https://ai.google.dev/gemini-api/docs/billing"
             target="_blank"
@@ -459,8 +543,7 @@
             rel="noopener noreferrer"
             >OpenAI</a
           >
-          (enforcement may lag). A request whose answer was lost (timeout) may
-          still be billed.
+          (their enforcement may lag).
         </p>
       </section>
 
@@ -471,11 +554,11 @@
             Correctly reads a page only when you click its toolbar button, and
             changes it only when you click Apply.
           </li>
-          <li>Future versions add advanced limits and full statistics.</li>
+          <li>A later version adds full usage statistics.</li>
           <li>
             OpenAI requests are sent with <code>store: false</code> (not kept
             for later retrieval); this is not a zero-retention guarantee.
-            Documentation: <code>docs/v5.7/</code> in the project repository.
+            Documentation: <code>docs/v5.8/</code> in the project repository.
           </li>
         </ul>
       </section>

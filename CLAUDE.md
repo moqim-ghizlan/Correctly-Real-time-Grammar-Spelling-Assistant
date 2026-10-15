@@ -2,7 +2,7 @@
 
 Extension personnelle Chrome/Brave, **Manifest V3, TypeScript strict**, qui
 deviendra un assistant d'écriture IA à la demande (Gemini et OpenAI, clés
-personnelles de l'utilisateur). État actuel : **V5.7** = page de paramètres, service worker,
+personnelles de l'utilisateur). État actuel : **V5.8** = page de paramètres, service worker,
 correction, réécriture (7 styles), traduction (6 langues, arabe standard ou
 syrien) à la demande, et raccourcis de texte locaux (`shared/shortcuts.ts`,
 expansion dans `smart.js`, protection IA par marqueurs dans
@@ -15,7 +15,12 @@ accès à tous les sites demandé seulement à l'activation) appelle le même
 contrôleur), aperçu, puis Apply explicite. V5.7 : plusieurs clés
 (profils) Gemini/OpenAI et une route clé + modèle par action
 (`shared/providers.ts`), résolue et figée par requête, sans jamais de
-repli vers une autre clé, un autre modèle ou fournisseur.
+repli vers une autre clé, un autre modèle ou fournisseur. V5.8 : limites
+jour/semaine/mois (total, par action, par fournisseur, par clé), alertes
+80/95/100 %, pause, dans IndexedDB `correctly-v5-quota`
+(`shared/quota.ts` règles pures, `shared/quota-store.ts` transactions
+atomiques) : `admit` puis `dispatch` (marqué envoyé) AVANT tout `fetch`,
+jamais de remboursement ni de rejeu après envoi.
 
 ## Ce qui n'existe plus
 
@@ -32,19 +37,20 @@ Les documents `plans/` et l'historique V4 sont du contexte, pas l'état du code.
 - `frontend/src/background/` — service worker, **seul appelant réseau** :
   `index.ts` (expéditeur de confiance + forme exacte du message,
   `storage.local` restreint aux contextes de confiance),
-  `connection-controller.ts` (route figée, un appel), `usage-guard.ts`
-  (limite commune + attribution par route), `transport.ts`,
+  `connection-controller.ts` (route figée, limites, un appel), `transport.ts`,
   `gemini-client.ts`, `openai-client.ts` (API Responses, `store:false`).
 - `frontend/src/content/` — script injecté au clic : capture de la sélection,
   aperçu (shadow root fermé), Apply/Undo sur plage exacte.
 - `frontend/src/options/` — page de paramètres (`settings-ui.ts`,
-  `providers-ui.ts` pour clés et routes, `shortcuts-ui.ts`).
+  `providers-ui.ts` pour clés et routes, `limits-ui.ts` pour les limites
+  d'usage, `shortcuts-ui.ts`).
 - `frontend/src/shared/` — contrats de messages, erreurs, catalogue de
   modèles (`models.ts`), profils/routes/secrets et migration V5.1
-  (`providers.ts`), schémas/normalisation des réglages, adaptateur
-  `chrome.storage.local`.
+  (`providers.ts`), limites d'usage (`quota.ts`, `quota-store.ts`),
+  schémas/normalisation des réglages, adaptateur `chrome.storage.local`.
 - `frontend/tests/` — Vitest + jsdom (`unit/`, `integration/`,
-  `helpers/fake-storage.ts`).
+  `helpers/fake-storage.ts`, `helpers/setup.ts` : IndexedDB `fake-indexeddb`
+  neuve à chaque test).
 - `scripts/` — audit de `dist/`, packaging ZIP, watch, smoke test navigateur.
 - `docs/v5.1/` — architecture, sécurité, rapport de tests, checklist manuelle.
 - `v5/` — spécifications des jalons V5 (`*_done.md` = livrés ; les autres

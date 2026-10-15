@@ -12,6 +12,7 @@ import {
   type ProviderId,
   type RouteSlot,
 } from './models';
+import { toQuotaNote, type QuotaNote } from './quota';
 
 /**
  * Sent by the options page only: one tiny, possibly billed generation through
@@ -33,6 +34,8 @@ export const OPEN_REWRITE = 'correctly.v5.openRewrite';
 export const OPEN_TRANSLATE = 'correctly.v5.openTranslate';
 /** Sent by the page script: is the smart button on, which shortcuts are active. */
 export const PAGE_CONFIG = 'correctly.v5.pageConfig';
+/** Sent by the content script ("Manage limits"): opens the usage limits. */
+export const OPEN_LIMITS = 'correctly.v5.openLimits';
 /** Manifest command names of the keyboard shortcuts. */
 export const CORRECT_COMMAND = 'correct-selection';
 export const REWRITE_COMMAND = 'rewrite-selection';
@@ -66,6 +69,7 @@ export type ConnectionResult =
       checkedAt: string;
       sample: string;
       usage?: TokenUsage;
+      notice?: QuotaNote;
     }
   | {
       ok: false;
@@ -73,6 +77,10 @@ export type ConnectionResult =
       message: string;
       retryable: boolean;
       httpStatus?: number;
+      /** V5.8: the usage limit that refused this request (nothing was sent). */
+      quota?: QuotaNote;
+      /** V5.8: a usage warning crossed by this (sent, failed) request. */
+      notice?: QuotaNote;
     };
 
 export interface CorrectTextRequest {
@@ -86,15 +94,39 @@ export type FailureResult = Extract<ConnectionResult, { ok: false }>;
 export type KeyCheckResult = { ok: true; models: number } | FailureResult;
 
 export type CorrectionResult =
-  | { ok: true; hasErrors: false }
+  | { ok: true; hasErrors: false; notice?: QuotaNote }
   | {
       ok: true;
       hasErrors: true;
       correctedText: string;
       // Numbers, links or emails differ: shown, but Apply stays disabled.
       suspicious: boolean;
+      /** V5.8: a usage warning (80/95/100 %) this request crossed. */
+      notice?: QuotaNote;
     }
   | FailureResult;
+
+/** A validated V5.8 usage warning carried by a successful reply. */
+export function noticeOf(data: Record<string, unknown>): {
+  notice?: QuotaNote;
+} {
+  const notice = toQuotaNote(data.notice);
+  return notice && !notice.blocked ? { notice } : {};
+}
+
+/** Fixed local copy for the code; only a validated quota note is kept. */
+export function failureOf(data: Record<string, unknown>): FailureResult {
+  const code =
+    data.ok === false && isErrorCode(data.code) ? data.code : 'UNKNOWN_ERROR';
+  const quota = code === 'QUOTA_EXCEEDED' ? toQuotaNote(data.quota) : null;
+  return {
+    ok: false,
+    code,
+    message: errorMessage(code),
+    retryable: isRetryable(code),
+    ...(quota?.blocked ? { quota } : noticeOf(data)),
+  };
+}
 
 /** Strict shape check: exactly `{ type: CORRECT_TEXT, text }` with a bounded, non-blank text. */
 export function isCorrectTextRequest(
@@ -118,7 +150,7 @@ export function toCorrectionResult(value: unknown): CorrectionResult {
       ? (value as Record<string, unknown>)
       : {};
   if (data.ok === true && data.hasErrors === false)
-    return { ok: true, hasErrors: false };
+    return { ok: true, hasErrors: false, ...noticeOf(data) };
   if (
     data.ok === true &&
     data.hasErrors === true &&
@@ -132,15 +164,9 @@ export function toCorrectionResult(value: unknown): CorrectionResult {
       hasErrors: true,
       correctedText: data.correctedText,
       suspicious: data.suspicious,
+      ...noticeOf(data),
     };
-  const code =
-    data.ok === false && isErrorCode(data.code) ? data.code : 'UNKNOWN_ERROR';
-  return {
-    ok: false,
-    code,
-    message: errorMessage(code),
-    retryable: isRetryable(code),
-  };
+  return failureOf(data);
 }
 
 /** Strict shape check: exactly `{ type: TEST_CONNECTION, slot }`, nothing else. */
@@ -228,10 +254,9 @@ export function toConnectionResult(value: unknown): ConnectionResult {
               ...(output === undefined ? {} : { outputTokens: output }),
             },
           }),
+      ...noticeOf(data),
     };
   }
-  const code =
-    data.ok === false && isErrorCode(data.code) ? data.code : 'UNKNOWN_ERROR';
   const status =
     typeof data.httpStatus === 'number' &&
     Number.isInteger(data.httpStatus) &&
@@ -240,10 +265,7 @@ export function toConnectionResult(value: unknown): ConnectionResult {
       ? data.httpStatus
       : undefined;
   return {
-    ok: false,
-    code,
-    message: errorMessage(code),
-    retryable: isRetryable(code),
+    ...failureOf(data),
     ...(status === undefined ? {} : { httpStatus: status }),
   };
 }

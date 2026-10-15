@@ -1,9 +1,11 @@
 import {
   MAX_CORRECTION_CODE_POINTS,
   REWRITE_TEXT,
+  failureOf,
+  noticeOf,
   type FailureResult,
 } from './contracts';
-import { errorMessage, isErrorCode, isRetryable } from './errors';
+import type { QuotaNote } from './quota';
 
 /** Stable IDs (never localized), in display order. */
 export const REWRITE_STYLES = [
@@ -99,6 +101,8 @@ export type CandidatesResult<K extends string = RewriteStyleId> =
       missing: K[];
       // Translation only: the text is already in the target language.
       sameLanguage?: boolean;
+      /** V5.8: a usage warning (80/95/100 %) this request crossed. */
+      notice?: QuotaNote;
     }
   | FailureResult;
 export type RewriteResult = CandidatesResult;
@@ -117,7 +121,13 @@ export function toRewriteResult<K extends string = RewriteStyleId>(
       ? (value as Record<string, unknown>)
       : {};
   if (data.ok === true && data.sameLanguage === true)
-    return { ok: true, candidates: [], missing: [], sameLanguage: true };
+    return {
+      ok: true,
+      candidates: [],
+      missing: [],
+      sameLanguage: true,
+      ...noticeOf(data),
+    };
   if (data.ok === true && Array.isArray(data.candidates)) {
     const byStyle = new Map<K, Candidate<K>>();
     for (const item of data.candidates as unknown[]) {
@@ -143,14 +153,8 @@ export function toRewriteResult<K extends string = RewriteStyleId>(
         ok: true,
         candidates,
         missing: requested.filter((id) => !byStyle.has(id)),
+        ...noticeOf(data),
       };
   }
-  const code =
-    data.ok === false && isErrorCode(data.code) ? data.code : 'UNKNOWN_ERROR';
-  return {
-    ok: false,
-    code,
-    message: errorMessage(code),
-    retryable: isRetryable(code),
-  };
+  return failureOf(data);
 }

@@ -3,6 +3,7 @@ import type {
   CorrectionResult,
   FailureResult,
   KeyCheckResult,
+  TokenUsage,
 } from '../shared/contracts';
 import type {
   CandidatesResult,
@@ -34,6 +35,15 @@ import {
   type TaskKind,
 } from '../shared/providers';
 import type { Candidate } from '../shared/rewrite';
+import type { QuotaNote } from '../shared/quota';
+import {
+  QuotaStore,
+  blockedNote,
+  browserQuotaStore,
+  legacySeed,
+  type Admission,
+  type OperationDraft,
+} from '../shared/quota-store';
 import { loadShortcuts } from '../shared/shortcuts';
 import { loadSettings, type StorageArea } from '../shared/storage';
 import {
@@ -52,7 +62,12 @@ import {
   type ProviderAdapter,
   type TaskRequest,
 } from './transport';
-import { UsageGuard, type Outcome } from './usage-guard';
+
+/** completed = parsed answer; failed = provider answered with an error or an unusable body; unknown = sent, answer lost. */
+export type Outcome = {
+  state: 'completed' | 'failed' | 'unknown';
+  usage?: TokenUsage;
+};
 
 export const ADAPTERS: Record<ProviderId, ProviderAdapter> = {
   gemini: geminiAdapter,
@@ -61,9 +76,12 @@ export const ADAPTERS: Record<ProviderId, ProviderAdapter> = {
 
 export interface ControllerDeps {
   area: StorageArea;
+  /** V5.8 usage limits (IndexedDB). */
+  quota?: QuotaStore;
   fetchImpl?: typeof fetch;
   timeoutMs?: number;
   now?: () => Date;
+  /** Local date of the V5.7 usage record imported once by V5.8. */
   today?: () => string;
   isOnline?: () => boolean;
   /** Tests only: deterministic placeholder namespace. */
@@ -72,12 +90,17 @@ export interface ControllerDeps {
   operationId?: () => string;
 }
 
-const failure = (code: ErrorCode, httpStatus?: number): FailureResult => ({
+const failure = (
+  code: ErrorCode,
+  httpStatus?: number,
+  quota?: QuotaNote | null,
+): FailureResult => ({
   ok: false,
   code,
   message: errorMessage(code),
   retryable: isRetryable(code),
   ...(httpStatus === undefined ? {} : { httpStatus }),
+  ...(quota ? { quota } : {}),
 });
 
 type Ready = {
@@ -85,22 +108,26 @@ type Ready = {
   route: RouteSnapshot;
   key: string;
   operationId: string;
-  localDate: string;
+  /** A usage warning this request crossed (returned with its result). */
+  notice: QuotaNote | null;
 };
 
-/** Daily-usage key: provider|profile|revision|model|task. No text, no key. */
-export const routeKey = (route: RouteSnapshot, task: TaskKind | 'test') =>
-  `${route.provider}|${route.credentialId}|${route.revision}|${route.modelId}|${task}`;
+const withNotice = (start: Ready): { notice?: QuotaNote } =>
+  start.notice ? { notice: start.notice } : {};
 
 /**
  * Handles TEST_CONNECTION, TEST_KEY, CORRECT_TEXT, REWRITE_TEXT and
  * TRANSLATE_TEXT. Requests run one at a time; each generation is bound to
- * one frozen route (profile, key revision, model), reserved in the usage
- * ledger before the network is touched, sent once and never retried or
- * rerouted to another key, model or provider.
+ * one frozen route (profile, key revision, model), admitted by every
+ * applicable usage limit and marked sent in IndexedDB before the network is
+ * touched, sent once and never retried or rerouted to another key, model or
+ * provider.
  */
 export class ConnectionController {
-  private readonly guard: UsageGuard;
+  private readonly quota: QuotaStore;
+  /** This worker instance: recovery never touches its own requests. */
+  private readonly bootId = crypto.randomUUID();
+  private ready: Promise<void> | null = null;
   private queue: Promise<unknown> = Promise.resolve();
   private readonly now: () => Date;
   private readonly isOnline: () => boolean;
@@ -110,7 +137,7 @@ export class ConnectionController {
   private checks: Promise<unknown> = Promise.resolve();
 
   constructor(private readonly deps: ControllerDeps) {
-    this.guard = new UsageGuard(deps.area, deps.today);
+    this.quota = deps.quota ?? browserQuotaStore();
     this.now = deps.now ?? (() => new Date());
     this.isOnline = deps.isOnline ?? (() => navigator.onLine !== false);
   }
@@ -123,9 +150,47 @@ export class ConnectionController {
     );
   }
 
-  /** At worker start: settle requests a stopped worker left pending. Never replays. */
+  /**
+   * Usage limits ready: created on first use from the V5.1–V5.7 daily limit
+   * and today's count, then requests a stopped worker left behind are
+   * settled (never replayed). Until this succeeds no request is sent; a
+   * failure is retried on the next request.
+   */
   reconcile(): Promise<void> {
-    return this.guard.reconcile();
+    this.ready ??= (async () => {
+      const at = this.now().getTime();
+      await this.quota.ensureReady(
+        () => legacySeed(this.deps.area, this.deps.today?.()),
+        at,
+      );
+      await this.quota.recover(this.bootId, at);
+    })();
+    const ready = this.ready;
+    ready.catch(() => {
+      if (this.ready === ready) this.ready = null;
+    });
+    return ready;
+  }
+
+  /** A refusal by the usage limits: nothing is reserved or sent. */
+  private static denied(
+    admission: Extract<Admission, { allowed: false }>,
+    draft: OperationDraft,
+  ): FailureResult {
+    switch (admission.reason) {
+      case 'cap-exhausted':
+        return failure(
+          'QUOTA_EXCEEDED',
+          undefined,
+          blockedNote(admission.blocking, draft),
+        );
+      case 'ai-paused':
+        return failure('AI_PAUSED');
+      case 'clock-anomaly':
+        return failure('CLOCK_CHANGED');
+      default:
+        return failure('QUOTA_UNAVAILABLE');
+    }
   }
 
   /**
@@ -187,8 +252,10 @@ export class ConnectionController {
   }
 
   /**
-   * Guards that must not consume an attempt, the reservation, then a final
-   * check that the route did not change meanwhile (nothing is sent then).
+   * Guards that must not consume an attempt (consent, route, network), the
+   * atomic admission by every applicable usage limit, a check that the
+   * route did not change meanwhile, then the "sent" mark (re-checking the
+   * limits as saved now). Any refusal sends nothing.
    */
   private async begin(
     slot: RouteSlot,
@@ -203,28 +270,47 @@ export class ConnectionController {
     const resolved = await this.resolve(slot);
     if (!resolved.ok) return failure(resolved.code);
     if (!this.isOnline()) return failure('NETWORK_ERROR');
-    const operationId = (
-      this.deps.operationId ?? (() => crypto.randomUUID())
-    )();
-    const reservation = await this.guard.reserve(
-      settings.safety.dailyTestAttemptLimit,
-      routeKey(resolved.route, task),
-      operationId,
-    );
-    if (!reservation.ok) return failure('LOCAL_DAILY_LIMIT');
+    const draft: OperationDraft = {
+      id: (this.deps.operationId ?? (() => crypto.randomUUID()))(),
+      bootId: this.bootId,
+      task,
+      provider: resolved.route.provider,
+      credentialId: resolved.route.credentialId,
+      revision: resolved.route.revision,
+      modelId: resolved.route.modelId,
+    };
+    const at = () => this.now().getTime();
+    let admission: Admission;
+    try {
+      await this.reconcile();
+      admission = await this.quota.admit(draft, at());
+    } catch {
+      return failure('QUOTA_UNAVAILABLE');
+    }
+    if (!admission.allowed)
+      return ConnectionController.denied(admission, draft);
+    const release = () =>
+      this.quota.release(draft.id, at()).catch(() => undefined);
     const again = await this.resolve(slot).catch(() => null);
     if (!again?.ok || !sameRoute(again.route, resolved.route)) {
-      await this.guard
-        .release(reservation.localDate, operationId)
-        .catch(() => undefined);
+      await release();
       return failure(again && !again.ok ? again.code : 'ROUTE_CHANGED');
     }
+    let sent: Awaited<ReturnType<QuotaStore['dispatch']>>;
+    try {
+      sent = await this.quota.dispatch(draft.id, at());
+    } catch {
+      // Not committed: the attempt is still only reserved.
+      await release();
+      return failure('QUOTA_UNAVAILABLE');
+    }
+    if (!sent.allowed) return ConnectionController.denied(sent, draft);
     return {
       ok: true,
       route: resolved.route,
       key: resolved.key,
-      operationId,
-      localDate: reservation.localDate,
+      operationId: draft.id,
+      notice: sent.notice,
     };
   }
 
@@ -254,9 +340,19 @@ export class ConnectionController {
     }
   }
 
+  /** The attempt stays counted whatever happened; only its outcome is added. */
   private settle(start: Ready, outcome: Outcome): Promise<void> {
-    return this.guard
-      .complete(start.localDate, outcome, start.operationId)
+    return this.quota
+      .settle(
+        start.operationId,
+        {
+          state:
+            outcome.state === 'failed' ? 'failed-after-send' : outcome.state,
+          inputTokens: outcome.usage?.inputTokens,
+          outputTokens: outcome.usage?.outputTokens,
+        },
+        this.now().getTime(),
+      )
       .catch(() => undefined);
   }
 
@@ -273,8 +369,11 @@ export class ConnectionController {
           : 'unknown',
       usage: reply.ok ? reply.usage : undefined,
     });
-    if (!reply.ok) return failure(reply.code, reply.httpStatus);
-    if (!sample) return failure('INVALID_RESPONSE');
+    // Sent and counted: a crossed warning is shown even when it failed.
+    if (!reply.ok)
+      return { ...failure(reply.code, reply.httpStatus), ...withNotice(start) };
+    if (!sample)
+      return { ...failure('INVALID_RESPONSE'), ...withNotice(start) };
     return {
       ok: true,
       provider: start.route.provider,
@@ -282,6 +381,7 @@ export class ConnectionController {
       checkedAt: this.now().toISOString(),
       sample,
       ...(reply.usage ? { usage: reply.usage } : {}),
+      ...withNotice(start),
     };
   }
 
@@ -357,7 +457,9 @@ export class ConnectionController {
     task: TaskRequest,
     timeoutMs: number,
     parse: (raw: string) => T | null,
-  ): Promise<{ ok: true; parsed: T } | FailureResult> {
+  ): Promise<
+    { ok: true; parsed: T; notice: { notice?: QuotaNote } } | FailureResult
+  > {
     if (!core) return failure('UNKNOWN_ERROR');
     const start = await this.begin(slot, slot, true);
     if (!start.ok) return start;
@@ -372,9 +474,12 @@ export class ConnectionController {
             : 'unknown',
       usage: reply.ok ? reply.usage : undefined,
     });
-    if (!reply.ok) return failure(reply.code, reply.httpStatus);
-    if (parsed === null) return failure('INVALID_RESPONSE');
-    return { ok: true, parsed };
+    // Sent and counted: a crossed warning is shown even when it failed.
+    if (!reply.ok)
+      return { ...failure(reply.code, reply.httpStatus), ...withNotice(start) };
+    if (parsed === null)
+      return { ...failure('INVALID_RESPONSE'), ...withNotice(start) };
+    return { ok: true, parsed, notice: withNotice(start) };
   }
 
   /**
@@ -424,15 +529,16 @@ export class ConnectionController {
       },
     );
     if (!result.ok) return result;
-    const { parsed } = result;
+    const { parsed, notice } = result;
     return parsed.hasErrors
       ? {
           ok: true,
           hasErrors: true,
           correctedText: lead + parsed.correctedText + trail,
           suspicious: parsed.suspicious,
+          ...notice,
         }
-      : { ok: true, hasErrors: false };
+      : { ok: true, hasErrors: false, ...notice };
   }
 
   private async runRewrite(
@@ -459,6 +565,7 @@ export class ConnectionController {
         text: lead + candidate.text + trail,
       })),
       missing: result.parsed.missing,
+      ...result.notice,
     };
   }
 
@@ -483,9 +590,15 @@ export class ConnectionController {
       },
     );
     if (!result.ok) return result;
-    const { parsed } = result;
+    const { parsed, notice } = result;
     if (parsed.sameLanguage)
-      return { ok: true, candidates: [], missing: [], sameLanguage: true };
+      return {
+        ok: true,
+        candidates: [],
+        missing: [],
+        sameLanguage: true,
+        ...notice,
+      };
     return {
       ok: true,
       candidates: parsed.candidates.map((candidate) => ({
@@ -493,6 +606,7 @@ export class ConnectionController {
         text: lead + candidate.text + trail,
       })),
       missing: parsed.missing,
+      ...notice,
     };
   }
 }

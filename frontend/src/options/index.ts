@@ -1,6 +1,8 @@
 import { CORRECT_COMMAND, SMART_BUTTON_OFF } from '../shared/contracts';
+import { QUOTA_CHANNEL, browserQuotaStore } from '../shared/quota-store';
 import { loadShortcuts } from '../shared/shortcuts';
 import { browserStorage, loadSettings } from '../shared/storage';
+import { LimitsSection } from './limits-ui';
 import { ProvidersSection } from './providers-ui';
 import { SettingsPage } from './settings-ui';
 import { ShortcutsSection } from './shortcuts-ui';
@@ -65,12 +67,32 @@ const shortcuts = new ShortcutsSection(document, {
   },
 });
 
+const limits = new LimitsSection(document, {
+  area,
+  quota: browserQuotaStore(),
+  confirm: (question) => window.confirm(question),
+  timeZones: () => {
+    try {
+      return Intl.supportedValuesOf('timeZone');
+    } catch {
+      return [];
+    }
+  },
+});
+
 chrome.storage.onChanged.addListener((changes, areaName) => {
   if (areaName !== 'local') return;
   page.onStorageChanged(Object.keys(changes));
   providers.onStorageChanged(Object.keys(changes));
   shortcuts.onStorageChanged(Object.keys(changes));
+  limits.onStorageChanged(Object.keys(changes));
 });
+
+// Usage changes come from the worker or another settings tab (IndexedDB).
+if (typeof BroadcastChannel === 'function')
+  new BroadcastChannel(QUOTA_CHANNEL).addEventListener('message', () => {
+    void limits.refresh();
+  });
 
 // Never leave a revealed key on screen when the tab is hidden or left.
 document.addEventListener('visibilitychange', () => {
@@ -78,9 +100,11 @@ document.addEventListener('visibilitychange', () => {
 });
 window.addEventListener('pagehide', () => providers.hideKey(true));
 
-// Local midnight rollover: re-render the counter without any network access.
-setInterval(() => page.renderUsage(), 60_000);
+// Day/week/month rollover and requests in progress: re-read the local usage
+// records (no network access).
+setInterval(() => void limits.refresh(), 60_000);
 
 void page.init();
 void providers.init();
 void shortcuts.init();
+void limits.init();

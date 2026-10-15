@@ -1,6 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import {
   CORRECT_TEXT,
+  OPEN_LIMITS,
   OPEN_REWRITE,
   OPEN_TRANSLATE,
   PAGE_CONFIG,
@@ -10,6 +11,7 @@ import {
   TRANSLATE_TEXT,
 } from '../../src/shared/contracts';
 import { PROVIDERS_KEY, SECRETS_KEY } from '../../src/shared/providers';
+import { QuotaStore } from '../../src/shared/quota-store';
 import { normalizeSettings } from '../../src/shared/settings';
 import { saveSettings, STORAGE_KEYS } from '../../src/shared/storage';
 import {
@@ -45,6 +47,7 @@ let actionClick: (tab: chrome.tabs.Tab) => void;
 let area: FakeStorage;
 const fetcher = vi.fn<typeof fetch>();
 const openOptionsPage = vi.fn(() => Promise.resolve());
+const createTab = vi.fn(() => Promise.resolve({}));
 const executeScript = vi.fn<(injection: unknown) => Promise<unknown[]>>(() =>
   Promise.resolve([]),
 );
@@ -125,6 +128,7 @@ beforeEach(async () => {
     commands: {
       onCommand: listen((callback: typeof onCommand) => (onCommand = callback)),
     },
+    tabs: { create: createTab },
     contextMenus: {
       ...menus,
       onClicked: listen(
@@ -903,5 +907,127 @@ describe('V5.7 providers and routes', () => {
     );
     expect(reply).toMatchObject({ ok: false, code: 'ROUTE_CHANGED' });
     expect(fetcher).toHaveBeenCalledTimes(1);
+  });
+});
+
+describe('V5.8 usage limits', () => {
+  const limit = (dailyTestAttemptLimit: number) =>
+    saveSettings(
+      area,
+      normalizeSettings({
+        gemini: { apiKey: FAKE_KEY },
+        correction: { consent: true },
+        safety: { dailyTestAttemptLimit },
+      }),
+    );
+
+  it('INV-01/INV-02/RACE-025: at the cap a page gets a sanitized refusal and nothing is sent', async () => {
+    await limit(1);
+    fetcher.mockResolvedValueOnce(correctionReply(false, 'Bonjour.'));
+    const first = await send(
+      { type: CORRECT_TEXT, text: 'Bonjour.' },
+      contentSender,
+    );
+    expect(first.reply).toMatchObject({
+      ok: true,
+      notice: { level: 100, scope: 'global', used: 1, max: 1 },
+    });
+    // A new tab or frame of the same browser profile shares the same ledger.
+    const second = await send(
+      { type: CORRECT_TEXT, text: 'Bonjour.' },
+      { ...contentSender, tab: { id: 8 } as chrome.tabs.Tab },
+    );
+    expect(second.reply).toMatchObject({
+      ok: false,
+      code: 'QUOTA_EXCEEDED',
+      quota: {
+        blocked: true,
+        scope: 'global',
+        period: 'daily',
+        used: 1,
+        max: 1,
+      },
+    });
+    expect(fetcher).toHaveBeenCalledTimes(1);
+    expect(JSON.stringify(second.reply)).not.toMatch(/SENTINEL|Bonjour/);
+    for (const spy of consoleSpies) expect(spy).not.toHaveBeenCalled();
+  });
+
+  it('INV-07/POL-027/T06: with AI paused, text shortcuts still reach the page; generations are refused', async () => {
+    await limit(20);
+    area.data.set('correctly.v5.shortcuts', {
+      schemaVersion: 2,
+      revision: 1,
+      enabled: true,
+      shortcuts: [
+        {
+          id: 'a',
+          trigger: 'bjr',
+          replacement: 'Bonjour',
+          enabled: true,
+          protectTriggerInAi: true,
+          protectReplacementInAi: false,
+        },
+      ],
+    });
+    // The worker created the limits at startup; pause them as the page does.
+    const quota = new QuotaStore(globalThis.indexedDB);
+    await vi.waitFor(async () =>
+      expect((await quota.snapshot(Date.now(), [])).policy).not.toBeNull(),
+    );
+    const { policy } = await quota.snapshot(Date.now(), []);
+    await quota.savePolicy(
+      { ...policy!, pauseAll: true },
+      policy!.revision,
+      Date.now(),
+    );
+    const config = await send({ type: PAGE_CONFIG }, contentSender);
+    expect(config.reply).toMatchObject({
+      shortcuts: [{ trigger: 'bjr', replacement: 'Bonjour' }],
+    });
+    const refused = await send(
+      { type: CORRECT_TEXT, text: 'bjr' },
+      contentSender,
+    );
+    expect(refused.reply).toMatchObject({ ok: false, code: 'AI_PAUSED' });
+    expect(fetcher).not.toHaveBeenCalled();
+    expect(
+      (await quota.snapshot(Date.now(), [])).usage['global:all|daily'],
+    ).toEqual({
+      counted: 0,
+      reserved: 0,
+    });
+  });
+
+  it('UX-014/NOTE-018: "Manage limits" opens only the fixed settings section, from our content script only', async () => {
+    const { handled } = await send({ type: OPEN_LIMITS }, contentSender);
+    expect(handled).toBe(false);
+    expect(createTab).toHaveBeenCalledExactlyOnceWith({
+      url: ORIGIN + 'src/options/options.html#usage-limits',
+    });
+    for (const [message, sender] of [
+      [{ type: OPEN_LIMITS, url: 'https://evil.example' }, contentSender],
+      [{ type: OPEN_LIMITS }, { ...contentSender, id: 'other' }],
+      [{ type: OPEN_LIMITS }, { id: ID }],
+    ] as [unknown, chrome.runtime.MessageSender][])
+      await send(message, sender);
+    expect(createTab).toHaveBeenCalledTimes(1);
+  });
+
+  it('SEC-001/002/003/012: pages cannot raise limits, reset usage or pick a key', async () => {
+    await limit(1);
+    for (const message of [
+      { type: 'correctly.v5.setQuota', max: 1_000_000 },
+      { type: 'correctly.v5.resetUsage' },
+      { type: CORRECT_TEXT, text: 'x', remaining: 99 },
+      { type: CORRECT_TEXT, text: 'x', credentialId: OPENAI_ID },
+      { type: CORRECT_TEXT, text: 'x', operationId: 'operation-1' },
+      { type: CORRECT_TEXT, text: 'x', quota: { max: 1_000_000 } },
+    ]) {
+      const { handled, reply } = await send(message, contentSender);
+      expect(handled).toBe(false);
+      expect(reply).toBeUndefined();
+    }
+    expect(fetcher).not.toHaveBeenCalled();
   });
 });

@@ -8,7 +8,7 @@ import {
 import { geminiBody } from '../../src/background/gemini-client';
 import { TRANSLATE_TEXT } from '../../src/shared/contracts';
 import { normalizeSettings } from '../../src/shared/settings';
-import { loadUsage, saveSettings } from '../../src/shared/storage';
+import { saveSettings } from '../../src/shared/storage';
 import {
   LANGUAGES,
   isTranslateTextRequest,
@@ -21,6 +21,7 @@ import {
   FAKE_KEY,
   geminiOk,
   jsonResponse,
+  usageToday,
 } from '../helpers/fake-storage';
 
 const request = (
@@ -306,10 +307,17 @@ describe('C: ConnectionController.translate', () => {
     );
     expect(styled.ok && styled.candidates).toHaveLength(3);
     expect(fetchImpl).toHaveBeenCalledTimes(2);
-    expect(await loadUsage(area, today)).toMatchObject({
-      testAttempts: 2,
+    // POL-023: translate & rewrite counts once, in its own category.
+    const usage = await usageToday();
+    expect(usage).toMatchObject({
+      attempts: 2,
       completed: 2,
-      inputTokensObserved: 100,
+      inputTokens: 100,
+    });
+    expect(usage.snapshot.usage).toMatchObject({
+      'task:translation|daily': { counted: 1 },
+      'task:translateRewrite|daily': { counted: 1 },
+      'task:rewrite|daily': { counted: 0 },
     });
     expect(area.dump()).not.toContain('Salut');
   });

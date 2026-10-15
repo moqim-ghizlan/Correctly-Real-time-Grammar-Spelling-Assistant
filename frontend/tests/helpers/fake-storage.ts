@@ -6,6 +6,8 @@ import {
   type Route,
   type RouteSlot,
 } from '../../src/shared/providers';
+import type { QuotaPolicy } from '../../src/shared/quota';
+import { QuotaStore } from '../../src/shared/quota-store';
 import type { StorageArea } from '../../src/shared/storage';
 
 /**
@@ -143,4 +145,69 @@ export function openaiOk(text = 'OK', usage?: Record<string, unknown>) {
     ],
     ...(usage ? { usage } : {}),
   };
+}
+
+/** The V5.8 store of the current test's IndexedDB (see setup.ts). */
+export const quotaStore = () => new QuotaStore(globalThis.indexedDB);
+
+/**
+ * Today's usage as the settings page sees it: attempts in the global daily
+ * window, and outcomes/tokens of today's sent operations.
+ */
+export async function usageToday(now = Date.now()) {
+  const snapshot = await quotaStore().snapshot(now, []);
+  const rows = snapshot.today;
+  const sum = (
+    field: 'completed' | 'failed' | 'unknown' | 'inputTokens' | 'outputTokens',
+  ) => rows.reduce((total, row) => total + row[field], 0);
+  const global = snapshot.usage['global:all|daily'];
+  return {
+    attempts: global?.counted ?? 0,
+    reserved: global?.reserved ?? 0,
+    completed: sum('completed'),
+    failed: sum('failed'),
+    unknown: sum('unknown'),
+    inputTokens: sum('inputTokens'),
+    outputTokens: sum('outputTokens'),
+    inProgress: snapshot.inProgress,
+    rows,
+    snapshot,
+  };
+}
+
+/** Saves a change to the current limits (as the settings page does). */
+export async function changePolicy(
+  change: (policy: QuotaPolicy) => QuotaPolicy,
+  now = Date.now(),
+) {
+  const store = quotaStore();
+  const { policy } = await store.snapshot(now, []);
+  if (!policy) throw new Error('no policy yet');
+  return store.savePolicy(
+    change(structuredClone(policy)),
+    policy.revision,
+    now,
+  );
+}
+
+/** Every record of the V5.8 database, serialized (to search for leaks). */
+export async function dumpQuota(): Promise<string> {
+  const db = await new Promise<IDBDatabase>((resolve, reject) => {
+    const request = globalThis.indexedDB.open('correctly-v5-quota');
+    request.onsuccess = () => resolve(request.result);
+    request.onerror = () => reject(request.error ?? new Error('open'));
+  });
+  const names = [...db.objectStoreNames];
+  const all = await Promise.all(
+    names.map(
+      (name) =>
+        new Promise<unknown[]>((resolve, reject) => {
+          const request = db.transaction(name).objectStore(name).getAll();
+          request.onsuccess = () => resolve(request.result as unknown[]);
+          request.onerror = () => reject(request.error ?? new Error('get'));
+        }),
+    ),
+  );
+  db.close();
+  return JSON.stringify(all);
 }

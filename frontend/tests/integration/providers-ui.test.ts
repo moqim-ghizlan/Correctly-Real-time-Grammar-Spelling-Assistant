@@ -8,6 +8,7 @@ import {
   isTestConnectionRequest,
   isTestKeyRequest,
 } from '../../src/shared/contracts';
+import { LimitsSection } from '../../src/options/limits-ui';
 import { ProvidersSection } from '../../src/options/providers-ui';
 import {
   PROVIDERS_KEY,
@@ -15,11 +16,7 @@ import {
   type ProviderStore,
 } from '../../src/shared/providers';
 import { normalizeSettings } from '../../src/shared/settings';
-import {
-  STORAGE_KEYS,
-  loadUsage,
-  saveSettings,
-} from '../../src/shared/storage';
+import { STORAGE_KEYS, saveSettings } from '../../src/shared/storage';
 import {
   FAKE_KEY,
   FakeStorage,
@@ -28,6 +25,8 @@ import {
   geminiOk,
   jsonResponse,
   openaiOk,
+  quotaStore,
+  usageToday,
 } from '../helpers/fake-storage';
 
 const html = readFileSync(
@@ -61,7 +60,6 @@ async function openPage() {
   const section = new ProvidersSection(document, {
     area,
     confirm,
-    today: () => TODAY,
     // Mimics chrome.runtime.sendMessage → worker (with its guards) → reply.
     send: async (message) => {
       sent.push(message);
@@ -239,7 +237,7 @@ describe('profiles', () => {
     ]);
     expect(text('profile-message')).toMatch(/accepted by OpenAI: 1 text model/);
     expect(text('profile-list')).toMatch(/Accepted on .* \(1 models\)/);
-    expect((await loadUsage(area, TODAY)).testAttempts).toBe(0);
+    expect((await usageToday()).attempts).toBe(0);
   });
 
   it('UI-11: a refused key is shown as such, with fixed copy only', async () => {
@@ -352,9 +350,15 @@ describe('routes', () => {
     expect(text('route-message-default')).toMatch(
       /OpenAI • gpt-5-nano replied “OK”/,
     );
-    const usage = await loadUsage(area, TODAY);
-    expect(usage.testAttempts).toBe(1);
-    expect(Object.keys(usage.routes)[0]).toMatch(/\|test$/);
+    const usage = await usageToday();
+    expect(usage.attempts).toBe(1);
+    expect(usage.rows).toMatchObject([{ task: 'test', provider: 'openai' }]);
+    // The list itself belongs to the V5.8 usage limits section.
+    await new LimitsSection(document, {
+      area,
+      quota: quotaStore(),
+      confirm,
+    }).init();
     expect(text('usage-routes')).toMatch(
       /Test → OpenAI Personal \(OpenAI\) • gpt-5-nano: 1 request/,
     );

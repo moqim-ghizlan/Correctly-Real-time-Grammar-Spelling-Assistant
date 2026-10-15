@@ -369,10 +369,106 @@ describe('request lifecycle', () => {
   it('errors from the worker are shown with fixed copy', async () => {
     field('<textarea></textarea>', 'Il a oublier.', 0, 13);
     const panel = startCorrection(document, send);
-    answer({ ok: false, code: 'LOCAL_DAILY_LIMIT', message: '<b>raw</b>' });
+    answer({ ok: false, code: 'PROVIDER_ERROR', message: '<b>raw</b>' });
     await flush();
-    expect(status(panel)).toContain('Daily local limit reached');
+    expect(status(panel)).toContain('The provider returned an error');
     expect(panel.root.textContent).not.toContain('<b>');
+    expect(button(panel, 'Manage limits').hidden).toBe(true);
+  });
+
+  it('NOTE-004/UX-014: a local limit refusal names the limit and offers Manage limits', async () => {
+    const el = field('<textarea></textarea>', 'Il a oublier.', 0, 13);
+    const panel = startCorrection(document, send);
+    const open = vi.fn();
+    panel.openLimits = open;
+    answer({
+      ok: false,
+      code: 'QUOTA_EXCEEDED',
+      message: '<b>raw</b>',
+      quota: {
+        level: 100,
+        blocked: true,
+        scope: 'task',
+        task: 'correction',
+        provider: null,
+        period: 'daily',
+        used: 5000,
+        max: 5000,
+        resetAt: Date.parse('2026-10-15T22:00:00Z'),
+        timezone: 'Europe/Paris',
+        label: '<img src=x onerror=alert(1)>',
+      },
+    });
+    await flush();
+    expect(status(panel)).toContain('A Correctly usage limit is reached');
+    const quota = panel.root.querySelector('.quota')!;
+    expect(quota.textContent).toBe(
+      'Daily correction request limit reached (5,000 / 5,000). No request was sent. Resets Fri 16 Oct, 00:00 (Europe/Paris).',
+    );
+    expect(quota.getAttribute('aria-live')).toBe('assertive');
+    expect(panel.root.querySelector('img')).toBeNull();
+    const manage = button(panel, 'Manage limits');
+    expect(manage.hidden).toBe(false);
+    manage.click();
+    expect(open).toHaveBeenCalledTimes(1);
+    expect(el.value).toBe('Il a oublier.');
+    expect(document.activeElement).not.toBe(manage);
+  });
+
+  it('a failed but sent request still shows the warning it crossed', async () => {
+    field('<textarea></textarea>', 'Il a oublier.', 0, 13);
+    const panel = startCorrection(document, send);
+    answer({
+      ok: false,
+      code: 'RATE_LIMITED',
+      notice: {
+        level: 80,
+        blocked: false,
+        scope: 'global',
+        task: null,
+        provider: null,
+        period: 'daily',
+        used: 4,
+        max: 5,
+        resetAt: Date.parse('2026-10-15T22:00:00Z'),
+        timezone: 'Europe/Paris',
+      },
+    });
+    await flush();
+    expect(status(panel)).toContain('rate-limiting');
+    expect(panel.root.querySelector('.quota')!.textContent).toMatch(
+      /^Correctly: 80% of your daily total AI request limit used \(4 \/ 5\)\./,
+    );
+    expect(button(panel, 'Manage limits').hidden).toBe(false);
+  });
+
+  it('NOTE-002: a 95% warning is shown with the preview, without stealing focus', async () => {
+    field('<textarea></textarea>', 'Il a oublier.', 0, 13);
+    const panel = startCorrection(document, send);
+    answer({
+      ok: true,
+      hasErrors: true,
+      correctedText: 'Il a oublié.',
+      suspicious: false,
+      notice: {
+        level: 95,
+        blocked: false,
+        scope: 'global',
+        task: null,
+        provider: null,
+        period: 'daily',
+        used: 4750,
+        max: 5000,
+        resetAt: Date.parse('2026-10-15T22:00:00Z'),
+        timezone: 'Europe/Paris',
+      },
+    });
+    await flush();
+    expect(panel.root.querySelector('.quota')!.textContent).toBe(
+      'Correctly: 95% of your daily total AI request limit used (4,750 / 5,000). Only 250 remain. Resets Fri 16 Oct, 00:00 (Europe/Paris).',
+    );
+    expect(button(panel, 'Apply').hidden).toBe(false);
+    expect(button(panel, 'Manage limits').hidden).toBe(false);
   });
 });
 
