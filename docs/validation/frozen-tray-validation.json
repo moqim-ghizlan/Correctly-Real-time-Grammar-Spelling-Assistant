@@ -1,8 +1,0 @@
-{
-  "ok": true,
-  "passed": [
-    "final EXE initializes real Windows pystray",
-    "occupied production port shows conflict without adoption",
-    "window stop runs app cleanup"
-  ]
-}

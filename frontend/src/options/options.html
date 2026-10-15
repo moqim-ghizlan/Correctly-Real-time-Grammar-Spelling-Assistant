@@ -1,117 +1,194 @@
 <!doctype html>
-<html lang="fr">
+<html lang="en">
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <title>Paramètres — Correctly</title>
-    <link rel="stylesheet" href="./options.css" />
+    <title>Correctly V5.1 — Settings</title>
+    <link rel="icon" href="/icons/icon-48.png" />
+    <link rel="stylesheet" href="./settings-ui.css" />
   </head>
   <body>
-    <main>
-      <header>
-        <span class="mark" aria-hidden="true">C</span>
+    <main id="app" aria-busy="true">
+      <header class="page-header">
+        <img
+          class="logo"
+          src="/icons/icon-48.png"
+          alt=""
+          width="40"
+          height="40"
+        />
         <div>
-          <h1>Paramètres Correctly</h1>
-          <p>Une correction locale à votre rythme.</p>
+          <h1>Correctly V5.1</h1>
+          <p class="subtitle">Personal AI connection setup</p>
         </div>
       </header>
-      <form id="settings">
-        <fieldset id="controls" disabled>
-          <label class="row" for="sentence-correction"
-            ><span>Correction par phrase (automatique prudente)</span
-            ><input id="sentence-correction" type="checkbox"
-          /></label>
-          <label class="row" for="enabled"
-            ><span>Activer la correction</span
-            ><input id="enabled" type="checkbox"
-          /></label>
-          <label class="row" for="language"
-            ><span>Langue</span
-            ><select id="language">
-              <option value="auto">Auto</option>
-              <option value="fr">Français</option>
-              <option value="en">Anglais</option>
-            </select></label
-          >
-          <label class="row" for="delay"
-            ><span>Pause avant analyse (ms)</span
-            ><input
-              id="delay"
-              type="number"
-              min="0"
-              max="2000"
-              step="25"
-              required
-          /></label>
-          <label class="row" for="spelling"
-            ><span>Orthographe</span><input id="spelling" type="checkbox"
-          /></label>
-          <label class="row" for="grammar"
-            ><span>Grammaire</span><input id="grammar" type="checkbox"
-          /></label>
-          <label class="group" for="sites"
-            ><span>Sites désactivés</span
-            ><textarea id="sites" rows="4" placeholder="example.com"></textarea>
-          </label>
-          <p class="hint">
-            Un nom de domaine par ligne. Le réglage s’applique au domaine exact.
-          </p>
-          <label class="group" for="dictionary"
-            ><span>Dictionnaire personnel</span
-            ><textarea
-              id="dictionary"
-              rows="5"
-              placeholder="Moqim&#10;OpenAI"
-            ></textarea>
-          </label>
-          <p class="hint">
-            Un mot par ligne, sensible à la casse. Ces mots sont exclus des
-            erreurs d’orthographe.
-          </p>
-          <button class="primary" type="submit">Enregistrer</button>
-        </fieldset>
-        <p id="message" role="status"></p>
-      </form>
-      <hr />
-      <section aria-labelledby="shortcut-title">
-        <h2 id="shortcut-title">Raccourcis de texte</h2>
-        <p class="hint">
-          Exemple : bjr → Bonjour, puis espace ou ponctuation. Stockage local à
-          ce profil ; non partagé entre navigateurs et potentiellement supprimé
-          avec l’extension. Évitez les données sensibles.
-        </p>
-        <label class="row" for="shortcuts-enabled"
-          ><span>Activer les raccourcis</span
-          ><input id="shortcuts-enabled" type="checkbox" disabled
-        /></label>
-        <form id="shortcut-form">
-          <fieldset id="shortcut-controls" disabled>
-            <label class="group" for="shortcut-trigger"
-              >Abréviation<input id="shortcut-trigger" maxlength="32" required
-            /></label>
-            <label class="group" for="shortcut-replacement"
-              >Remplacer par<textarea
-                id="shortcut-replacement"
-                maxlength="2000"
-                required
-              ></textarea>
-            </label>
-            <button type="submit" id="shortcut-submit">Ajouter</button>
-            <button type="button" id="shortcut-cancel">
-              Annuler l’édition
-            </button>
-          </fieldset>
-        </form>
-        <p id="shortcut-status" role="status"></p>
-        <ul id="shortcut-list"></ul>
-      </section>
-      <p class="hint">
-        Moteur : http://127.0.0.1:8081. Aucun service distant ni sauvegarde des
-        textes. Les champs de plus de 5 000 caractères sont ignorés dans cette
-        version.
+      <p class="scope">
+        This version only connects Correctly to Gemini. Correction and rewriting
+        arrive in later V5 releases.
       </p>
+
+      <section class="card" aria-labelledby="gemini-title">
+        <div class="card-head">
+          <h2 id="gemini-title">Gemini API key</h2>
+          <p
+            id="status"
+            class="status"
+            data-tone="neutral"
+            role="status"
+            aria-live="polite"
+          >
+            <span class="dot" aria-hidden="true"></span
+            ><span id="status-label">Not configured</span>
+          </p>
+        </div>
+        <p id="status-detail" class="hint"></p>
+
+        <form id="key-form" novalidate>
+          <label for="api-key">Paste your personal Gemini API key</label>
+          <div class="key-row">
+            <input
+              id="api-key"
+              name="api-key"
+              type="password"
+              autocomplete="off"
+              autocapitalize="off"
+              spellcheck="false"
+              aria-describedby="key-warning key-message"
+              disabled
+            />
+            <button
+              id="toggle-key"
+              type="button"
+              class="ghost"
+              aria-controls="api-key"
+              aria-pressed="false"
+              disabled
+            >
+              Show
+            </button>
+          </div>
+          <div class="actions">
+            <button id="save-key" type="submit" class="primary" disabled>
+              Save key
+            </button>
+            <button id="remove-key" type="button" class="danger" disabled>
+              Remove key
+            </button>
+          </div>
+          <p id="key-message" class="message" aria-live="polite"></p>
+        </form>
+        <p id="key-warning" class="warning">
+          Personal-use API key, stored locally in this browser profile (not
+          synced). It is not guaranteed secure against someone with access to
+          your computer or this extension. Do not share this extension/profile
+          or put a key in source code.
+        </p>
+        <p class="hint">
+          No key yet?
+          <a
+            href="https://aistudio.google.com/apikey"
+            target="_blank"
+            rel="noopener noreferrer"
+            >Create one in Google AI Studio</a
+          >.
+        </p>
+      </section>
+
+      <section class="card" aria-labelledby="model-title">
+        <h2 id="model-title">Model</h2>
+        <label for="model">Gemini model</label>
+        <select id="model" aria-describedby="model-note" disabled></select>
+        <p id="model-note" class="hint">
+          Availability and billing depend on your Google project.
+        </p>
+        <p id="model-message" class="message" aria-live="polite"></p>
+      </section>
+
+      <section class="card" aria-labelledby="test-title">
+        <h2 id="test-title">Connection test</h2>
+        <p class="hint" id="test-notice">
+          This test sends a short prompt to Gemini and may use quota or incur
+          charges. No text from websites is sent by V5.1.
+        </p>
+        <button
+          id="test"
+          type="button"
+          class="primary"
+          aria-describedby="test-notice"
+          disabled
+        >
+          <span class="spinner" aria-hidden="true"></span
+          ><span id="test-label">Test connection</span>
+        </button>
+        <div id="test-result" class="result" aria-live="polite" hidden></div>
+      </section>
+
+      <section class="card" aria-labelledby="limit-title">
+        <h2 id="limit-title">Local safety limit</h2>
+        <form id="limit-form" novalidate>
+          <label for="daily-limit">Maximum connection tests per day</label>
+          <div class="key-row">
+            <input
+              id="daily-limit"
+              type="number"
+              inputmode="numeric"
+              min="1"
+              max="100"
+              step="1"
+              aria-describedby="limit-message limit-note"
+              disabled
+            />
+            <button id="save-limit" type="submit" class="ghost" disabled>
+              Save limit
+            </button>
+          </div>
+          <p id="limit-message" class="message" aria-live="polite"></p>
+        </form>
+        <dl class="usage">
+          <div>
+            <dt>Tests attempted today</dt>
+            <dd id="usage-attempted">0 of 20</dd>
+          </div>
+          <div>
+            <dt>Remaining</dt>
+            <dd id="usage-remaining">20</dd>
+          </div>
+        </dl>
+        <p id="limit-note" class="hint">
+          Counted in this browser profile and reset at local midnight. This is a
+          safety brake, not a billing limit: it does not see other browsers,
+          profiles or apps using the same Google project. Set a spend cap in
+          your
+          <a
+            href="https://ai.google.dev/gemini-api/docs/billing"
+            target="_blank"
+            rel="noopener noreferrer"
+            >Google billing settings</a
+          >
+          (enforcement may lag).
+        </p>
+      </section>
+
+      <section class="card notes" aria-labelledby="notes-title">
+        <h2 id="notes-title">Notes</h2>
+        <ul>
+          <li>This build does not inspect or change text on websites.</li>
+          <li>
+            Future versions add correction, rewriting, translation, shortcuts,
+            more providers and full statistics.
+          </li>
+          <li>
+            Prices:
+            <a
+              href="https://ai.google.dev/gemini-api/docs/pricing"
+              target="_blank"
+              rel="noopener noreferrer"
+              >Gemini pricing</a
+            >. Documentation: <code>docs/v5.1/</code> in the project repository.
+          </li>
+        </ul>
+      </section>
     </main>
-    <script type="module" src="./options.ts"></script>
-    <script type="module" src="./shortcuts-ui.ts"></script>
+    <script type="module" src="./index.ts"></script>
   </body>
 </html>

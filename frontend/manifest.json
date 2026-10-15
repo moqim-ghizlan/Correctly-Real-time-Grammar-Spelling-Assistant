@@ -1,29 +1,22 @@
 {
   "manifest_version": 3,
-  "name": "Correctly",
-  "version": "3.99.0",
-  "version_name": "4.0.0-rc.1",
-  "description": "Correction locale de l’orthographe et de la grammaire en français et en anglais.",
-  "permissions": ["storage", "contextMenus", "activeTab"],
-  "host_permissions": ["http://127.0.0.1/*", "http://localhost/*"],
+  "name": "Correctly V5.1",
+  "version": "5.1.0",
+  "version_name": "5.1.0",
+  "description": "Personal AI writing assistant (V5.1: Gemini connection setup only).",
+  "minimum_chrome_version": "120",
+  "permissions": ["storage"],
+  "host_permissions": ["https://generativelanguage.googleapis.com/*"],
   "background": {
     "service_worker": "service-worker.js",
     "type": "module"
   },
   "action": {
-    "default_popup": "src/popup/popup.html"
+    "default_title": "Correctly V5.1 settings"
   },
   "options_page": "src/options/options.html",
-  "content_scripts": [
-    {
-      "matches": ["http://*/*", "https://*/*"],
-      "js": ["content-script.js"],
-      "run_at": "document_idle",
-      "all_frames": true
-    }
-  ],
   "content_security_policy": {
-    "extension_pages": "script-src 'self'; object-src 'self'"
+    "extension_pages": "default-src 'self'; script-src 'self'; object-src 'none'; base-uri 'none'; form-action 'none'; connect-src 'self' https://generativelanguage.googleapis.com"
   },
   "icons": {
     "16": "icons/icon-16.png",

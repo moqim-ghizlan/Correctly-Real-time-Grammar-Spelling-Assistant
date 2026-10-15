@@ -1,8 +1,9 @@
 node_modules
 dist
+release
 package-lock.json
-docs/plans
-backend
 artifacts
-docs/baseline
-docs/validation
+backend
+docs/v5.1/evidence
+plans
+v5

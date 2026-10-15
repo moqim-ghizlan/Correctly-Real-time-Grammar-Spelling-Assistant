@@ -20,15 +20,18 @@ export default defineConfig({
   build: {
     emptyOutDir: true,
     outDir: dist,
+    sourcemap: false,
+    // The polyfill would fetch() preloads; extension pages do not need it.
+    modulePreload: { polyfill: false },
     rollupOptions: {
       input: {
         'service-worker': resolve(frontend, 'src/background/service-worker.ts'),
-        popup: resolve(frontend, 'src/popup/popup.html'),
         options: resolve(frontend, 'src/options/options.html'),
       },
       output: {
         entryFileNames: '[name].js',
         chunkFileNames: 'chunks/[name].js',
+        assetFileNames: 'assets/[name]-[hash][extname]',
       },
     },
   },

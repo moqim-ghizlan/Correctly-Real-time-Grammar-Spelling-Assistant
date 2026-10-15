@@ -1,0 +1,154 @@
+// Static audit of the built extension (checks B01–B04 of the V5.1 plan).
+// Pure function so tests can run it against synthetic directories.
+import { existsSync, readdirSync, readFileSync, statSync } from 'node:fs';
+import { dirname, extname, join, relative, resolve, sep } from 'node:path';
+
+export const GEMINI_HOST_PERMISSION =
+  'https://generativelanguage.googleapis.com/*';
+export const TEST_KEY_SENTINEL = 'CORRECTLY_TEST_SENTINEL_KEY';
+
+const FORBIDDEN_EXTENSIONS = new Set([
+  '.exe',
+  '.dll',
+  '.jar',
+  '.class',
+  '.py',
+  '.pyc',
+  '.ps1',
+  '.cmd',
+  '.bat',
+  '.msi',
+  '.zip',
+  '.map',
+  '.env',
+  '.pem',
+  '.key',
+]);
+const TEXT_EXTENSIONS = new Set([
+  '.js',
+  '.mjs',
+  '.html',
+  '.css',
+  '.json',
+  '.txt',
+  '.svg',
+]);
+const FORBIDDEN_TEXT = [
+  [/127\.0\.0\.1/, 'local server address 127.0.0.1'],
+  [/\blocalhost\b/i, 'localhost reference'],
+  [/:8081\b/, 'legacy LanguageTool port 8081'],
+  [/languagetool/i, 'LanguageTool reference'],
+  [/\bjavaw?\.exe\b|\bjavaw\b/i, 'Java runtime reference'],
+  [/CorrectlyServer/, 'legacy Windows server reference'],
+  [/\beval\s*\(/, 'eval()'],
+  [/\bnew\s+Function\s*\(/, 'new Function()'],
+  [/AIza[0-9A-Za-z_-]{35}/, 'something shaped like a Google API key'],
+  [new RegExp(TEST_KEY_SENTINEL), 'test key sentinel'],
+  [/http:\/\/(?!www\.w3\.org\/)/, 'plain http:// URL'],
+];
+
+function listFiles(root) {
+  const files = [];
+  const walk = (dir) => {
+    for (const entry of readdirSync(dir, { withFileTypes: true })) {
+      const full = join(dir, entry.name);
+      if (entry.isDirectory()) walk(full);
+      else files.push(relative(root, full).split(sep).join('/'));
+    }
+  };
+  walk(root);
+  return files.sort();
+}
+
+/** @returns {{ errors: string[], files: string[] }} */
+export function auditDist(distDir) {
+  const root = resolve(distDir);
+  const errors = [];
+  const fail = (message) => errors.push(message);
+  const manifestPath = join(root, 'manifest.json');
+  if (!existsSync(manifestPath))
+    return { errors: ['manifest.json missing'], files: [] };
+  let manifest;
+  try {
+    manifest = JSON.parse(readFileSync(manifestPath, 'utf8'));
+  } catch {
+    return { errors: ['manifest.json is not valid JSON'], files: [] };
+  }
+  const inside = (path) => {
+    if (typeof path !== 'string' || !path) return null;
+    const full = resolve(root, path.replace(/^\//, ''));
+    return full.startsWith(root + sep) ? full : null;
+  };
+  const needFile = (path, label) => {
+    const full = inside(path);
+    if (!full || !existsSync(full) || !statSync(full).isFile())
+      fail(`${label} missing in dist: ${String(path)}`);
+    return full;
+  };
+  const same = (actual, expected) =>
+    Array.isArray(actual) &&
+    actual.length === expected.length &&
+    expected.every((item) => actual.includes(item));
+
+  // B01 — manifest shape and minimal permissions.
+  if (manifest.manifest_version !== 3) fail('manifest_version must be 3');
+  if (manifest.version !== '5.1.0') fail('version must be 5.1.0');
+  if (!String(manifest.name ?? '').includes('V5.1')) fail('name must say V5.1');
+  if (!same(manifest.permissions, ['storage']))
+    fail('permissions must be exactly ["storage"]');
+  if (!same(manifest.host_permissions, [GEMINI_HOST_PERMISSION]))
+    fail(`host_permissions must be exactly ["${GEMINI_HOST_PERMISSION}"]`);
+  for (const key of [
+    'content_scripts',
+    'optional_permissions',
+    'optional_host_permissions',
+    'externally_connectable',
+    'web_accessible_resources',
+    'commands',
+  ])
+    if (key in manifest) fail(`unexpected manifest key: ${key}`); // B04
+  if (manifest.action?.default_popup) fail('no popup is expected in V5.1');
+  if (manifest.background?.type !== 'module')
+    fail('background.type must be "module"');
+  needFile(manifest.background?.service_worker, 'service worker');
+  for (const path of Object.values(manifest.icons ?? {}))
+    needFile(path, 'icon');
+  const csp = String(manifest.content_security_policy?.extension_pages ?? '');
+  if (!/script-src 'self'(;|$)/.test(csp))
+    fail("CSP must be script-src 'self'");
+  if (/unsafe-eval|unsafe-inline|https?:\/\/[^ ;]*\*/.test(csp))
+    fail('CSP is too permissive');
+
+  const optionsPath = manifest.options_page ?? manifest.options_ui?.page;
+  const optionsFull = needFile(optionsPath, 'options page');
+  if (optionsFull && existsSync(optionsFull)) {
+    const html = readFileSync(optionsFull, 'utf8');
+    for (const match of html.matchAll(/(?:src|href)="([^"]+)"/g)) {
+      const asset = match[1];
+      if (/^https:\/\//.test(asset)) {
+        if (/<script[^>]+src="https:/.test(html))
+          fail('remote script in options page');
+        continue;
+      }
+      if (asset.includes(':')) continue;
+      const full = asset.startsWith('/')
+        ? inside(asset)
+        : resolve(dirname(optionsFull), asset);
+      if (!full || !full.startsWith(root + sep) || !existsSync(full))
+        fail('options page asset missing: ' + asset);
+    }
+  }
+
+  // B02/B03 — inventory and content scan.
+  const files = listFiles(root);
+  for (const file of files) {
+    const extension = extname(file).toLowerCase();
+    if (FORBIDDEN_EXTENSIONS.has(extension) || /(^|\/)\.env/.test(file))
+      fail('forbidden file type in dist: ' + file);
+    if (!TEXT_EXTENSIONS.has(extension)) continue;
+    const text = readFileSync(join(root, file), 'utf8');
+    for (const [pattern, label] of FORBIDDEN_TEXT)
+      if (pattern.test(text)) fail(`${file}: contains ${label}`);
+  }
+  return { errors, files };
+}

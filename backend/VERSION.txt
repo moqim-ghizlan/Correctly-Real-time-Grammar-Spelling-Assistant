@@ -1,5 +1,0 @@
-Correctly Server 3.1.0
-Windows x64 portable onedir
-LanguageTool: 6.9-SNAPSHOT / LanguageTool-20260923-snapshot (unchanged V2 files)
-Runtime: Eclipse Temurin 25.0.4.1+1-LTS (private complete JDK)
-Installer candidate: clean-machine and manual acceptance gates pending.

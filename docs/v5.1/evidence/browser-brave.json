@@ -1,0 +1,315 @@
+{
+  "browser": "brave",
+  "browserVersion": "Chrome/155.0.8059.80",
+  "date": "2026-10-15T12:23:47.138Z",
+  "offline": false,
+  "steps": [
+    {
+      "id": "M3",
+      "result": "PASS",
+      "detail": "extension loaded (eehjeahbmglpngbafjmmhpbpfkmehmhp)"
+    },
+    {
+      "id": "M4",
+      "result": "PASS",
+      "detail": "settings open: Not configured, daily cap 20"
+    },
+    {
+      "id": "M6",
+      "result": "PASS",
+      "detail": "Test without key refused locally, zero network requests"
+    },
+    {
+      "id": "M5a",
+      "result": "PASS",
+      "detail": "dummy key saved; after reopen shows Configured, key not in DOM"
+    },
+    {
+      "id": "M5b",
+      "result": "PASS",
+      "detail": "dummy key → one worker request to Google; UI shows: Invalid key — create or paste a valid key in Google AI Studio, then save it again. (HTTP 400)"
+    },
+    {
+      "id": "M8",
+      "result": "PASS",
+      "detail": "cap 1: second test refused locally, also after reload; still 1 request"
+    },
+    {
+      "id": "M9",
+      "result": "PASS",
+      "detail": "worker stopped and woken by message; persisted settings/count respected (Daily local limit reached. Try tomorrow or adjust your safety setting.)"
+    },
+    {
+      "id": "M14",
+      "result": "PASS",
+      "detail": "no horizontal overflow at 360/900px; Tab order: api-key → toggle-key → save-key → remove-key → A → model → test → daily-limit → save-limit"
+    },
+    {
+      "id": "M6b",
+      "result": "PASS",
+      "detail": "Remove key → Not configured"
+    },
+    {
+      "id": "M11",
+      "result": "PASS",
+      "detail": "regular page: no injected UI, text unchanged"
+    },
+    {
+      "id": "M15",
+      "result": "PASS",
+      "detail": "0 console messages, none with the key; only Google API contacted"
+    }
+  ],
+  "networkRequests": [
+    {
+      "source": "options-page",
+      "method": "GET",
+      "url": "chrome-extension://eehjeahbmglpngbafjmmhpbpfkmehmhp/icons/icon-48.png",
+      "headerNames": [
+        "User-Agent",
+        "Referer"
+      ]
+    },
+    {
+      "source": "options-page",
+      "method": "GET",
+      "url": "chrome-extension://eehjeahbmglpngbafjmmhpbpfkmehmhp/src/options/options.html",
+      "headerNames": [
+        "sec-ch-ua",
+        "sec-ch-ua-mobile",
+        "sec-ch-ua-platform"
+      ]
+    },
+    {
+      "source": "options-page",
+      "method": "GET",
+      "url": "chrome-extension://eehjeahbmglpngbafjmmhpbpfkmehmhp/options.js",
+      "headerNames": [
+        "User-Agent",
+        "Origin",
+        "Referer"
+      ]
+    },
+    {
+      "source": "options-page",
+      "method": "GET",
+      "url": "chrome-extension://eehjeahbmglpngbafjmmhpbpfkmehmhp/chunks/storage.js",
+      "headerNames": [
+        "User-Agent",
+        "Origin",
+        "Referer"
+      ]
+    },
+    {
+      "source": "options-page",
+      "method": "GET",
+      "url": "chrome-extension://eehjeahbmglpngbafjmmhpbpfkmehmhp/assets/options-tWwgs1Uz.css",
+      "headerNames": [
+        "User-Agent",
+        "Origin",
+        "Referer"
+      ]
+    },
+    {
+      "source": "options-page",
+      "method": "GET",
+      "url": "chrome-extension://eehjeahbmglpngbafjmmhpbpfkmehmhp/icons/icon-48.png",
+      "headerNames": [
+        "User-Agent",
+        "Referer"
+      ]
+    },
+    {
+      "source": "options-page",
+      "method": "GET",
+      "url": "chrome-extension://eehjeahbmglpngbafjmmhpbpfkmehmhp/src/options/options.html",
+      "headerNames": [
+        "sec-ch-ua",
+        "sec-ch-ua-mobile",
+        "sec-ch-ua-platform"
+      ]
+    },
+    {
+      "source": "options-page",
+      "method": "GET",
+      "url": "chrome-extension://eehjeahbmglpngbafjmmhpbpfkmehmhp/options.js",
+      "headerNames": [
+        "User-Agent",
+        "Origin",
+        "Referer"
+      ]
+    },
+    {
+      "source": "options-page",
+      "method": "GET",
+      "url": "chrome-extension://eehjeahbmglpngbafjmmhpbpfkmehmhp/chunks/storage.js",
+      "headerNames": [
+        "User-Agent",
+        "Origin",
+        "Referer"
+      ]
+    },
+    {
+      "source": "options-page",
+      "method": "GET",
+      "url": "chrome-extension://eehjeahbmglpngbafjmmhpbpfkmehmhp/assets/options-tWwgs1Uz.css",
+      "headerNames": [
+        "User-Agent",
+        "Origin",
+        "Referer"
+      ]
+    },
+    {
+      "source": "options-page",
+      "method": "GET",
+      "url": "chrome-extension://eehjeahbmglpngbafjmmhpbpfkmehmhp/icons/icon-48.png",
+      "headerNames": [
+        "User-Agent",
+        "Referer"
+      ]
+    },
+    {
+      "source": "options-page",
+      "method": "GET",
+      "url": "chrome-extension://eehjeahbmglpngbafjmmhpbpfkmehmhp/icons/icon-48.png",
+      "headerNames": [
+        "User-Agent",
+        "Referer"
+      ]
+    },
+    {
+      "source": "service-worker",
+      "method": "POST",
+      "url": "https://generativelanguage.googleapis.com/v1beta/models/gemini-3.1-flash-lite:generateContent",
+      "headerNames": [
+        "x-goog-api-key",
+        "Referer",
+        "User-Agent",
+        "Content-Type"
+      ]
+    },
+    {
+      "source": "options-page",
+      "method": "GET",
+      "url": "chrome-extension://eehjeahbmglpngbafjmmhpbpfkmehmhp/src/options/options.html",
+      "headerNames": [
+        "sec-ch-ua",
+        "sec-ch-ua-mobile",
+        "sec-ch-ua-platform"
+      ]
+    },
+    {
+      "source": "options-page",
+      "method": "GET",
+      "url": "chrome-extension://eehjeahbmglpngbafjmmhpbpfkmehmhp/options.js",
+      "headerNames": [
+        "User-Agent",
+        "Origin",
+        "Referer"
+      ]
+    },
+    {
+      "source": "options-page",
+      "method": "GET",
+      "url": "chrome-extension://eehjeahbmglpngbafjmmhpbpfkmehmhp/chunks/storage.js",
+      "headerNames": [
+        "User-Agent",
+        "Origin",
+        "Referer"
+      ]
+    },
+    {
+      "source": "options-page",
+      "method": "GET",
+      "url": "chrome-extension://eehjeahbmglpngbafjmmhpbpfkmehmhp/assets/options-tWwgs1Uz.css",
+      "headerNames": [
+        "User-Agent",
+        "Origin",
+        "Referer"
+      ]
+    },
+    {
+      "source": "options-page",
+      "method": "GET",
+      "url": "chrome-extension://eehjeahbmglpngbafjmmhpbpfkmehmhp/icons/icon-48.png",
+      "headerNames": [
+        "User-Agent",
+        "Referer"
+      ]
+    },
+    {
+      "source": "options-page",
+      "method": "GET",
+      "url": "chrome-extension://eehjeahbmglpngbafjmmhpbpfkmehmhp/icons/icon-48.png",
+      "headerNames": [
+        "User-Agent",
+        "Referer"
+      ]
+    },
+    {
+      "source": "options-page",
+      "method": "GET",
+      "url": "chrome-extension://eehjeahbmglpngbafjmmhpbpfkmehmhp/src/options/options.html",
+      "headerNames": [
+        "sec-ch-ua",
+        "sec-ch-ua-mobile",
+        "sec-ch-ua-platform"
+      ]
+    },
+    {
+      "source": "options-page",
+      "method": "GET",
+      "url": "chrome-extension://eehjeahbmglpngbafjmmhpbpfkmehmhp/options.js",
+      "headerNames": [
+        "User-Agent",
+        "Origin",
+        "Referer"
+      ]
+    },
+    {
+      "source": "options-page",
+      "method": "GET",
+      "url": "chrome-extension://eehjeahbmglpngbafjmmhpbpfkmehmhp/chunks/storage.js",
+      "headerNames": [
+        "User-Agent",
+        "Origin",
+        "Referer"
+      ]
+    },
+    {
+      "source": "options-page",
+      "method": "GET",
+      "url": "chrome-extension://eehjeahbmglpngbafjmmhpbpfkmehmhp/assets/options-tWwgs1Uz.css",
+      "headerNames": [
+        "User-Agent",
+        "Origin",
+        "Referer"
+      ]
+    },
+    {
+      "source": "options-page",
+      "method": "GET",
+      "url": "chrome-extension://eehjeahbmglpngbafjmmhpbpfkmehmhp/icons/icon-48.png",
+      "headerNames": [
+        "User-Agent",
+        "Referer"
+      ]
+    },
+    {
+      "source": "options-page",
+      "method": "GET",
+      "url": "chrome-extension://eehjeahbmglpngbafjmmhpbpfkmehmhp/icons/icon-48.png",
+      "headerNames": [
+        "User-Agent",
+        "Referer"
+      ]
+    },
+    {
+      "source": "options-page",
+      "method": "GET",
+      "url": "data:text/html,<textarea id=t>Je sui ici</textarea><div contenteditable id=c>helo</div>",
+      "headerNames": []
+    }
+  ],
+  "consoleMessages": []
+}

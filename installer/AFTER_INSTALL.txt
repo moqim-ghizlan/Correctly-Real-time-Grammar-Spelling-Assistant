@@ -1,9 +1,0 @@
-Correctly fonctionne localement, avec Java et LanguageTool inclus.
-
-Laissez son icône près de l'horloge active pendant que vous écrivez. Quitter arrête le serveur. Vous pouvez désactiver le démarrage automatique depuis ce menu.
-
-L'extension Chrome/Brave s'installe séparément, avec votre accord dans le navigateur. Extrayez Correctly-Extension.zip dans un dossier permanent, ouvrez chrome://extensions ou brave://extensions, activez le mode développeur puis choisissez « Charger l'extension non empaquetée » et son dossier dist. Rechargez vos pages.
-
-Le setup ne modifie aucun profil navigateur. Si une ancienne version Correctly occupe le port 8081, quittez-la avec son propre menu et désactivez son ancien démarrage automatique. Le nouveau serveur n'arrête jamais une autre application.
-
-Cette candidate reste à valider sur Windows vierge et après une reconnexion Windows. Les licences et notices sont disponibles dans le dossier licenses et runtime/legal.

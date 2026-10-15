@@ -1,0 +1,59 @@
+import type { StorageArea } from '../../src/shared/storage';
+
+/**
+ * Async in-memory stand-in for chrome.storage.local. Each call yields to the
+ * event loop (so read→await→write races are real) and can be made to fail.
+ */
+export class FakeStorage implements StorageArea {
+  data = new Map<string, unknown>();
+  failGet = false;
+  failSet = false;
+  gets = 0;
+  sets = 0;
+
+  private tick() {
+    return new Promise<void>((resolve) => setTimeout(resolve, 0));
+  }
+
+  async get(keys: string[]): Promise<Record<string, unknown>> {
+    await this.tick();
+    this.gets++;
+    if (this.failGet) throw new Error('storage get failed');
+    const result: Record<string, unknown> = {};
+    for (const key of keys)
+      if (this.data.has(key)) result[key] = structuredClone(this.data.get(key));
+    return result;
+  }
+
+  async set(items: Record<string, unknown>): Promise<void> {
+    await this.tick();
+    this.sets++;
+    if (this.failSet) throw new Error('storage set failed');
+    for (const [key, value] of Object.entries(items))
+      this.data.set(key, structuredClone(value));
+  }
+
+  /** Everything stored, serialized — used to search for leaked secrets. */
+  dump(): string {
+    return JSON.stringify([...this.data.entries()]);
+  }
+}
+
+export const FAKE_KEY = 'CORRECTLY_TEST_SENTINEL_KEY_0123456789abcdef';
+export const OTHER_KEY = 'CORRECTLY_TEST_SENTINEL_KEY_replacement_99';
+
+export function geminiOk(text = 'OK', usage?: Record<string, number>) {
+  return {
+    candidates: [
+      { content: { role: 'model', parts: [{ text }] }, finishReason: 'STOP' },
+    ],
+    ...(usage ? { usageMetadata: usage } : {}),
+  };
+}
+
+export function jsonResponse(status: number, body: unknown): Response {
+  return new Response(typeof body === 'string' ? body : JSON.stringify(body), {
+    status,
+    headers: { 'Content-Type': 'application/json' },
+  });
+}

@@ -1,11 +1,14 @@
 node_modules/
 dist/
+release/
 coverage/
 *.log
+.env
+.env.*
+*.pem
+# Local leftovers from V1–V4 builds, if any. The V4 sources remain in Git
+# (tag v4.0.0).
+artifacts/
+backend/
 __pycache__/
 *.py[cod]
-.pytest_cache/
-backend/.venv/
-backend/vendor/
-backend/build/
-artifacts/
