@@ -247,7 +247,14 @@ const clampRatio = (value: number): number =>
 export function installHandle(
   doc: Document,
   yRatio: number,
-  send: HandleDeps['send'] = (message) => chrome.runtime.sendMessage(message),
+  send: HandleDeps['send'] = (message) => {
+    // A page script that outlived an extension reload throws synchronously.
+    try {
+      return chrome.runtime.sendMessage(message);
+    } catch {
+      return Promise.resolve(undefined);
+    }
+  },
 ): RightEdgeHandle {
   const state = globalThis as {
     correctlyHandle?: RightEdgeHandle;

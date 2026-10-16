@@ -1,7 +1,7 @@
 {
   "browser": "brave",
   "browserVersion": "Chrome/155.0.8059.80",
-  "date": "2026-10-16T10:38:17.614Z",
+  "date": "2026-10-16T11:16:17.993Z",
   "offline": true,
   "steps": [
     {
@@ -57,7 +57,7 @@
     {
       "id": "L2",
       "result": "PASS",
-      "detail": "Pause all AI: 30 requests refused locally (AI_PAUSED), zero network; message + admission round trip p50 25 ms, p95 27 ms"
+      "detail": "Pause all AI: 30 requests refused locally (AI_PAUSED), zero network; message + admission round trip p50 25 ms, p95 29 ms"
     },
     {
       "id": "L3",
@@ -147,7 +147,7 @@
     {
       "source": "options-page",
       "method": "GET",
-      "url": "chrome-extension://eehjeahbmglpngbafjmmhpbpfkmehmhp/assets/options-preV3tee.css",
+      "url": "chrome-extension://eehjeahbmglpngbafjmmhpbpfkmehmhp/assets/options-CLjfLJGW.css",
       "headerNames": ["User-Agent", "Origin", "Referer"]
     },
     {
@@ -183,7 +183,7 @@
     {
       "source": "options-page",
       "method": "GET",
-      "url": "chrome-extension://eehjeahbmglpngbafjmmhpbpfkmehmhp/assets/options-preV3tee.css",
+      "url": "chrome-extension://eehjeahbmglpngbafjmmhpbpfkmehmhp/assets/options-CLjfLJGW.css",
       "headerNames": ["User-Agent", "Origin", "Referer"]
     },
     {
@@ -219,7 +219,7 @@
     {
       "source": "options-page",
       "method": "GET",
-      "url": "chrome-extension://eehjeahbmglpngbafjmmhpbpfkmehmhp/assets/options-preV3tee.css",
+      "url": "chrome-extension://eehjeahbmglpngbafjmmhpbpfkmehmhp/assets/options-CLjfLJGW.css",
       "headerNames": ["User-Agent", "Origin", "Referer"]
     },
     {
@@ -255,7 +255,7 @@
     {
       "source": "options-page",
       "method": "GET",
-      "url": "chrome-extension://eehjeahbmglpngbafjmmhpbpfkmehmhp/assets/options-preV3tee.css",
+      "url": "chrome-extension://eehjeahbmglpngbafjmmhpbpfkmehmhp/assets/options-CLjfLJGW.css",
       "headerNames": ["User-Agent", "Origin", "Referer"]
     },
     {
@@ -281,6 +281,6 @@
   "admissionLatencyMs": {
     "samples": 30,
     "p50": 25,
-    "p95": 27
+    "p95": 29
   }
 }

@@ -389,7 +389,7 @@ try {
   await openOptions();
   await wakeWorker(extensionId);
   const manifest = await page.evaluate('chrome.runtime.getManifest()');
-  assert.equal(manifest.version, '5.12.0');
+  assert.equal(manifest.version, '5.12.1');
   assert.equal(manifest.name, 'Correctly V5.12');
   assert.deepEqual(manifest.host_permissions, [
     'https://generativelanguage.googleapis.com/*',
@@ -758,6 +758,7 @@ try {
     for (const [id, name] of [
       ['usage-limits', 'limits'],
       ['statistics', 'statistics'],
+      ['keyboard', 'keyboard'],
     ]) {
       await page.evaluate(`location.hash = '#${id}'`);
       await delay(150);

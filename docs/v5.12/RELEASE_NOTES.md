@@ -1,4 +1,6 @@
-# Correctly 5.12.0 — Release notes
+# Correctly 5.12.1 — Release notes
+
+5.12.1 adds the Raccourcis clavier page (see below) on top of 5.12.0.
 
 ## New
 
@@ -27,6 +29,22 @@
   per-action and per-provider limits are folded by default (opened
   automatically when one is on). All settings, IDs and behaviour are
   unchanged. The in-page modal stays in English.
+
+## Keyboard shortcuts page (owner request)
+
+- New settings page **Raccourcis clavier**. Browser shortcuts (Ctrl+M…)
+  are listed live; Chrome lets only the user change them, so “Modifier dans
+  Chrome” opens `chrome://extensions/shortcuts` and the list refreshes on
+  return.
+- **Correctly's own shortcuts**, recorded on the page (Définir → press the
+  combination) for Ouvrir / Corriger / Reformuler / Traduire. They work on
+  ordinary web pages through the opt-in page script (all-sites access, like
+  the handle); browser and editing combinations (Ctrl+C, Ctrl+T, F5…) and
+  keys without Ctrl/Alt/Meta are refused; clashes with a browser shortcut
+  are flagged. A key press only opens Correctly or starts the same action
+  as the browser command.
+- Page scripts left over after an extension reload no longer throw
+  “Extension context invalidated” when the handle or a shortcut is used.
 
 ## Unchanged
 

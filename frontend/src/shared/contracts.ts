@@ -42,6 +42,11 @@ export const OPEN_SETTINGS = 'correctly.v5.openSettings';
 export const HANDLE_POSITION = 'correctly.v5.handlePosition';
 /** Sent by the page script: is the smart button on, which shortcuts are active. */
 export const PAGE_CONFIG = 'correctly.v5.pageConfig';
+/**
+ * Sent by the page script when one of Correctly's own keyboard shortcuts is
+ * pressed: `{ type, action }` only; the worker runs that action in the frame.
+ */
+export const KEY_COMMAND = 'correctly.v5.keyCommand';
 /** Sent by the content script ("Manage limits"): opens the usage limits. */
 export const OPEN_LIMITS = 'correctly.v5.openLimits';
 /** V5.9: sent by the content script after an AI edit was really applied or undone. */

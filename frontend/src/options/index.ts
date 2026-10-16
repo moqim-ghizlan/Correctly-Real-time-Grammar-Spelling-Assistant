@@ -1,11 +1,9 @@
-import {
-  CORRECT_COMMAND,
-  OPEN_COMMAND,
-  SMART_BUTTON_OFF,
-} from '../shared/contracts';
+import { SMART_BUTTON_OFF } from '../shared/contracts';
+import { loadKeybindings } from '../shared/keybindings';
 import { QUOTA_CHANNEL, browserQuotaStore } from '../shared/quota-store';
 import { loadShortcuts } from '../shared/shortcuts';
 import { browserStorage, loadSettings } from '../shared/storage';
+import { KeyboardSection } from './keyboard-ui';
 import { LimitsSection } from './limits-ui';
 import { installNav } from './nav';
 import { StatsSection } from './stats-ui';
@@ -20,27 +18,27 @@ if (version) version.textContent = chrome.runtime.getManifest().version;
 
 const area = browserStorage();
 const ALL_SITES = { origins: ['<all_urls>'] };
-/** All-sites access stays while the right-edge handle or shortcuts need it. */
+/**
+ * All-sites access stays while the right-edge handle, text shortcuts or
+ * Correctly's own keyboard shortcuts need it.
+ */
 const releaseSiteAccess = async () => {
-  const [settings, shortcuts] = await Promise.all([
+  const [settings, shortcuts, keys] = await Promise.all([
     loadSettings(area),
     loadShortcuts(area),
+    loadKeybindings(area),
   ]);
-  if (!settings.triggers.smartButton && !shortcuts.store.enabled)
+  if (
+    !settings.triggers.smartButton &&
+    !shortcuts.store.enabled &&
+    !keys.enabled
+  )
     await chrome.permissions.remove(ALL_SITES);
 };
 
 const page = new SettingsPage(document, {
   area,
   confirm: (question) => window.confirm(question),
-  getShortcut: async () =>
-    (await chrome.commands.getAll()).find(
-      (command) => command.name === CORRECT_COMMAND,
-    )?.shortcut ?? '',
-  getOpenShortcut: async () =>
-    (await chrome.commands.getAll()).find(
-      (command) => command.name === OPEN_COMMAND,
-    )?.shortcut ?? '',
   openShortcuts: () =>
     void chrome.tabs.create({ url: 'chrome://extensions/shortcuts' }),
   // The worker (re)registers or unregisters the script when the setting
@@ -82,6 +80,22 @@ const shortcuts = new ShortcutsSection(document, {
   },
 });
 
+// Browser command shortcuts (read-only) and Correctly's own in-page keys.
+const keyboard = new KeyboardSection(document, {
+  area,
+  getCommands: async () =>
+    (await chrome.commands.getAll()).map((command) => ({
+      name: command.name ?? '',
+      shortcut: command.shortcut ?? '',
+      description: command.description,
+    })),
+  requestSiteAccess: () => chrome.permissions.request(ALL_SITES),
+  hasSiteAccess: () => chrome.permissions.contains(ALL_SITES),
+  releaseSiteAccess,
+});
+// Back from chrome://extensions/shortcuts: show the new combinations.
+window.addEventListener('focus', () => void keyboard.refreshCommands());
+
 const quota = browserQuotaStore();
 const limits = new LimitsSection(document, {
   area,
@@ -118,6 +132,7 @@ chrome.storage.onChanged.addListener((changes, areaName) => {
   page.onStorageChanged(Object.keys(changes));
   providers.onStorageChanged(Object.keys(changes));
   shortcuts.onStorageChanged(Object.keys(changes));
+  keyboard.onStorageChanged(Object.keys(changes));
   limits.onStorageChanged(Object.keys(changes));
 });
 
@@ -144,5 +159,6 @@ setInterval(() => {
 void page.init();
 void providers.init();
 void shortcuts.init();
+void keyboard.init();
 void limits.init();
 void stats.init();

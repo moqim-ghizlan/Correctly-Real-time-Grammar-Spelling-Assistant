@@ -24,12 +24,13 @@ beforeEach(() => {
 });
 
 describe('settings navigation', () => {
-  it('has seven pages, each linked once from the sidebar', () => {
+  it('has eight pages, each linked once from the sidebar', () => {
     const pages = [...document.querySelectorAll('.page')].map((p) => p.id);
     expect(pages).toEqual([
       'start',
       'providers',
       'actions',
+      'keyboard',
       'shortcuts',
       'usage-limits',
       'statistics',

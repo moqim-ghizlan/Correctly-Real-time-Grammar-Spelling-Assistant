@@ -24,10 +24,7 @@ import {
 export interface SettingsDeps {
   area: StorageArea;
   confirm: (question: string) => boolean;
-  /** Actual shortcut assigned by the browser ('' when none). */
-  getShortcut?: () => Promise<string>;
-  /** V5.11: shortcut that opens the Correctly modal (Ctrl+M suggested). */
-  getOpenShortcut?: () => Promise<string>;
+  /** Opens the browser's own shortcut editor (chrome://extensions/shortcuts). */
   openShortcuts?: () => void;
   /** Requests all-sites access and registers the right-edge handle script. */
   enableSmartButton?: () => Promise<boolean>;
@@ -56,7 +53,6 @@ export class SettingsPage {
     this.populateStyles();
     this.populateLanguages();
     this.bind();
-    void this.renderShortcut();
     try {
       await this.reload();
       this.setControlsEnabled(true);
@@ -257,24 +253,6 @@ export class SettingsPage {
       this.message('consent-message', errorMessage('STORAGE_ERROR'), 'error');
     }
     this.render();
-  }
-
-  async renderShortcut(): Promise<void> {
-    const read = async (get?: () => Promise<string>) => {
-      try {
-        return (await get?.()) ?? '';
-      } catch {
-        return ''; // Shown as "not set" below.
-      }
-    };
-    const [shortcut, open] = await Promise.all([
-      read(this.deps.getShortcut),
-      read(this.deps.getOpenShortcut),
-    ]);
-    const notSet =
-      'non défini (choisissez-en un avec « Modifier le raccourci »)';
-    this.el('shortcut-label').textContent = shortcut || notSet;
-    this.el('open-shortcut-label').textContent = open || notSet;
   }
 
   async saveTriggers(): Promise<void> {

@@ -44,8 +44,14 @@
             >
           </li>
           <li>
-            <a href="#shortcuts"
+            <a href="#keyboard"
               ><span class="nav-icon" aria-hidden="true">⌨</span>Raccourcis
+              clavier</a
+            >
+          </li>
+          <li>
+            <a href="#shortcuts"
+              ><span class="nav-icon" aria-hidden="true">¶</span>Raccourcis
               texte</a
             >
           </li>
@@ -143,18 +149,13 @@
             <label class="check" for="trigger-keyboard">
               <input id="trigger-keyboard" type="checkbox" disabled />
               <span
-                >Raccourcis clavier — ouvrir Correctly :
-                <strong id="open-shortcut-label">vérification…</strong> ;
-                corriger directement :
-                <strong id="shortcut-label">vérification…</strong></span
+                >Raccourcis clavier (ceux du navigateur, comme
+                <kbd>Ctrl</kbd>+<kbd>M</kbd>, et les vôtres)</span
               >
             </label>
-            <p class="hint inline">
-              Certaines combinaisons sont réservées par le navigateur ou
-              d’autres applications.
-              <button id="open-shortcuts" type="button" class="ghost" disabled>
-                Modifier le raccourci
-              </button>
+            <p class="hint">
+              Voir et modifier les combinaisons :
+              <a href="#keyboard">Raccourcis clavier</a>.
             </p>
             <label class="check" for="trigger-menu">
               <input id="trigger-menu" type="checkbox" disabled />
@@ -392,6 +393,82 @@
               fausse : relisez-la avant d’envoyer quelque chose d’important.
             </p>
             <p id="translation-message" class="message" aria-live="polite"></p>
+          </section>
+        </section>
+
+        <!-- ===================================== Raccourcis clavier -->
+        <section
+          class="page"
+          id="keyboard"
+          aria-labelledby="keyboard-title"
+          hidden
+        >
+          <header class="page-head">
+            <h1 id="keyboard-title">Raccourcis clavier</h1>
+            <p class="lead">
+              Deux sortes de raccourcis, utilisables ensemble. Ils ne font
+              qu’ouvrir Correctly ou lancer une action sur la sélection : rien
+              n’est envoyé à l’IA sans votre clic sur Générer (sauf « Corriger
+              la sélection », qui corrige directement comme le menu clic droit).
+            </p>
+          </header>
+
+          <section class="card" aria-labelledby="browser-keys-title">
+            <div class="card-head">
+              <h2 id="browser-keys-title">Raccourcis du navigateur</h2>
+              <button id="commands-refresh" type="button" class="ghost">
+                Actualiser
+              </button>
+            </div>
+            <p class="hint">
+              Ils fonctionnent partout dans le navigateur. Chrome ne permet pas
+              à une extension de les modifier elle-même : cliquez sur « Modifier
+              dans Chrome », changez la combinaison, puis revenez ici.
+            </p>
+            <div class="table-wrap">
+              <table id="command-list" class="stats-table keys-table">
+                <thead>
+                  <tr>
+                    <th scope="col">Action</th>
+                    <th scope="col">Raccourci</th>
+                  </tr>
+                </thead>
+                <tbody></tbody>
+              </table>
+            </div>
+            <p id="command-empty" class="empty" hidden>
+              Raccourcis du navigateur indisponibles ici.
+            </p>
+            <div class="actions">
+              <button id="open-shortcuts" type="button" disabled>
+                Modifier dans Chrome ↗
+              </button>
+            </div>
+          </section>
+
+          <section class="card" aria-labelledby="page-keys-title">
+            <h2 id="page-keys-title">Raccourcis Correctly dans les pages</h2>
+            <p class="hint">
+              Définis directement ici : cliquez sur « Définir » puis appuyez sur
+              la combinaison. Ils fonctionnent seulement sur les pages web
+              ordinaires (pas sur les pages internes du navigateur) et un site
+              peut parfois les intercepter. Les combinaisons du navigateur et de
+              l’édition (Ctrl+C, Ctrl+T…) sont refusées.
+            </p>
+            <label class="check" for="keybindings-enabled">
+              <input id="keybindings-enabled" type="checkbox" disabled />
+              <span
+                >Activer mes raccourcis Correctly dans les pages web (demande
+                l’accès à tous les sites, retiré si plus rien n’en a
+                besoin)</span
+              >
+            </label>
+            <ul
+              id="keybinding-list"
+              class="key-list"
+              aria-label="Mes raccourcis Correctly"
+            ></ul>
+            <p id="keybindings-message" class="message" aria-live="polite"></p>
           </section>
         </section>
 

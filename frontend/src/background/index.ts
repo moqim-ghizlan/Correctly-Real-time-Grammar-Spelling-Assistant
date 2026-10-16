@@ -25,6 +25,11 @@ import {
 } from '../shared/providers';
 import { isRewriteTextRequest } from '../shared/rewrite';
 import { SHORTCUTS_KEY, loadShortcuts } from '../shared/shortcuts';
+import {
+  KEYBINDINGS_KEY,
+  isKeyCommandRequest,
+  loadKeybindings,
+} from '../shared/keybindings';
 import { isSummarizeTextRequest } from '../shared/summary';
 import { isTranslateTextRequest } from '../shared/translate';
 import {
@@ -283,15 +288,19 @@ export async function installMenu(area: StorageArea): Promise<void> {
  * shortcuts (enabled ones only, when expansion is on). Never the settings.
  */
 export async function pageConfig(area: StorageArea) {
-  const [settings, loaded, handle] = await Promise.all([
+  const [settings, loaded, handle, keys] = await Promise.all([
     loadSettings(area),
     loadShortcuts(area),
     loadHandle(area),
+    loadKeybindings(area),
   ]);
   const { store } = loaded;
   return {
     smartButton: settings.triggers.smartButton,
     handleY: handle.yRatio,
+    // Correctly's own keyboard shortcuts: only when on (and keyboard allowed).
+    keybindings:
+      keys.enabled && settings.triggers.keyboard ? keys.bindings : {},
     shortcuts:
       store.enabled && !loaded.damaged
         ? store.shortcuts
@@ -303,15 +312,20 @@ export async function pageConfig(area: StorageArea) {
 
 /** Keeps the opt-in page script registered across updates. */
 export async function syncSmartScript(area: StorageArea): Promise<void> {
-  const [settings, loaded] = await Promise.all([
+  const [settings, loaded, keys] = await Promise.all([
     loadSettings(area),
     loadShortcuts(area),
+    loadKeybindings(area),
   ]);
   const granted = await chrome.permissions.contains({ origins: ALL_SITES });
   await chrome.scripting
     .unregisterContentScripts({ ids: [SMART_SCRIPT_ID] })
     .catch(() => undefined);
-  if ((settings.triggers.smartButton || loaded.store.enabled) && granted)
+  const keysOn = keys.enabled && Object.keys(keys.bindings).length > 0;
+  if (
+    (settings.triggers.smartButton || loaded.store.enabled || keysOn) &&
+    granted
+  )
     await chrome.scripting.registerContentScripts([
       {
         id: SMART_SCRIPT_ID,
@@ -405,6 +419,20 @@ export function registerServiceWorker(
       return false;
     } else if (
       isContentScriptSender(sender, chrome.runtime.id) &&
+      isKeyCommandRequest(message)
+    ) {
+      // One of Correctly's own shortcuts, pressed in that frame: the same
+      // path as the browser command (keyboard trigger, consent, route).
+      void correctInTab(
+        sender.tab,
+        area,
+        'keyboard',
+        sender.frameId,
+        message.action,
+      ).catch(() => undefined);
+      return false;
+    } else if (
+      isContentScriptSender(sender, chrome.runtime.id) &&
       isHandlePositionRequest(message)
     ) {
       // Only a bounded number is stored; this worker is its only writer.
@@ -480,7 +508,11 @@ export function registerServiceWorker(
       void controller.onProvidersChanged().catch(() => undefined);
     if (
       areaName !== 'local' ||
-      !(STORAGE_KEYS.settings in changes || SHORTCUTS_KEY in changes)
+      !(
+        STORAGE_KEYS.settings in changes ||
+        SHORTCUTS_KEY in changes ||
+        KEYBINDINGS_KEY in changes
+      )
     )
       return;
     void loadSettings(area)

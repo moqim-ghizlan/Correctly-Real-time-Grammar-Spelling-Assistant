@@ -110,6 +110,13 @@ npm run format:check
   `shared/shortcuts.ts`, `shared/stats.ts` affichés seulement là). La modale
   et le panneau dans les pages restent en anglais. Mise en page : menu
   latéral, une page à la fois selon l'ancre (`options/nav.ts`).
+- Raccourcis clavier : Chrome ne permet pas de modifier les `commands` par
+  code (lecture seule via `chrome.commands.getAll`, modification dans
+  `chrome://extensions/shortcuts`). Correctly a donc aussi ses propres
+  raccourcis dans les pages (`shared/keybindings.ts`, clé
+  `correctly.v5.keybindings` écrite par la page de paramètres seule,
+  `content/keys.ts` dans `smart.js`, message `KEY_COMMAND` → `correctInTab`
+  avec le déclencheur `keyboard`).
 
 ## Skills du projet (`.claude/skills/`)
 

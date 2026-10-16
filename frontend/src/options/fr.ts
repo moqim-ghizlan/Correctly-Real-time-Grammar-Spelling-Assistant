@@ -2,6 +2,7 @@
 // modules keep their English copy for the in-page modal; this page maps the
 // same stable IDs and codes to French here, never by translating at runtime.
 import type { ErrorCode } from '../shared/errors';
+import type { KeyAction } from '../shared/keybindings';
 import { PROVIDERS, type RouteSlot } from '../shared/models';
 import type { Period, QuotaNote, QuotaTask } from '../shared/quota';
 import type { RewriteStyleId } from '../shared/rewrite';
@@ -175,3 +176,20 @@ export function decrireNote(note: QuotaNote, credentialLabel?: string): string {
 /** Date et heure locales lisibles. */
 export const dateHeure = (date: Date): string =>
   Number.isNaN(date.getTime()) ? '' : date.toLocaleString('fr-FR');
+
+/** Actions of Correctly's own keyboard shortcuts. */
+export const KEY_ACTION_FR: Record<KeyAction, string> = {
+  open: 'Ouvrir Correctly',
+  correct: 'Corriger la sélection',
+  rewrite: 'Reformuler la sélection',
+  translate: 'Traduire la sélection',
+};
+
+/** Browser commands of the manifest, by name. */
+export const COMMAND_FR: Record<string, string> = {
+  _execute_action: 'Bouton de la barre d’outils',
+  'open-correctly': KEY_ACTION_FR.open,
+  'correct-selection': KEY_ACTION_FR.correct,
+  'rewrite-selection': KEY_ACTION_FR.rewrite,
+  'translate-selection': KEY_ACTION_FR.translate,
+};

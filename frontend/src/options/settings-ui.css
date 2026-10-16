@@ -1040,3 +1040,60 @@ button[aria-busy='true'] .spinner {
     outline: 2px solid Highlight;
   }
 }
+
+/* ----------------------------------------------------- keyboard shortcuts */
+
+.keys-table th[scope='row'] {
+  font-weight: 500;
+}
+
+.keys-table kbd,
+.key-current kbd {
+  font-size: 12.5px;
+}
+
+.key-list {
+  list-style: none;
+  margin: 12px 0 0;
+  padding: 0;
+}
+
+.key-list li {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px 12px;
+  padding: 10px 2px;
+  border-top: 1px solid var(--border);
+}
+
+.key-list li:first-child {
+  border-top: 0;
+}
+
+.key-list strong {
+  flex: 1 1 180px;
+  font-weight: 600;
+}
+
+.key-current {
+  flex: 0 1 170px;
+  min-width: 0;
+}
+
+.key-current.recording {
+  color: var(--accent);
+  font-weight: 600;
+}
+
+.key-list button {
+  min-height: 30px;
+  padding: 4px 12px;
+  font-size: 13px;
+}
+
+.key-list .key-note {
+  flex: 1 1 100%;
+  margin: 0;
+  font-size: 12.5px;
+}

@@ -30,7 +30,12 @@ beforeEach(() => {
   vi.stubGlobal('fetch', fetchSpy);
   expander?.dispose();
   expander = new ShortcutExpander(document, () =>
-    Promise.resolve({ smartButton: false, handleY: 0.5, shortcuts: ENTRIES }),
+    Promise.resolve({
+      smartButton: false,
+      keybindings: {},
+      handleY: 0.5,
+      shortcuts: ENTRIES,
+    }),
   );
   expander.setShortcuts(ENTRIES);
 });
@@ -141,7 +146,12 @@ describe('I03/I05/I06: never expand when unsafe', () => {
     expander.dispose();
     let entries = ENTRIES;
     expander = new ShortcutExpander(document, () =>
-      Promise.resolve({ smartButton: false, handleY: 0.5, shortcuts: entries }),
+      Promise.resolve({
+        smartButton: false,
+        keybindings: {},
+        handleY: 0.5,
+        shortcuts: entries,
+      }),
     );
     entries = [];
     expander.refresh();
@@ -164,11 +174,13 @@ describe('toPageConfig', () => {
       }),
     ).toEqual({
       smartButton: false,
+      keybindings: {},
       handleY: 0.5,
       shortcuts: [{ trigger: 'bjr', replacement: 'Bonjour' }],
     });
     expect(toPageConfig(undefined)).toEqual({
       smartButton: false,
+      keybindings: {},
       handleY: 0.5,
       shortcuts: [],
     });

@@ -558,6 +558,80 @@ describe('V5.3 smart button registration', () => {
   });
 });
 
+describe('Correctly keyboard shortcuts (in pages)', () => {
+  const binding = {
+    ctrl: true,
+    alt: false,
+    shift: true,
+    meta: false,
+    code: 'KeyK',
+    label: 'K',
+  };
+
+  it('KEY_COMMAND from our page script runs that action in its frame, no network', async () => {
+    await configure(true);
+    await send(
+      { type: 'correctly.v5.keyCommand', action: 'open' },
+      { ...contentSender, frameId: 2 },
+    );
+    await vi.waitFor(() => expect(executeScript).toHaveBeenCalledTimes(2));
+    expectInjected([2], ['open', ['professional']]);
+    executeScript.mockClear();
+    await send(
+      { type: 'correctly.v5.keyCommand', action: 'correct' },
+      contentSender,
+    );
+    await vi.waitFor(() => expect(executeScript).toHaveBeenCalledTimes(2));
+    expectInjected([0], ['correct']);
+    expect(fetcher).not.toHaveBeenCalled();
+  });
+
+  it('forged senders, bad shapes and the keyboard switch off do nothing', async () => {
+    await configure(true, { keyboard: false });
+    await send(
+      { type: 'correctly.v5.keyCommand', action: 'open' },
+      contentSender,
+    );
+    for (const [message, sender] of [
+      [{ type: 'correctly.v5.keyCommand', action: 'drop' }, contentSender],
+      [
+        { type: 'correctly.v5.keyCommand', action: 'open', x: 1 },
+        contentSender,
+      ],
+      [{ type: 'correctly.v5.keyCommand', action: 'open' }, optionsSender],
+    ] as [unknown, chrome.runtime.MessageSender][])
+      await send(message, sender);
+    await new Promise((resolve) => setTimeout(resolve, 20));
+    expect(executeScript).not.toHaveBeenCalled();
+    expect(openOptionsPage).not.toHaveBeenCalled();
+  });
+
+  it('PAGE_CONFIG gives the bindings only when they are on; they keep smart.js registered', async () => {
+    await configure(true);
+    area.data.set('correctly.v5.keybindings', {
+      enabled: false,
+      bindings: { open: binding },
+    });
+    expect(
+      (await send({ type: PAGE_CONFIG }, contentSender)).reply,
+    ).toMatchObject({ keybindings: {} });
+    area.data.set('correctly.v5.keybindings', {
+      enabled: true,
+      bindings: { open: binding },
+    });
+    expect(
+      (await send({ type: PAGE_CONFIG }, contentSender)).reply,
+    ).toMatchObject({ keybindings: { open: binding } });
+    granted = true;
+    onStorageChanged({ 'correctly.v5.keybindings': {} }, 'local');
+    await vi.waitFor(() =>
+      expect(registerContentScripts).toHaveBeenCalledWith([
+        expect.objectContaining({ js: ['smart.js'] }),
+      ]),
+    );
+  });
+});
+
 describe('V5.4 rewrite', () => {
   const rewriteReply = (candidates: { styleId: string; text: string }[]) =>
     jsonResponse(200, geminiOk(JSON.stringify({ candidates })));
@@ -888,6 +962,7 @@ describe('V5.6 text shortcuts', () => {
     expect(reply).toEqual({
       smartButton: true,
       handleY: 0.5,
+      keybindings: {},
       shortcuts: [{ trigger: 'bjr', replacement: 'Bonjour' }],
     });
     expect(JSON.stringify(reply)).not.toContain(FAKE_KEY);

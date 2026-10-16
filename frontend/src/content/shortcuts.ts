@@ -1,4 +1,8 @@
 import { PAGE_CONFIG } from '../shared/contracts';
+import {
+  normalizeKeybindings,
+  type KeybindingsStore,
+} from '../shared/keybindings';
 import { normalizeHandle } from '../shared/settings';
 import {
   MAX_REPLACEMENT,
@@ -18,6 +22,8 @@ export interface PageConfig {
   /** V5.11: saved vertical position of the handle (0–1). */
   handleY: number;
   shortcuts: { trigger: string; replacement: string }[];
+  /** Correctly's own keyboard shortcuts ({} when they are off). */
+  keybindings: KeybindingsStore['bindings'];
 }
 
 /** The worker's reply is untrusted here too: keep only well-formed pairs. */
@@ -42,13 +48,19 @@ export function toPageConfig(value: unknown): PageConfig {
       )
       .slice(0, 500)
       .map(({ trigger, replacement }) => ({ trigger, replacement })),
+    keybindings: normalizeKeybindings({ bindings: data.keybindings }).bindings,
   };
 }
 
-export const requestPageConfig = async (): Promise<PageConfig> =>
-  toPageConfig(
-    await chrome.runtime.sendMessage({ type: PAGE_CONFIG }).catch(() => null),
-  );
+export const requestPageConfig = async (): Promise<PageConfig> => {
+  let reply: unknown = null;
+  try {
+    reply = await chrome.runtime.sendMessage({ type: PAGE_CONFIG });
+  } catch {
+    // Worker unavailable or this page script outlived an extension reload.
+  }
+  return toPageConfig(reply);
+};
 
 export class ShortcutExpander {
   private map: ShortcutMap = new Map();
