@@ -25,6 +25,7 @@ import {
 } from '../shared/providers';
 import { isRewriteTextRequest } from '../shared/rewrite';
 import { SHORTCUTS_KEY, loadShortcuts } from '../shared/shortcuts';
+import { isSummarizeTextRequest } from '../shared/summary';
 import { isTranslateTextRequest } from '../shared/translate';
 import {
   browserStorage,
@@ -86,7 +87,7 @@ const origin = (sender: chrome.runtime.MessageSender) => ({
 
 export type Trigger = 'toolbar' | 'keyboard' | 'contextMenu' | 'smartButton';
 type Action = 'correct' | 'rewrite' | 'translate' | 'translateRewrite';
-/** V5.11: 'open' shows the three-tab modal (handle, Ctrl+M, toolbar icon). */
+/** V5.11: 'open' shows the modal (four tabs since V5.12) (handle, Ctrl+M, toolbar icon). */
 type Request = Action | 'open';
 type Intent = Request | 'unreachable' | 'rewriteOff';
 
@@ -110,7 +111,7 @@ const ACTION_TASKS: Record<Action, TaskKind> = {
 
 /**
  * True when this action's saved route is usable now (no network). The modal
- * needs at least one of its three actions.
+ * needs at least one of its four actions.
  */
 async function routeReady(
   area: StorageArea,
@@ -120,7 +121,7 @@ async function routeReady(
   const { store, secrets, damaged } = await loadProviders(area);
   const tasks: TaskKind[] =
     action === 'open'
-      ? ['correction', 'rewrite', 'translation']
+      ? ['correction', 'rewrite', 'translation', 'summary']
       : [ACTION_TASKS[action]];
   return (
     !damaged && tasks.some((task) => resolveRoute(store, secrets, task).ok)
@@ -359,6 +360,20 @@ export function registerServiceWorker(
       isTranslateTextRequest(message)
     )
       task = controller.translate(message, origin(sender));
+    else if (
+      isContentScriptSender(sender, chrome.runtime.id) &&
+      isSummarizeTextRequest(message)
+    )
+      task = controller.summarize(
+        {
+          text: message.text,
+          target: message.target,
+          variant: message.variant,
+          length: message.length,
+          format: message.format,
+        },
+        origin(sender),
+      );
     else if (
       isContentScriptSender(sender, chrome.runtime.id) &&
       isAiEditRequest(message)

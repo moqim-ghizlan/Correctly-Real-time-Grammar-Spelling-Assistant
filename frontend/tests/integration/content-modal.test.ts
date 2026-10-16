@@ -203,7 +203,8 @@ describe('opening and session', () => {
     ).toBe(false);
     const dialog = modal.root.querySelector('[role="dialog"]')!;
     expect(dialog.getAttribute('aria-modal')).toBe('true');
-    expect(modal.root.querySelectorAll('[role="tab"]')).toHaveLength(3);
+    // V5.12: Summary is the fourth tab.
+    expect(modal.root.querySelectorAll('[role="tab"]')).toHaveLength(4);
   });
 
   it('M05: the gear asks the worker to open the options page; nothing else', () => {
@@ -255,7 +256,7 @@ describe('opening and session', () => {
     tablist.dispatchEvent(
       new KeyboardEvent('keydown', { key: 'End', bubbles: true }),
     );
-    expect(modal.activeTab).toBe('translation');
+    expect(modal.activeTab).toBe('summary');
     tablist.dispatchEvent(
       new KeyboardEvent('keydown', { key: 'ArrowRight', bubbles: true }),
     );

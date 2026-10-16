@@ -117,8 +117,8 @@ describe('profiles', () => {
   it('UI-01: an empty list shows the setup prompt; nothing is sent', async () => {
     await openPage();
     expect($('profile-empty').hidden).toBe(false);
-    expect(text('route-summary-default')).toMatch(/No default route/);
-    expect(text('route-summary-correction')).toMatch(/Needs configuration/);
+    expect(text('route-summary-default')).toMatch(/Aucune route par défaut/);
+    expect(text('route-summary-correction')).toMatch(/À configurer/);
     expect($<HTMLInputElement>('profile-key').type).toBe('password');
     expect(fetchImpl).not.toHaveBeenCalled();
     expect(sent).toHaveLength(0);
@@ -128,7 +128,9 @@ describe('profiles', () => {
     const section = await openPage();
     $<HTMLInputElement>('profile-key').type = 'text';
     await addKey(section, 'gemini', 'Gemini Personal', `  ${FAKE_KEY} `);
-    expect(text('profile-message')).toMatch(/Key saved\. Nothing was sent/);
+    expect(text('profile-message')).toMatch(
+      /Clé enregistrée\. Rien n’a été envoyé/,
+    );
     expect($<HTMLInputElement>('profile-key').value).toBe('');
     expect($<HTMLInputElement>('profile-key').type).toBe('password');
     $<HTMLSelectElement>('profile-provider').value = 'openai';
@@ -138,7 +140,7 @@ describe('profiles', () => {
     );
     await addKey(section, 'openai', 'OpenAI Personal', OPENAI_KEY);
     expect(text('profile-list')).toMatch(
-      /Gemini Personal.*Google Gemini.*Not checked/,
+      /Gemini Personal.*Google Gemini.*Non vérifiée/,
     );
     expect(text('profile-list')).toMatch(/OpenAI Personal.*OpenAI/);
     await openPage();
@@ -152,17 +154,19 @@ describe('profiles', () => {
   it('UI-22/KEY-04: invalid input shows an error and writes nothing', async () => {
     const section = await openPage();
     await addKey(section, 'gemini', 'A', '   ');
-    expect(text('profile-message')).toBe('Paste an API key before saving.');
+    expect(text('profile-message')).toBe(
+      'Collez une clé API avant d’enregistrer.',
+    );
     expect($('profile-message').dataset.tone).toBe('error');
     await addKey(section, 'openai', 'A', 'AIza' + 'q'.repeat(35));
-    expect(text('profile-message')).toMatch(/Google key/);
+    expect(text('profile-message')).toMatch(/clé Google/);
     expect(area.data.has(PROVIDERS_KEY)).toBe(false);
   });
 
   it('UI-04/UI-05/KEY-25: rename sends nothing; replace needs a new value and confirmation', async () => {
     const section = await openPage();
     await addKey(section, 'gemini', 'Main', FAKE_KEY);
-    buttons('Edit')[0]!.click();
+    buttons('Modifier')[0]!.click();
     expect($<HTMLInputElement>('profile-key').value).toBe('');
     expect($<HTMLSelectElement>('profile-provider').disabled).toBe(true);
     $<HTMLInputElement>('profile-label').value = 'Gemini Main';
@@ -174,7 +178,7 @@ describe('profiles', () => {
     });
     // Cancelled replacement keeps the saved key.
     confirm.mockReturnValueOnce(false);
-    buttons('Edit')[0]!.click();
+    buttons('Modifier')[0]!.click();
     $<HTMLInputElement>('profile-key').value = OTHER_KEY;
     await section.saveProfile();
     loaded = await loadProviders(area);
@@ -194,21 +198,21 @@ describe('profiles', () => {
     await addKey(section, 'gemini', 'Main', FAKE_KEY);
     await chooseRoute(section, 'correction', 'Main', 'gemini-3.1-flash-lite');
     confirm.mockReturnValueOnce(false);
-    buttons('Delete')[0]!.click();
+    buttons('Supprimer')[0]!.click();
     await vi.waitFor(() => expect(confirm).toHaveBeenCalled());
     expect(confirm.mock.calls.at(-1)![0]).toMatch(
-      /Correction will stop working.*no other key is used automatically/,
+      /Correction cessera de fonctionner.*aucune autre clé n’est utilisée automatiquement/,
     );
     expect((await loadProviders(area)).store.profiles).toHaveLength(1);
-    buttons('Disable')[0]!.click();
+    buttons('Désactiver')[0]!.click();
     await vi.waitFor(() =>
-      expect(text('route-summary-correction')).toMatch(/Blocked/),
+      expect(text('route-summary-correction')).toMatch(/Bloquée/),
     );
-    expect(text('profile-list')).toMatch(/Disabled/);
-    buttons('Delete')[0]!.click();
+    expect(text('profile-list')).toMatch(/Désactivée/);
+    buttons('Supprimer')[0]!.click();
     await vi.waitFor(() =>
       expect(text('route-summary-correction')).toMatch(
-        /Needs configuration: the chosen key was deleted/,
+        /À configurer : la clé choisie a été supprimée/,
       ),
     );
     expect(area.dump()).not.toContain(FAKE_KEY);
@@ -223,8 +227,8 @@ describe('profiles', () => {
     );
     const { store } = await loadProviders(area);
     const pending = section.checkKey(store.profiles[0]!);
-    await vi.waitFor(() => expect(buttons('Checking…')).toHaveLength(1));
-    expect(buttons('Checking…')[0]!.disabled).toBe(true);
+    await vi.waitFor(() => expect(buttons('Vérification…')).toHaveLength(1));
+    expect(buttons('Vérification…')[0]!.disabled).toBe(true);
     void section.checkKey(store.profiles[0]!); // second click ignored
     await vi.waitFor(() => expect(fetchImpl).toHaveBeenCalled());
     release(
@@ -235,8 +239,10 @@ describe('profiles', () => {
     expect(sent).toEqual([
       { type: TEST_KEY, credentialId: store.profiles[0]!.id },
     ]);
-    expect(text('profile-message')).toMatch(/accepted by OpenAI: 1 text model/);
-    expect(text('profile-list')).toMatch(/Accepted on .* \(1 models\)/);
+    expect(text('profile-message')).toMatch(
+      /acceptée par OpenAI : 1 modèle\(s\) de texte/,
+    );
+    expect(text('profile-list')).toMatch(/Acceptée le .* \(1 modèles\)/);
     expect((await usageToday()).attempts).toBe(0);
   });
 
@@ -250,9 +256,9 @@ describe('profiles', () => {
     );
     await section.checkKey((await loadProviders(area)).store.profiles[0]!);
     expect(text('profile-message')).toMatch(
-      /The provider rejected this API key/,
+      /Le fournisseur a refusé cette clé API/,
     );
-    expect(text('profile-list')).toMatch(/Check failed/);
+    expect(text('profile-list')).toMatch(/Échec de la vérification/);
     expect(document.body.innerHTML).not.toContain(OPENAI_KEY);
   });
 });
@@ -275,7 +281,7 @@ describe('routes', () => {
       'Correction → OpenAI Personal (OpenAI) • gpt-5.6-luna',
     );
     expect(text('route-summary-rewrite')).toBe(
-      'Rewrite → Gemini Personal (Google Gemini) • gemini-3.1-flash-lite (default)',
+      'Reformulation → Gemini Personal (Google Gemini) • gemini-3.1-flash-lite (par défaut)',
     );
     expect(text('route-summary-translation')).toMatch(/gpt-5-nano$/);
     expect(fetchImpl).not.toHaveBeenCalled();
@@ -307,9 +313,9 @@ describe('routes', () => {
     expect(options).not.toContain('gemini-3.1-flash-lite');
     $<HTMLInputElement>('route-model-default').value = 'gemini-3.1-flash-lite';
     $('route-model-default').dispatchEvent(new Event('input'));
-    expect(text('route-note-default')).toMatch(/not a OpenAI model/);
+    expect(text('route-note-default')).toMatch(/pas un modèle OpenAI/);
     await section.saveRoute('default');
-    expect(text('route-message-default')).toMatch(/another provider/);
+    expect(text('route-message-default')).toMatch(/autre fournisseur/);
     expect((await loadProviders(area)).store.routes.default?.modelId).toBe(
       'gemini-3.1-flash-lite',
     );
@@ -323,7 +329,7 @@ describe('routes', () => {
     select.dispatchEvent(new Event('change'));
     $<HTMLInputElement>('route-model-default').value = 'gpt-7-experimental';
     $('route-model-default').dispatchEvent(new Event('input'));
-    expect(text('route-note-default')).toMatch(/Not reviewed by Correctly/);
+    expect(text('route-note-default')).toMatch(/Non vérifié par Correctly/);
   });
 
   it('Q-06: “Test” asks first, sends one tiny prompt through the saved route, and is counted', async () => {
@@ -336,7 +342,7 @@ describe('routes', () => {
     expect(fetchImpl).not.toHaveBeenCalled();
     fetchImpl.mockResolvedValueOnce(jsonResponse(200, openaiOk('OK')));
     await section.testRoute('default');
-    expect(confirm.mock.calls.at(-1)![0]).toMatch(/may be billed/);
+    expect(confirm.mock.calls.at(-1)![0]).toMatch(/peut être facturé/);
     expect(sent.at(-1)).toEqual({ type: TEST_CONNECTION, slot: 'default' });
     expect(fetchImpl).toHaveBeenCalledTimes(1);
     expect(fetchImpl.mock.calls[0]![0] as string).toBe(
@@ -348,7 +354,7 @@ describe('routes', () => {
       input: [{ role: 'user', content: 'Reply with OK only.' }],
     });
     expect(text('route-message-default')).toMatch(
-      /OpenAI • gpt-5-nano replied “OK”/,
+      /OpenAI • gpt-5-nano a répondu « OK »/,
     );
     const usage = await usageToday();
     expect(usage.attempts).toBe(1);
@@ -360,7 +366,7 @@ describe('routes', () => {
       confirm,
     }).init();
     expect(text('usage-routes')).toMatch(
-      /Test → OpenAI Personal \(OpenAI\) • gpt-5-nano: 1 request/,
+      /Test → OpenAI Personal \(OpenAI\) • gpt-5-nano : 1 requête/,
     );
   });
 
@@ -401,6 +407,7 @@ describe('routes', () => {
         rewrite: null,
         translation: null,
         translateRewrite: null,
+        summary: null,
       },
     };
     area.data.set(PROVIDERS_KEY, store);
@@ -409,5 +416,22 @@ describe('routes', () => {
       expect(text('profile-list')).toMatch(/From another window/),
     );
     section.onStorageChanged([STORAGE_KEYS.settings]);
+  });
+});
+
+describe('V5.12 Summary route', () => {
+  it('Summary has its own route, using the default until one is chosen', async () => {
+    const section = await openPage();
+    await addKey(section, 'gemini', 'Main', FAKE_KEY);
+    await chooseRoute(section, 'default', 'Main', 'gemini-3.1-flash-lite');
+    expect(text('route-summary-summary')).toMatch(/par défaut/i);
+    await chooseRoute(section, 'summary', 'Main', 'gemini-3.5-flash-lite');
+    const { store } = await loadProviders(area);
+    expect(store.routes.summary).toEqual({
+      credentialId: store.profiles[0]!.id,
+      modelId: 'gemini-3.5-flash-lite',
+    });
+    expect(store.routes.translation).toBeNull();
+    expect(fetchImpl).not.toHaveBeenCalled();
   });
 });

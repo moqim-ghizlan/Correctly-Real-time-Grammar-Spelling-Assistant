@@ -37,7 +37,7 @@ const extensionPath = resolve('dist');
 const DUMMY_KEY = 'CORRECTLY_TEST_SENTINEL_KEY_dummy_000000';
 const DUMMY_OPENAI_KEY = 'CORRECTLY_TEST_SENTINEL_KEY_openai_dummy_0';
 const profile = await mkdtemp(join(tmpdir(), 'correctly-v511-'));
-const EVIDENCE = 'docs/v5.11/evidence';
+const EVIDENCE = 'docs/v5.12/evidence';
 const delay = (ms) => new Promise((done) => setTimeout(done, ms));
 
 const evidence = {
@@ -190,13 +190,18 @@ async function clickTest(slot = 'default') {
   return page.evaluate(text(message));
 }
 /** Usage line of one limit row of the V5.8 "Usage limits" section. */
+const PERIOD = {
+  Daily: 'Par jour',
+  Weekly: 'Par semaine',
+  Monthly: 'Par mois',
+};
 const capRow = (legend, period) => `(() => {
   const set = [...document.querySelectorAll('fieldset.limits')].find(
     (node) => node.querySelector('legend').textContent === ${JSON.stringify(legend)});
   return [...set.querySelectorAll('.cap-row')].find(
-    (node) => node.querySelector('label span').textContent === ${JSON.stringify(period)});
+    (node) => node.querySelector('label span').textContent === ${JSON.stringify(PERIOD[period])});
 })()`;
-const TOTAL = 'Total (all actions, providers and keys)';
+const TOTAL = 'Total (toutes actions, tous fournisseurs et toutes clés)';
 const totalDaily = `${capRow(TOTAL, 'Daily')}.querySelector('.cap-usage').textContent`;
 /** Types a total daily limit and saves it like the owner would. */
 async function saveTotalDaily(value) {
@@ -208,7 +213,9 @@ async function saveTotalDaily(value) {
     document.getElementById('limits-message').textContent = '';
     document.getElementById('limits-save').click();
   })()`);
-  await page.until(`${text('limits-message')}.startsWith('Limits saved')`);
+  await page.until(
+    `${text('limits-message')}.startsWith('Limites enregistrées')`,
+  );
 }
 /** The worker's answer to a TEST_CONNECTION sent like the page sends it. */
 const sendTest = (slot = 'default') =>
@@ -382,8 +389,8 @@ try {
   await openOptions();
   await wakeWorker(extensionId);
   const manifest = await page.evaluate('chrome.runtime.getManifest()');
-  assert.equal(manifest.version, '5.11.0');
-  assert.equal(manifest.name, 'Correctly V5.11');
+  assert.equal(manifest.version, '5.12.0');
+  assert.equal(manifest.name, 'Correctly V5.12');
   assert.deepEqual(manifest.host_permissions, [
     'https://generativelanguage.googleapis.com/*',
     'https://api.openai.com/*',
@@ -407,12 +414,12 @@ try {
   );
   assert.match(
     await page.evaluate(text('route-summary-default')),
-    /No default route/,
+    /Aucune route par défaut/,
   );
-  await page.until(`${text('limits-state')} === 'Active'`);
+  await page.until(`${text('limits-state')} === 'Actives'`);
   assert.match(
     await page.evaluate(totalDaily),
-    /^Available — used 0 \/ 20, 20 remaining now\. Resets .+\)\.$/,
+    /^Disponible — 0 \/ 20 utilisée\(s\), 20 restante\(s\)\. Remise à zéro : .+\)\.$/,
   );
   const dbs = await page.evaluate(
     `indexedDB.databases().then((all) => all.map((d) => d.name))`,
@@ -475,7 +482,7 @@ try {
   );
   assert.match(
     await page.evaluate(text('route-summary-rewrite')),
-    /Gemini Test .* \(default\)$/,
+    /Gemini Test .* \(par défaut\)$/,
   );
   assert.equal(providerRequests().length, 0);
   step(
@@ -508,7 +515,7 @@ try {
     assert(
       listOpenAi.headerNames.some((n) => n.toLowerCase() === 'authorization'),
     );
-    assert.match(await page.evaluate(totalDaily), /used 0 \/ 20/);
+    assert.match(await page.evaluate(totalDaily), /0 \/ 20 utilisée/);
     step(
       'M5d',
       'PASS',
@@ -524,9 +531,9 @@ try {
       /^https:\/\/generativelanguage\.googleapis\.com\/v1beta\/models\/gemini-3\.1-flash-lite:generateContent$/,
     );
     assert.equal(openaiRequests().length, 1, 'no switch to OpenAI on failure');
-    assert.match(result, /rejected this API key|Offline|network/i);
+    assert.match(result, /refusé cette clé API|Hors ligne|réseau/i);
     // The worker's write reaches this page through IndexedDB + BroadcastChannel.
-    await page.until(`/used 1 \\/ 20/.test(${totalDaily})`);
+    await page.until(`/1 \\/ 20 utilisée/.test(${totalDaily})`);
     step(
       'M5b',
       'PASS',
@@ -538,15 +545,21 @@ try {
   const used = offline ? 0 : 1;
   let sentBefore = providerRequests().length;
   await saveTotalDaily(1);
-  await page.until(`/used ${used} \\/ 1/.test(${totalDaily})`);
+  await page.until(`/${used} \\/ 1 utilisée/.test(${totalDaily})`);
   if (offline) {
     step('M8', 'SKIPPED', '--offline: cap test needs one dispatched attempt');
   } else {
     const refusal = await clickTest('correction');
-    assert.match(refusal, /usage limit is reached/);
-    assert.match(refusal, /Daily total AI request limit reached \(1 \/ 1\)/);
+    assert.match(refusal, /limite d’usage de Correctly est atteinte/);
+    assert.match(
+      refusal,
+      /Limite journalière du total des requêtes IA atteinte \(1 \/ 1\)/,
+    );
     await openOptions();
-    assert.match(await clickTest('default'), /usage limit is reached/);
+    assert.match(
+      await clickTest('default'),
+      /limite d’usage de Correctly est atteinte/,
+    );
     assert.equal(
       providerRequests().length,
       sentBefore,
@@ -603,7 +616,7 @@ try {
     assert.equal(race.filter((r) => r.code === 'QUOTA_EXCEEDED').length, 19);
     assert.equal(race.filter((r) => r.code === 'INVALID_KEY').length, 1);
     assert.equal(googleRequests().filter((r) => r.method === 'POST').length, 1);
-    await page.until(`/used 2 \\/ 2/.test(${totalDaily})`);
+    await page.until(`/2 \\/ 2 utilisée/.test(${totalDaily})`);
     sentBefore = providerRequests().length;
     step(
       'L1',
@@ -619,7 +632,7 @@ try {
     box.checked = true;
     box.dispatchEvent(new Event('change'));
   })()`);
-  await page.until(`${text('limits-state')} === 'AI paused'`);
+  await page.until(`${text('limits-state')} === 'IA en pause'`);
   const timings = [];
   for (let i = 0; i < 30; i++) {
     const begin = Date.now();
@@ -636,7 +649,7 @@ try {
     box.checked = false;
     box.dispatchEvent(new Event('change'));
   })()`);
-  await page.until(`${text('limits-state')} === 'Active'`);
+  await page.until(`${text('limits-state')} === 'Actives'`);
   evidence.admissionLatencyMs = { samples: timings.length, p50, p95 };
   step(
     'L2',
@@ -676,13 +689,13 @@ try {
   await page.evaluate(
     `document.querySelector('[data-stats-preset="today"]').click()`,
   );
-  await page.until(`/^(Ready|No requests)$/.test(${text('stats-state')})`);
+  await page.until(`/^(À jour|Aucune requête)$/.test(${text('stats-state')})`);
   const sent = offline ? 0 : 2;
   assert.equal(await page.evaluate(text('stats-requests-value')), String(sent));
   assert.equal(await page.evaluate(text('stats-success-value')), '0');
   assert.equal(
     await page.evaluate(text('stats-cost-value')),
-    offline ? '$0.00' : 'Unavailable',
+    offline ? '$0.00' : 'Indisponible',
     'requests without token counts are unknown, never $0.00',
   );
   for (const preset of ['week', 'month', 'today'])
@@ -697,12 +710,12 @@ try {
   const openaiOnly = await page.evaluate(text('stats-requests-value'));
   for (let i = 0; i < 10; i++)
     await page.evaluate(`document.getElementById('stats-refresh').click()`);
-  await page.until(`/^(Ready|No requests)$/.test(${text('stats-state')})`);
+  await page.until(`/^(À jour|Aucune requête)$/.test(${text('stats-state')})`);
   await page.evaluate(`document.getElementById('stats-csv').click()`);
-  await page.until(`${text('stats-message')}.startsWith('Exported')`);
+  await page.until(`${text('stats-message')}.includes('.csv exporté')`);
   await page.evaluate(`document.getElementById('stats-json').click()`);
   await page.until(
-    `${text('stats-message')}.endsWith('.json (no text, no key).')`,
+    `${text('stats-message')}.endsWith('.json exporté (aucun texte, aucune clé).')`,
   );
   await delay(300);
   assert.equal(
@@ -729,6 +742,9 @@ try {
       `document.documentElement.scrollWidth - document.documentElement.clientWidth`,
     );
     assert(overflow <= 0, `horizontal overflow of ${overflow}px at ${width}px`);
+    // V5.12 settings layout: one page at a time; the overview is "start".
+    await page.evaluate(`location.hash = '#start'`);
+    await delay(150);
     const shot = await page.call('Page.captureScreenshot', {
       format: 'png',
       captureBeyondViewport: true,
@@ -743,6 +759,8 @@ try {
       ['usage-limits', 'limits'],
       ['statistics', 'statistics'],
     ]) {
+      await page.evaluate(`location.hash = '#${id}'`);
+      await delay(150);
       const box = await page.evaluate(`(() => {
         const r = document.getElementById('${id}').getBoundingClientRect();
         return { x: r.left + scrollX, y: r.top + scrollY, width: r.width, height: r.height };
@@ -760,6 +778,8 @@ try {
   }
   await page.call('Emulation.clearDeviceMetricsOverride');
   const focusOrder = [];
+  await page.evaluate(`location.hash = '#providers'`);
+  await delay(150);
   await page.evaluate('document.activeElement?.blur()');
   for (let i = 0; i < 16; i++) {
     await page.call('Input.dispatchKeyEvent', {
@@ -781,7 +801,7 @@ try {
     );
   }
   assert(
-    focusOrder.includes('profile-key') && focusOrder.includes('Check key'),
+    focusOrder.includes('profile-key') && focusOrder.includes('Vérifier'),
     'keyboard reaches key actions and the key field',
   );
   step(
@@ -793,9 +813,9 @@ try {
   // Scenario E: delete the default key → routes block, nothing else is used.
   await page.evaluate(`[...document.querySelectorAll('#profile-list li')]
     .find((li) => li.textContent.includes('Gemini Test'))
-    .querySelector('button[aria-label^="Delete"]').click()`);
+    .querySelector('button[aria-label^="Supprimer"]').click()`);
   await page.until(
-    `${text('route-summary-default')}.startsWith('Needs configuration')`,
+    `${text('route-summary-default')}.startsWith('À configurer')`,
   );
   const blocked = await sendTest('rewrite');
   assert.equal(blocked.code, 'ROUTE_BROKEN');
@@ -891,6 +911,8 @@ try {
           globalThis.correctlyRun('open', ['formal'], { source: 'auto', target: 'en', arabicVariant: 'msa' }, true);
         if (message.type === 'correctly.v5.correctText')
           return { ok: true, hasErrors: true, correctedText: 'Je suis allé à Lyon.', suspicious: false };
+        if (message.type === 'correctly.v5.summarizeText')
+          return { ok: true, unsummarizable: false, text: '• ملخص قصير', suspicious: false };
         return undefined;
       } } };
   })()`);
@@ -966,12 +988,13 @@ try {
   await delay(300); // opening animation done
   await screenshot('modal');
   const sizes = [];
-  for (const tab of ['correction', 'reformulation', 'translation']) {
+  for (const tab of ['correction', 'reformulation', 'translation', 'summary']) {
     await page.evaluate(`${modal}.selectTab('${tab}')`);
     sizes.push(await page.evaluate(size));
   }
   assert.deepEqual(sizes[0], sizes[1], 'same modal size on every tab');
   assert.deepEqual(sizes[0], sizes[2], 'same modal size on every tab');
+  assert.deepEqual(sizes[0], sizes[3], 'same modal size on every tab (V5.12)');
   const viewport = await page.evaluate(handleBox);
   assert(Math.abs(sizes[0][2] - viewport.vw / 2) <= 1, 'modal centred (x)');
   assert(Math.abs(sizes[0][3] - viewport.vh / 2) <= 1, 'modal centred (y)');
@@ -1003,6 +1026,64 @@ try {
     'C02',
     'PASS',
     'modal: real click opens it with the selection, handle hidden, Settings+Hide only, fixed centred size on all tabs, nothing sent before Generate, Apply hides it, Undo restores',
+  );
+
+  // V5.12: plain article text selected on the page survives a real click on
+  // the handle, fills the modal, and its summary can be copied, never applied.
+  await page.evaluate(`(() => {
+    const p = document.createElement('p');
+    p.id = 'article';
+    p.textContent = 'Le conseil municipal a voté un budget pour trois écoles.';
+    document.body.append(p);
+    document.activeElement?.blur();
+    const range = document.createRange();
+    range.selectNodeContents(p);
+    getSelection().removeAllRanges();
+    getSelection().addRange(range);
+    globalThis.sentMessages = [];
+  })()`);
+  const handleNow = await page.evaluate(handleBox);
+  await mouse('mousePressed', handleNow.vw - 8, handleNow.mid);
+  await mouse('mouseReleased', handleNow.vw - 8, handleNow.mid);
+  await page.until(`globalThis.correctlyModal?.visible === true`);
+  assert.equal(
+    await page.evaluate(`${modal}.sharedText`),
+    'Le conseil municipal a voté un budget pour trois écoles.',
+    'the page selection must survive the handle click',
+  );
+  assert.equal(await page.evaluate(`${modal}.activeTab`), 'correction');
+  await page.evaluate(`${modal}.selectTab('summary')`);
+  assert(
+    !(await page.evaluate(types)).includes('correctly.v5.summarizeText'),
+    'opening the Summary tab must not send',
+  );
+  await page.evaluate(`${modal}.generate('summary')`);
+  await page.until(`${modal}.root.textContent.includes('Suggested summary')`);
+  await screenshot('summary');
+  assert.equal(
+    (await page.evaluate(types)).filter(
+      (type) => type === 'correctly.v5.summarizeText',
+    ).length,
+    1,
+    'one summary request',
+  );
+  assert.equal(await page.evaluate(`${modal}.apply()`), false);
+  assert.equal(
+    await page.evaluate(
+      `[...${modal}.root.querySelectorAll('button')].find((b) => b.textContent === 'Apply').disabled`,
+    ),
+    true,
+    'Apply disabled on page text',
+  );
+  assert.equal(
+    await page.evaluate(`document.getElementById('article').textContent`),
+    'Le conseil municipal a voté un budget pour trois écoles.',
+  );
+  await page.evaluate(`${modal}.hide()`);
+  step(
+    'S12',
+    'PASS',
+    'V5.12: page text selection survives the handle click, Summary sends one request, Apply disabled, page unchanged',
   );
 
   // V5.6: real typing (trusted input events over CDP) expands a shortcut

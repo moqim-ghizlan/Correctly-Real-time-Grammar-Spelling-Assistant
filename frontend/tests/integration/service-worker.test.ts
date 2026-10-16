@@ -10,6 +10,7 @@ import {
   REWRITE_TEXT,
   TEST_CONNECTION,
   TEST_KEY,
+  SUMMARIZE_TEXT,
   TRANSLATE_TEXT,
 } from '../../src/shared/contracts';
 import { PROVIDERS_KEY, SECRETS_KEY } from '../../src/shared/providers';
@@ -769,6 +770,87 @@ describe('V5.5 translation', () => {
     await send({ type: OPEN_MODAL }, { ...contentSender, frameId: 3 });
     await vi.waitFor(() => expect(executeScript).toHaveBeenCalledTimes(2));
     expectInjected([3], ['open', ['friendly'], PREFS, true]);
+    expect(fetcher).not.toHaveBeenCalled();
+  });
+});
+
+describe('V5.12 summary', () => {
+  const base = {
+    type: SUMMARIZE_TEXT,
+    text: 'Le budget de 12 millions financera trois écoles.',
+    target: 'ar',
+    variant: 'syrian',
+    length: 'short',
+    format: 'key_points',
+  };
+  const configureSummary = () =>
+    saveSettings(
+      area,
+      normalizeSettings({
+        gemini: { apiKey: FAKE_KEY },
+        correction: { consent: true },
+      }),
+    );
+
+  it('SUMMARIZE_TEXT → exactly one call, Syrian Arabic asked directly', async () => {
+    await configureSummary();
+    fetcher.mockResolvedValueOnce(
+      jsonResponse(
+        200,
+        geminiOk(
+          JSON.stringify({
+            status: 'summarized',
+            points: ['ميزانية 12 مليون لتلات مدارس'],
+          }),
+        ),
+      ),
+    );
+    const { handled, reply } = await send(base, contentSender);
+    expect(handled).toBe(true);
+    expect(fetcher).toHaveBeenCalledTimes(1);
+    expect(reply).toMatchObject({
+      ok: true,
+      unsummarizable: false,
+      text: '• ميزانية 12 مليون لتلات مدارس',
+      operationId: ANY_ID,
+    });
+    const body = JSON.parse(fetcher.mock.calls[0]![1]!.body as string) as {
+      systemInstruction: { parts: { text: string }[] };
+    };
+    expect(body.systemInstruction.parts[0]!.text).toMatch(/Syrian colloquial/);
+    expect(body.systemInstruction.parts[0]!.text).not.toContain('budget');
+    expect(area.dump()).not.toContain('budget');
+  });
+
+  it('invalid options and forged senders never reach the network', async () => {
+    await configureSummary();
+    for (const [message, sender] of [
+      [{ ...base, variant: null }, contentSender],
+      [{ ...base, target: 'en' }, contentSender],
+      [{ ...base, length: 'huge' }, contentSender],
+      [{ ...base, format: 'html' }, contentSender],
+      [{ ...base, modelId: 'gemini-x' }, contentSender],
+      [{ ...base, text: 'a'.repeat(12001) }, contentSender],
+      [base, { ...contentSender, id: 'other' }],
+      [base, optionsSender],
+    ] as [unknown, chrome.runtime.MessageSender][]) {
+      const { handled } = await send(message, sender);
+      expect(handled).toBe(false);
+    }
+    expect(fetcher).not.toHaveBeenCalled();
+  });
+
+  it('a Summary-only route is enough to open the modal; nothing is sent', async () => {
+    await saveSettings(
+      area,
+      normalizeSettings({ correction: { consent: true } }),
+    );
+    seedProviders(area, [profile(GEMINI_ID, 'gemini')], {
+      summary: { credentialId: GEMINI_ID, modelId: 'gemini-3.1-flash-lite' },
+    });
+    onCommand('open-correctly', { id: 7 } as chrome.tabs.Tab);
+    await vi.waitFor(() => expect(executeScript).toHaveBeenCalledTimes(2));
+    expect(openOptionsPage).not.toHaveBeenCalled();
     expect(fetcher).not.toHaveBeenCalled();
   });
 });

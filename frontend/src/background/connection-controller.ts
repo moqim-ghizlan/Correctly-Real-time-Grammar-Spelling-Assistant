@@ -10,6 +10,7 @@ import type {
   RewriteResult,
   RewriteStyleId,
 } from '../shared/rewrite';
+import type { SummaryOptions, SummaryResult } from '../shared/summary';
 import {
   translationKeys,
   type TranslateTextRequest,
@@ -55,6 +56,7 @@ import {
 import { geminiAdapter, sanitizeSample, smokeTask } from './gemini-client';
 import { openaiAdapter } from './openai-client';
 import { REWRITE_TIMEOUT_MS, parseRewrite, rewriteTask } from './rewrite';
+import { SUMMARY_TIMEOUT_MS, parseSummary, summaryTask } from './summary';
 import { parseTranslation, translationTask } from './translate';
 import {
   REQUEST_TIMEOUT_MS,
@@ -122,8 +124,8 @@ export interface Origin {
 }
 
 /**
- * Handles TEST_CONNECTION, TEST_KEY, CORRECT_TEXT, REWRITE_TEXT and
- * TRANSLATE_TEXT. Requests run one at a time; each generation is bound to
+ * Handles TEST_CONNECTION, TEST_KEY, CORRECT_TEXT, REWRITE_TEXT,
+ * TRANSLATE_TEXT and SUMMARIZE_TEXT. Requests run one at a time; each generation is bound to
  * one frozen route (profile, key revision, model), admitted by every
  * applicable usage limit and marked sent in IndexedDB before the network is
  * touched, sent once and never retried or rerouted to another key, model or
@@ -250,6 +252,17 @@ export class ConnectionController {
     origin?: Origin,
   ): Promise<CandidatesResult<TranslationKey>> {
     return this.enqueue(() => this.runTranslate(request, origin));
+  }
+
+  /**
+   * V5.12: ONE request that detects the language, summarizes and writes the
+   * summary in the target language (never a second translation call).
+   */
+  summarize(
+    request: SummaryOptions & { text: string },
+    origin?: Origin,
+  ): Promise<SummaryResult> {
+    return this.enqueue(() => this.runSummary(request, origin));
   }
 
   /** V5.9: an Apply/Undo the page confirmed (statistics only; never a request). */
@@ -663,5 +676,37 @@ export class ConnectionController {
       missing: parsed.missing,
       ...notice,
     };
+  }
+
+  private async runSummary(
+    { text, ...options }: SummaryOptions & { text: string },
+    origin?: Origin,
+  ): Promise<SummaryResult> {
+    const [, core] = splitEdges(text);
+    const guard = await this.protect(core);
+    const result = await this.generate(
+      core,
+      'summary',
+      summaryTask(guard.text, options, guard.noteSome),
+      SUMMARY_TIMEOUT_MS,
+      (raw) => {
+        const parsed = parseSummary(raw, guard.text, options);
+        if (!parsed || parsed.unsummarizable) return parsed;
+        const restored = guard.restoreSome(parsed.text);
+        return restored === null ? null : { ...parsed, text: restored };
+      },
+      origin,
+    );
+    if (!result.ok) return result;
+    const { parsed, notice } = result;
+    return parsed.unsummarizable
+      ? { ok: true, unsummarizable: true, ...notice }
+      : {
+          ok: true,
+          unsummarizable: false,
+          text: parsed.text,
+          suspicious: parsed.suspicious,
+          ...notice,
+        };
   }
 }

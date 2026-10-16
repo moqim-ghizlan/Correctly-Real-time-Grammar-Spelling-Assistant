@@ -90,11 +90,12 @@ export function resolveRange(
   }
   const first = parseDate(from);
   const lastDay = parseDate(to);
-  if (!first || !lastDay) return { error: 'Choose a start and an end date.' };
+  if (!first || !lastDay)
+    return { error: 'Choisissez une date de début et une date de fin.' };
   const days = dayIndex(lastDay) - dayIndex(first) + 1;
-  if (days < 1) return { error: 'The end date is before the start date.' };
+  if (days < 1) return { error: 'La date de fin est avant la date de début.' };
   if (days > MAX_RANGE_DAYS)
-    return { error: `Choose at most ${MAX_RANGE_DAYS} days.` };
+    return { error: `Choisissez au plus ${MAX_RANGE_DAYS} jours.` };
   return {
     preset,
     timezone,
@@ -441,7 +442,7 @@ const costCell = (totals: Totals) =>
   totals.priced ? usdString(totals.costPico) : '';
 
 export const COST_NOTE =
-  'Local estimate from provider-reported tokens and the price references shown in Correctly; not an invoice.';
+  'Estimation locale à partir des tokens déclarés par le fournisseur et des prix de référence affichés dans Correctly ; ce n’est pas une facture.';
 
 export function toCsv(
   summary: Summary,

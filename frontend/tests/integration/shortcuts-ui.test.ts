@@ -88,7 +88,7 @@ describe('7: CRUD', () => {
     expect(text('shortcut-count')).toBe('1 / 500');
     expect($<HTMLInputElement>('shortcut-trigger').value).toBe('');
     await addVia(section, 'BJR', 'Autre');
-    expect(text('shortcut-message')).toContain('already exists');
+    expect(text('shortcut-message')).toContain('existe déjà');
     // The form keeps what was typed after an error.
     expect($<HTMLTextAreaElement>('shortcut-replacement').value).toBe('Autre');
     expect(rows()).toEqual(['bjr']);
@@ -100,7 +100,7 @@ describe('7: CRUD', () => {
     await addVia(section, 'bjr', 'Bonjour');
     const [entry] = (await loadShortcuts(area)).store.shortcuts;
     section.edit(entry!);
-    expect(text('shortcut-save')).toBe('Save changes');
+    expect(text('shortcut-save')).toBe('Enregistrer les modifications');
     $<HTMLTextAreaElement>('shortcut-replacement').value = 'Bonjour à tous';
     await section.save();
     let [saved] = (await loadShortcuts(area)).store.shortcuts;
@@ -109,14 +109,16 @@ describe('7: CRUD', () => {
     [saved] = (await loadShortcuts(area)).store.shortcuts;
     expect(saved?.enabled).toBe(false);
     expect(document.querySelector('#shortcut-list li')?.textContent).toContain(
-      'off',
+      'désactivé',
     );
     deps.confirm.mockReturnValueOnce(false);
     await section.remove(saved!);
     expect(rows()).toEqual(['bjr']);
     await section.remove(saved!);
     expect(rows()).toEqual([]);
-    expect(deps.confirm).toHaveBeenCalledWith('Delete the shortcut "bjr"?');
+    expect(deps.confirm).toHaveBeenCalledWith(
+      'Supprimer le raccourci « bjr » ?',
+    );
   });
 
   it('search filters by trigger or replacement without writing', async () => {
@@ -169,7 +171,7 @@ describe('global switch and site access', () => {
     $<HTMLInputElement>('shortcuts-enabled').checked = true;
     await section.toggleExpansion();
     expect((await loadShortcuts(area)).store.enabled).toBe(false);
-    expect(text('shortcuts-status')).toContain('not granted');
+    expect(text('shortcuts-status')).toContain('pas été accordé');
     $<HTMLInputElement>('shortcuts-enabled').checked = true;
     await section.toggleExpansion();
     expect((await loadShortcuts(area)).store.enabled).toBe(true);
@@ -209,7 +211,7 @@ describe('8: backup', () => {
     await section.importFile(file(backup));
     expect($('import-preview').hidden).toBe(false);
     expect(text('import-summary')).toContain(
-      '1 new, 0 identical, 1 different from yours (kept as they are)',
+      '1 nouveau(x), 0 identique(s), 1 différent(s) des vôtres (conservés tels quels)',
     );
     expect(area.sets).toBe(writes);
     await section.confirmImport();
@@ -236,7 +238,7 @@ describe('8: backup', () => {
       'input[value="replaceAll"]',
     )!.checked = true;
     section.preview();
-    expect(text('import-summary')).toContain('1 of yours will be DELETED');
+    expect(text('import-summary')).toContain('1 des vôtres seront SUPPRIMÉS');
     deps.confirm.mockReturnValueOnce(false);
     await section.confirmImport();
     expect(rows()).toEqual(['mine']);
@@ -245,7 +247,7 @@ describe('8: backup', () => {
 
     const before = JSON.stringify(area.data.get(SHORTCUTS_KEY));
     await section.importFile(file('{"format":"other"}'));
-    expect(text('import-message')).toContain('Nothing was changed');
+    expect(text('import-message')).toContain('Rien n’a été modifié');
     expect($('import-preview').hidden).toBe(true);
     expect(JSON.stringify(area.data.get(SHORTCUTS_KEY))).toBe(before);
   });

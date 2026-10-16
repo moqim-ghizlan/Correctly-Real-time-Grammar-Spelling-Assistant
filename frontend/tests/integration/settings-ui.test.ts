@@ -52,7 +52,7 @@ describe('initial state', () => {
   it('S06: storage failure on load keeps controls disabled with a message', async () => {
     area.failGet = true;
     await openPage();
-    expect(text('consent-message')).toContain('Browser storage');
+    expect(text('consent-message')).toContain('stockage du navigateur');
     expect($<HTMLInputElement>('correction-consent').disabled).toBe(true);
   });
 
@@ -84,7 +84,7 @@ describe('correction consent', () => {
     await vi.waitFor(async () =>
       expect((await loadSettings(area)).correction.consent).toBe(true),
     );
-    expect(text('consent-message')).toContain('Correction enabled');
+    expect(text('consent-message')).toContain('Envoi autorisé');
     await openPage();
     expect($<HTMLInputElement>('correction-consent').checked).toBe(true);
     expect(fetchImpl).not.toHaveBeenCalled();
@@ -109,8 +109,10 @@ describe('V5.3 entry points', () => {
     await vi.waitFor(() => expect(text('shortcut-label')).toBe('Ctrl+Shift+C'));
     await vi.waitFor(() => expect(text('open-shortcut-label')).toBe('Ctrl+M'));
     await openWith({ getShortcut: () => Promise.resolve('') });
-    await vi.waitFor(() => expect(text('shortcut-label')).toContain('not set'));
-    expect(text('open-shortcut-label')).toContain('not set');
+    await vi.waitFor(() =>
+      expect(text('shortcut-label')).toContain('non défini'),
+    );
+    expect(text('open-shortcut-label')).toContain('non défini');
   });
 
   it('defaults: shortcut and menu on, smart button off; toggles persist', async () => {
@@ -139,7 +141,7 @@ describe('V5.3 entry points', () => {
     await page.saveSmartButton();
     expect((await loadSettings(area)).triggers.smartButton).toBe(false);
     expect($<HTMLInputElement>('trigger-smart').checked).toBe(false);
-    expect(text('triggers-message')).toContain('not granted');
+    expect(text('triggers-message')).toContain('pas été accordé');
 
     enableSmartButton.mockResolvedValueOnce(true);
     $<HTMLInputElement>('trigger-smart').checked = true;
@@ -170,7 +172,7 @@ describe('V5.4 rewrite settings', () => {
     box('professional').checked = false;
     box('funny').checked = false;
     await page.saveRewrite();
-    expect(text('rewrite-message')).toContain('at least one');
+    expect(text('rewrite-message')).toContain('au moins un');
     expect((await loadSettings(area)).rewrite.defaultStyles).toEqual([
       'professional',
       'funny',
@@ -201,7 +203,7 @@ describe('V5.5 translation settings', () => {
     expect($('translation-variant-row').hidden).toBe(false);
     select('translation-source').value = 'ar';
     await page.saveTranslation();
-    expect(text('translation-message')).toContain('the same');
+    expect(text('translation-message')).toContain('identiques');
     expect((await loadSettings(area)).translation.source).toBe('auto');
     expect(fetchImpl).not.toHaveBeenCalled();
   });

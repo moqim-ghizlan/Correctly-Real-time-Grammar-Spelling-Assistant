@@ -1,4 +1,3 @@
-import { errorMessage } from '../shared/errors';
 import {
   MAX_BACKUP_BYTES,
   MAX_SHORTCUTS,
@@ -22,6 +21,7 @@ import {
   type ShortcutStore,
 } from '../shared/shortcuts';
 import type { StorageArea } from '../shared/storage';
+import { erreur as errorMessage } from './fr';
 import type { Tone } from './settings-ui';
 
 // V5.6 "Text shortcuts" settings: local CRUD, search, JSON backup/restore.
@@ -80,13 +80,13 @@ export class ShortcutsSection {
       if (loaded.damaged)
         this.message(
           'shortcuts-status',
-          'Saved shortcuts are damaged. They were left untouched; nothing can be changed until they are repaired.',
+          'Les raccourcis enregistrés sont endommagés. Ils n’ont pas été modifiés ; rien ne peut être changé tant qu’ils ne sont pas réparés.',
           'error',
         );
       else if (loaded.origin === 'v4')
         this.message(
           'shortcuts-status',
-          `Your ${loaded.store.shortcuts.length} V4 shortcut(s) were found and are shown below. They are saved in the new format at your next change; the old copy is kept.`,
+          `Vos ${loaded.store.shortcuts.length} raccourci(s) V4 ont été retrouvé(s) et sont affichés ci-dessous. Ils seront enregistrés au nouveau format à votre prochaine modification ; l’ancienne copie est conservée.`,
           'info',
         );
       this.setEnabled(!loaded.damaged);
@@ -192,20 +192,20 @@ export class ShortcutsSection {
         box.checked = false;
         this.message(
           'shortcuts-status',
-          'Site access was not granted, so shortcuts are not expanded.',
+          'L’accès aux sites n’a pas été accordé : les raccourcis ne sont pas développés.',
           'error',
         );
         return;
       }
       await this.run(
         setExpansion(true),
-        'Shortcuts on. Reload already open pages to use them.',
+        'Raccourcis activés. Rechargez les pages déjà ouvertes pour les utiliser.',
         'shortcuts-status',
       );
     } else if (
       await this.run(
         setExpansion(false),
-        'Shortcuts off. Typing is never changed.',
+        'Raccourcis désactivés. La saisie n’est jamais modifiée.',
         'shortcuts-status',
       )
     )
@@ -231,8 +231,8 @@ export class ShortcutsSection {
     const ok = await this.run(
       editing ? updateShortcut(editing, draft) : addShortcut(draft),
       editing
-        ? 'Shortcut updated.'
-        : `Shortcut "${draft.trigger.trim()}" saved.`,
+        ? 'Raccourci mis à jour.'
+        : `Raccourci « ${draft.trigger.trim()} » enregistré.`,
     );
     // On error the form keeps what the user typed.
     if (ok) this.resetForm();
@@ -248,7 +248,7 @@ export class ShortcutsSection {
       entry.protectTriggerInAi;
     this.el<HTMLInputElement>('shortcut-protect-replacement').checked =
       entry.protectReplacementInAi;
-    this.el('shortcut-save').textContent = 'Save changes';
+    this.el('shortcut-save').textContent = 'Enregistrer les modifications';
     this.el('shortcut-cancel').hidden = false;
     this.el('shortcut-trigger').focus();
   }
@@ -256,21 +256,22 @@ export class ShortcutsSection {
   private resetForm() {
     this.editing = null;
     this.el<HTMLFormElement>('shortcut-form').reset();
-    this.el('shortcut-save').textContent = 'Add shortcut';
+    this.el('shortcut-save').textContent = 'Ajouter le raccourci';
     this.el('shortcut-cancel').hidden = true;
   }
 
   async toggle(entry: ShortcutRecord): Promise<void> {
     await this.run(
       updateShortcut(entry, { enabled: !entry.enabled }),
-      `"${entry.trigger}" ${entry.enabled ? 'disabled' : 'enabled'}.`,
+      `« ${entry.trigger} » ${entry.enabled ? 'désactivé' : 'activé'}.`,
     );
   }
 
   async remove(entry: ShortcutRecord): Promise<void> {
-    if (!this.deps.confirm(`Delete the shortcut "${entry.trigger}"?`)) return;
+    if (!this.deps.confirm(`Supprimer le raccourci « ${entry.trigger} » ?`))
+      return;
     if (this.editing?.id === entry.id) this.resetForm();
-    await this.run(removeShortcut(entry), `"${entry.trigger}" deleted.`);
+    await this.run(removeShortcut(entry), `« ${entry.trigger} » supprimé.`);
   }
 
   export(): void {
@@ -281,7 +282,7 @@ export class ShortcutsSection {
     );
     this.message(
       'import-message',
-      'Backup downloaded. It contains your replacement texts (possibly private) but never your API key.',
+      'Sauvegarde téléchargée. Elle contient vos textes de remplacement (parfois privés) mais jamais votre clé API.',
       'ok',
     );
   }
@@ -292,7 +293,7 @@ export class ShortcutsSection {
     try {
       if (file.size > MAX_BACKUP_BYTES)
         throw new ShortcutError(
-          'This file is too large to be a shortcut backup.',
+          'Ce fichier est trop gros pour être une sauvegarde de raccourcis.',
         );
       // FileReader works everywhere (incl. older engines without Blob.text).
       const content = await new Promise<string>((resolve, reject) => {
@@ -308,7 +309,7 @@ export class ShortcutsSection {
     } catch (error) {
       this.message(
         'import-message',
-        `${error instanceof ShortcutError ? error.message : 'The file could not be read.'} Nothing was changed.`,
+        `${error instanceof ShortcutError ? error.message : 'Le fichier n’a pas pu être lu.'} Rien n’a été modifié.`,
         'error',
       );
     }
@@ -327,16 +328,18 @@ export class ShortcutsSection {
       this.plan = planImport(this.store, this.incoming, this.policy());
       const { added, identical, conflicts, removed, policy } = this.plan;
       this.el('import-summary').textContent =
-        `${this.incoming.length} shortcut(s) in the file: ${added} new, ${identical} identical, ${conflicts} different from yours` +
-        (policy === 'skip' && conflicts ? ' (kept as they are)' : '') +
-        (policy === 'overwrite' && conflicts ? ' (replaced by the file)' : '') +
-        (removed ? `; ${removed} of yours will be DELETED` : '') +
+        `${this.incoming.length} raccourci(s) dans le fichier : ${added} nouveau(x), ${identical} identique(s), ${conflicts} différent(s) des vôtres` +
+        (policy === 'skip' && conflicts ? ' (conservés tels quels)' : '') +
+        (policy === 'overwrite' && conflicts
+          ? ' (remplacés par le fichier)'
+          : '') +
+        (removed ? ` ; ${removed} des vôtres seront SUPPRIMÉS` : '') +
         '.';
       this.el<HTMLButtonElement>('import-confirm').disabled = false;
     } catch (error) {
       this.plan = null;
       this.el('import-summary').textContent =
-        error instanceof ShortcutError ? error.message : 'Invalid import.';
+        error instanceof ShortcutError ? error.message : 'Import invalide.';
       this.el<HTMLButtonElement>('import-confirm').disabled = true;
     }
   }
@@ -347,16 +350,16 @@ export class ShortcutsSection {
     if (
       plan.policy === 'replaceAll' &&
       !this.deps.confirm(
-        `Replace ALL your shortcuts with the ${plan.next.length} from the file? ${plan.removed} current shortcut(s) will be deleted. Export a backup first if unsure.`,
+        `Remplacer TOUS vos raccourcis par les ${plan.next.length} du fichier ? ${plan.removed} raccourci(s) actuel(s) seront supprimé(s). Exportez d’abord une sauvegarde en cas de doute.`,
       )
     )
       return;
     if (
       await this.run(
         applyImport(plan),
-        `Import done: ${plan.added} added` +
-          (plan.policy === 'skip' ? '' : `, ${plan.conflicts} replaced`) +
-          (plan.removed ? `, ${plan.removed} removed` : '') +
+        `Import terminé : ${plan.added} ajouté(s)` +
+          (plan.policy === 'skip' ? '' : `, ${plan.conflicts} remplacé(s)`) +
+          (plan.removed ? `, ${plan.removed} supprimé(s)` : '') +
           '.',
         'import-message',
       )
@@ -402,9 +405,9 @@ export class ShortcutsSection {
         const tags = this.doc.createElement('span');
         tags.className = 'hint';
         tags.textContent = [
-          entry.enabled ? '' : 'off',
-          entry.protectTriggerInAi ? 'AI-protected' : '',
-          entry.protectReplacementInAi ? 'replacement protected' : '',
+          entry.enabled ? '' : 'désactivé',
+          entry.protectTriggerInAi ? 'protégé de l’IA' : '',
+          entry.protectReplacementInAi ? 'remplacement protégé' : '',
         ]
           .filter(Boolean)
           .join(' · ');
@@ -421,15 +424,17 @@ export class ShortcutsSection {
           trigger,
           preview,
           tags,
-          button('Edit', `Edit ${entry.trigger}`, () => this.edit(entry)),
+          button('Modifier', `Modifier ${entry.trigger}`, () =>
+            this.edit(entry),
+          ),
           button(
-            entry.enabled ? 'Disable' : 'Enable',
-            `${entry.enabled ? 'Disable' : 'Enable'} ${entry.trigger}`,
+            entry.enabled ? 'Désactiver' : 'Activer',
+            `${entry.enabled ? 'Désactiver' : 'Activer'} ${entry.trigger}`,
             () => void this.toggle(entry),
           ),
           button(
-            'Delete',
-            `Delete ${entry.trigger}`,
+            'Supprimer',
+            `Supprimer ${entry.trigger}`,
             () => void this.remove(entry),
           ),
         );

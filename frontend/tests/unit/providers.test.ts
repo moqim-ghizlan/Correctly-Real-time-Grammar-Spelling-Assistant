@@ -281,7 +281,7 @@ describe('KEY: profile writes', () => {
         area,
         addProfile({ provider: 'openai', label: ' MAIN ', key: OPENAI_KEY }),
       ),
-    ).rejects.toThrow(/already exists/);
+    ).rejects.toThrow(/existe déjà/);
   });
 
   it('KEY-06/09: rename keeps ID, key and routes; replace bumps the revision', async () => {
@@ -369,7 +369,7 @@ describe('KEY: profile writes', () => {
     ]);
     await expect(
       mutateProviders(area, setRoute('correction', openai)),
-    ).rejects.toThrow(/disabled/);
+    ).rejects.toThrow(/désactivée/);
     await expect(
       mutateProviders(
         area,
@@ -378,7 +378,7 @@ describe('KEY: profile writes', () => {
           modelId: 'gpt-5-nano',
         }),
       ),
-    ).rejects.toThrow(/another provider/);
+    ).rejects.toThrow(/autre fournisseur/);
     await expect(
       mutateProviders(
         area,
@@ -387,7 +387,7 @@ describe('KEY: profile writes', () => {
           modelId: 'Bad Model',
         }),
       ),
-    ).rejects.toThrow(/model ID/);
+    ).rejects.toThrow(/identifiant de modèle/);
     await mutateProviders(area, setRoute('correction', gemini));
     await mutateProviders(area, setRoute('correction', null));
     expect((await loadProviders(area)).store.routes.correction).toBeNull();
@@ -419,9 +419,9 @@ describe('KEY: profile writes', () => {
     await mutateProviders(area, renameProfile(shown, 'Renamed elsewhere'));
     await expect(
       mutateProviders(area, setProfileEnabled(shown, false)),
-    ).rejects.toThrow(/another window/);
+    ).rejects.toThrow(/autre fenêtre/);
     await expect(mutateProviders(area, deleteProfile(shown))).rejects.toThrow(
-      /another window/,
+      /autre fenêtre/,
     );
     expect((await loadProviders(area)).store.profiles[0]!.enabled).toBe(true);
   });
@@ -465,7 +465,7 @@ describe('KEY: profile writes', () => {
         area,
         addProfile({ provider: 'gemini', label: 'A', key: FAKE_KEY }),
       ),
-    ).rejects.toThrow(/damaged/);
+    ).rejects.toThrow(/endommagés/);
     expect(area.data.get(PROVIDERS_KEY)).toBe('corrupted');
   });
 

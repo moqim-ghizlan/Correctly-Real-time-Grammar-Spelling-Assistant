@@ -72,6 +72,7 @@ export const TASK_LABELS: Record<QuotaTask, string> = {
   rewrite: SLOT_LABELS.rewrite,
   translation: SLOT_LABELS.translation,
   translateRewrite: SLOT_LABELS.translateRewrite,
+  summary: SLOT_LABELS.summary,
   test: 'Test',
 };
 
@@ -162,6 +163,24 @@ function parseCapMap<K extends string>(
   return out;
 }
 
+/**
+ * V5.12 migration: a V5.8–V5.11 policy has no Summary caps. They are added
+ * off (summaries are still counted by every other applicable cap), with the
+ * global maxima as the values offered when the user turns one on. Every
+ * other cap and counter is kept as stored.
+ */
+function withSummaryCaps(tasks: unknown, global: PeriodCaps | null): unknown {
+  if (!global || !isPlainRecord(tasks) || 'summary' in tasks) return tasks;
+  return {
+    ...tasks,
+    summary: {
+      daily: cap(global.daily.max),
+      weekly: cap(global.weekly.max),
+      monthly: cap(global.monthly.max),
+    },
+  };
+}
+
 /** Is `value` an IANA time zone this browser knows? */
 export function isTimeZone(value: unknown): value is string {
   if (
@@ -219,7 +238,7 @@ export function parsePolicy(value: unknown): QuotaPolicy | null {
   )
     return null;
   const global = parsePeriodCaps(value.global);
-  const tasks = parseCapMap(value.tasks, TASKS);
+  const tasks = parseCapMap(withSummaryCaps(value.tasks, global), TASKS);
   const providers = parseCapMap(value.providers, PROVIDER_IDS);
   const ids = isPlainRecord(value.credentials)
     ? Object.keys(value.credentials)

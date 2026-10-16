@@ -7,10 +7,16 @@ import { QUOTA_CHANNEL, browserQuotaStore } from '../shared/quota-store';
 import { loadShortcuts } from '../shared/shortcuts';
 import { browserStorage, loadSettings } from '../shared/storage';
 import { LimitsSection } from './limits-ui';
+import { installNav } from './nav';
 import { StatsSection } from './stats-ui';
 import { ProvidersSection } from './providers-ui';
 import { SettingsPage } from './settings-ui';
 import { ShortcutsSection } from './shortcuts-ui';
+
+// One page of the settings at a time (sidebar + URL hash).
+installNav(document, window);
+const version = document.getElementById('app-version');
+if (version) version.textContent = chrome.runtime.getManifest().version;
 
 const area = browserStorage();
 const ALL_SITES = { origins: ['<all_urls>'] };

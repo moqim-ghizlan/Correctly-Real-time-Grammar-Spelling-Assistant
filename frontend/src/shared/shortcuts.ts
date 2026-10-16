@@ -59,14 +59,14 @@ export interface ShortcutDraft {
 /** Strict field picker: unknown keys are ignored, wrong types rejected. */
 export function validateDraft(value: unknown): ShortcutDraft {
   if (!value || typeof value !== 'object' || Array.isArray(value))
-    throw new ShortcutError('Invalid shortcut.');
+    throw new ShortcutError('Raccourci invalide.');
   const data = value as Record<string, unknown>;
   if (typeof data.trigger !== 'string' || typeof data.replacement !== 'string')
-    throw new ShortcutError('Invalid shortcut.');
+    throw new ShortcutError('Raccourci invalide.');
   const trigger = data.trigger.trim().normalize('NFC');
   if (!TRIGGER.test(trigger))
     throw new ShortcutError(
-      'Shortcut: 1–32 letters, digits, "_" or "-", without spaces or punctuation.',
+      'Raccourci : 1 à 32 lettres, chiffres, « _ » ou « - », sans espaces ni ponctuation.',
     );
   const replacement = data.replacement;
   if (
@@ -75,12 +75,13 @@ export function validateDraft(value: unknown): ShortcutDraft {
     hasControl(replacement)
   )
     throw new ShortcutError(
-      `Replacement: 1–${MAX_REPLACEMENT.toLocaleString('en')} characters of plain text.`,
+      `Remplacement : 1 à ${MAX_REPLACEMENT.toLocaleString('fr-FR')} caractères de texte brut.`,
     );
   const flag = (key: string, fallback: boolean) => {
     const item = data[key];
     if (item === undefined) return fallback;
-    if (typeof item !== 'boolean') throw new ShortcutError('Invalid shortcut.');
+    if (typeof item !== 'boolean')
+      throw new ShortcutError('Raccourci invalide.');
     return item;
   };
   return {
@@ -97,16 +98,17 @@ const ID = /^[A-Za-z0-9_-]{1,64}$/;
 
 /** Validates a whole list: shapes, 500 max, no duplicate trigger or ID. */
 export function validateList(list: unknown, keepIds = true): ShortcutRecord[] {
-  if (!Array.isArray(list)) throw new ShortcutError('Invalid shortcut list.');
+  if (!Array.isArray(list))
+    throw new ShortcutError('Liste de raccourcis invalide.');
   if (list.length > MAX_SHORTCUTS)
-    throw new ShortcutError(`At most ${MAX_SHORTCUTS} shortcuts.`);
+    throw new ShortcutError(`Au plus ${MAX_SHORTCUTS} raccourcis.`);
   const triggers = new Set<string>();
   const ids = new Set<string>();
   return list.map((item: unknown) => {
     const draft = validateDraft(item);
     const key = canonical(draft.trigger);
     if (triggers.has(key))
-      throw new ShortcutError(`Duplicate shortcut: ${draft.trigger}`);
+      throw new ShortcutError(`Raccourci en double : ${draft.trigger}`);
     triggers.add(key);
     const raw = (item as { id?: unknown }).id;
     let id = keepIds && typeof raw === 'string' && ID.test(raw) ? raw : newId();
@@ -197,7 +199,7 @@ export async function mutateShortcuts(
     const latest = await loadShortcuts(area);
     if (latest.damaged)
       throw new ShortcutError(
-        'Saved shortcuts are damaged and were left untouched. Export what you can and contact support.',
+        'Les raccourcis enregistrés sont endommagés ; ils n’ont pas été modifiés. Exportez ce que vous pouvez.',
       );
     const changed = change(latest.store);
     const next: ShortcutStore = {
@@ -210,7 +212,7 @@ export async function mutateShortcuts(
     const check = parseStore((await area.get([SHORTCUTS_KEY]))[SHORTCUTS_KEY]);
     if (!check || JSON.stringify(check) !== JSON.stringify(next))
       throw new ShortcutError(
-        'Saving could not be verified. Reload and retry.',
+        'L’enregistrement n’a pas pu être vérifié. Rechargez et réessayez.',
       );
     return next;
   };
@@ -230,14 +232,14 @@ export const addShortcut = (draft: unknown) => (store: ShortcutStore) => {
   const entry = validateDraft(draft);
   if (store.shortcuts.length >= MAX_SHORTCUTS)
     throw new ShortcutError(
-      `You already have ${MAX_SHORTCUTS} shortcuts. Delete one first.`,
+      `Vous avez déjà ${MAX_SHORTCUTS} raccourcis. Supprimez-en un d’abord.`,
     );
   if (
     store.shortcuts.some(
       (s) => canonical(s.trigger) === canonical(entry.trigger),
     )
   )
-    throw new ShortcutError(`"${entry.trigger}" already exists.`);
+    throw new ShortcutError(`« ${entry.trigger} » existe déjà.`);
   return {
     ...store,
     shortcuts: [...store.shortcuts, { id: newId(), ...entry }],
@@ -251,7 +253,7 @@ export const updateShortcut =
     const current = store.shortcuts.find((s) => s.id === expected.id);
     if (!sameRecord(current, expected))
       throw new ShortcutError(
-        'This shortcut was changed or deleted in another window. The list was reloaded.',
+        'Ce raccourci a été modifié ou supprimé dans une autre fenêtre. La liste a été rechargée.',
       );
     const entry = validateDraft({ ...expected, ...patch });
     if (
@@ -261,7 +263,7 @@ export const updateShortcut =
           canonical(s.trigger) === canonical(entry.trigger),
       )
     )
-      throw new ShortcutError(`"${entry.trigger}" already exists.`);
+      throw new ShortcutError(`« ${entry.trigger} » existe déjà.`);
     return {
       ...store,
       shortcuts: store.shortcuts.map((s) =>
@@ -279,7 +281,7 @@ export const removeShortcut =
       )
     )
       throw new ShortcutError(
-        'This shortcut was changed or deleted in another window. The list was reloaded.',
+        'Ce raccourci a été modifié ou supprimé dans une autre fenêtre. La liste a été rechargée.',
       );
     return {
       ...store,
@@ -324,12 +326,14 @@ export function exportBackup(store: ShortcutStore, now = new Date()): string {
 /** Parses an untrusted backup file; any invalid entry rejects the file. */
 export function parseBackup(text: string): ShortcutRecord[] {
   if (new TextEncoder().encode(text).length > MAX_BACKUP_BYTES)
-    throw new ShortcutError('This file is too large to be a shortcut backup.');
+    throw new ShortcutError(
+      'Ce fichier est trop gros pour être une sauvegarde de raccourcis.',
+    );
   let data: unknown;
   try {
     data = JSON.parse(text);
   } catch {
-    throw new ShortcutError('This file is not valid JSON.');
+    throw new ShortcutError('Ce fichier n’est pas un JSON valide.');
   }
   const record =
     data && typeof data === 'object' && !Array.isArray(data)
@@ -337,7 +341,7 @@ export function parseBackup(text: string): ShortcutRecord[] {
       : {};
   if (record.format !== BACKUP_FORMAT || record.schemaVersion !== 2)
     throw new ShortcutError(
-      'This is not a Correctly shortcut backup (unknown format or version).',
+      'Ce n’est pas une sauvegarde de raccourcis Correctly (format ou version inconnus).',
     );
   return validateList(record.shortcuts);
 }
@@ -398,7 +402,7 @@ export function planImport(
       : [...store.shortcuts.map((s) => updates.get(s.id) ?? s), ...additions];
   if (next.length > MAX_SHORTCUTS)
     throw new ShortcutError(
-      `This import would exceed ${MAX_SHORTCUTS} shortcuts. Nothing was changed.`,
+      `Cet import dépasserait ${MAX_SHORTCUTS} raccourcis. Rien n’a été modifié.`,
     );
   const kept = new Set(next.map((s) => canonical(s.trigger)));
   return {
@@ -417,7 +421,7 @@ export function planImport(
 export const applyImport = (plan: ImportPlan) => (store: ShortcutStore) => {
   if (store.revision !== plan.revision)
     throw new ShortcutError(
-      'Shortcuts changed since the preview. Choose the file again to review.',
+      'Les raccourcis ont changé depuis l’aperçu. Choisissez à nouveau le fichier.',
     );
   return { ...store, shortcuts: plan.next };
 };

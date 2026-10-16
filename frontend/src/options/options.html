@@ -1,813 +1,1083 @@
 <!doctype html>
-<html lang="en">
+<html lang="fr">
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <title>Correctly V5.9 — Settings</title>
+    <title>Paramètres — Correctly</title>
     <link rel="icon" href="/icons/icon-48.png" />
     <link rel="stylesheet" href="./settings-ui.css" />
   </head>
   <body>
-    <main id="app" aria-busy="true">
-      <header class="page-header">
-        <img
-          class="logo"
-          src="/icons/icon-48.png"
-          alt=""
-          width="40"
-          height="40"
-        />
-        <div>
-          <h1>Correctly V5.9</h1>
-          <p class="subtitle">Personal AI writing assistant</p>
-        </div>
-      </header>
-      <p class="scope">
-        Correctly corrects, rewrites or translates the text you select, on
-        request only, and expands your personal text shortcuts locally.
-      </p>
-
-      <section class="card" aria-labelledby="providers-title">
-        <h2 id="providers-title">AI providers</h2>
-        <p class="hint">
-          Use your own API keys from Google Gemini and/or OpenAI. You can save
-          several keys and choose below which key and model each action uses.
-          API keys use the provider's API billing:
-          <strong
-            >ChatGPT and Gemini consumer subscriptions are separate and do not
-            pay for API calls.</strong
-          >
-        </p>
-        <p id="providers-status" class="message" aria-live="polite"></p>
-        <p id="profile-empty" class="hint">
-          No API key saved yet. Add one to use AI correction, rewriting and
-          translation. Text shortcuts work without any key.
-        </p>
-        <ul
-          id="profile-list"
-          class="shortcut-list"
-          aria-label="Saved API keys"
-        ></ul>
-
-        <form id="profile-form" novalidate aria-labelledby="profile-form-title">
-          <h3 id="profile-form-title">Add an API key</h3>
-          <div class="key-row">
-            <label class="stack" for="profile-provider"
-              >Provider
-              <select id="profile-provider" disabled>
-                <option value="gemini">Google Gemini</option>
-                <option value="openai">OpenAI</option>
-              </select>
-            </label>
-            <label class="stack" for="profile-label"
-              >Name (only shown here)
-              <input
-                id="profile-label"
-                type="text"
-                maxlength="40"
-                autocomplete="off"
-                disabled
-              />
-            </label>
-          </div>
-          <label for="profile-key">API key</label>
-          <div class="key-row">
-            <input
-              id="profile-key"
-              type="password"
-              autocomplete="off"
-              autocapitalize="off"
-              spellcheck="false"
-              aria-describedby="key-warning profile-message"
-              disabled
-            />
-            <button
-              id="profile-toggle"
-              type="button"
-              class="ghost"
-              aria-controls="profile-key"
-              aria-pressed="false"
-              aria-label="Show the API key being typed"
-              disabled
-            >
-              Show
-            </button>
-          </div>
-          <p class="hint">
-            Spaces before or after the key are removed. Saving sends nothing.
-            <a
-              id="profile-help-link"
-              href="https://aistudio.google.com/apikey"
-              target="_blank"
-              rel="noopener noreferrer"
-              >Create a key in Google AI Studio</a
-            >.
-          </p>
-          <div class="actions">
-            <button id="profile-save" type="submit" class="primary" disabled>
-              Save key
-            </button>
-            <button id="profile-cancel" type="button" class="ghost" hidden>
-              Cancel
-            </button>
-          </div>
-          <p id="profile-message" class="message" aria-live="polite"></p>
-        </form>
-        <p id="key-warning" class="warning">
-          Personal-use keys are stored locally in this browser profile (not
-          synced, never exported, never shown again). This is not server-grade
-          secret storage: anyone with access to this profile or computer may
-          read them. Do not share this profile or publish keys; set spending
-          limits at your provider and rotate a key if in doubt.
-        </p>
-      </section>
-
-      <section class="card" aria-labelledby="routing-title">
-        <h2 id="routing-title">Which key and model each action uses</h2>
-        <p class="hint">
-          Each action uses exactly the key and model chosen here (or the default
-          route). If that key is missing, disabled or refused, the action stops
-          with a message:
-          <strong
-            >Correctly never switches to another key, model or provider by
-            itself</strong
-          >
-          and never retries on its own. Gemini and OpenAI are different
-          companies: the selected text goes only to the provider of the route
-          used. “Check key” is free; “Test” sends one tiny prompt and may be
-          billed.
-        </p>
-        <div id="route-list"></div>
-        <p class="hint">
-          Prices:
-          <a
-            href="https://ai.google.dev/gemini-api/docs/pricing"
-            target="_blank"
-            rel="noopener noreferrer"
-            >Gemini pricing</a
-          >,
-          <a
-            href="https://openai.com/api/pricing/"
-            target="_blank"
-            rel="noopener noreferrer"
-            >OpenAI pricing</a
-          >. Correctly does not show prices: they change and depend on your
-          account.
-        </p>
-      </section>
-
-      <section class="card" aria-labelledby="correction-title">
-        <h2 id="correction-title">Correction</h2>
-        <label class="check" for="correction-consent">
-          <input id="correction-consent" type="checkbox" disabled />
-          <span
-            >Send the text I select to the AI provider of that action's route
-            (Google Gemini or OpenAI, see above) when I ask Correctly to
-            correct, rewrite or translate it.</span
-          >
-        </label>
-        <p class="hint">
-          How to use: select text on a web page (up to 2,000 characters), then
-          open Correctly with its toolbar button, <kbd>Ctrl</kbd>+<kbd>M</kbd>
-          or the handle on the right edge of the page. The selection is copied
-          into the Correctly window; it is sent only when you click a
-          <strong>Generate</strong> button. Nothing changes until you click
-          <strong>Apply</strong>, which is available in plain text boxes;
-          elsewhere, copy the suggestion. Password, email, phone, URL, number
-          and search fields are never read. Each correction counts as one
-          request in the usage limits below and may incur charges from your
-          provider. Suggestions can be wrong: check them.
-        </p>
-        <p id="consent-message" class="message" aria-live="polite"></p>
-      </section>
-
-      <section class="card" aria-labelledby="triggers-title">
-        <h2 id="triggers-title">Correction shortcuts &amp; entry points</h2>
-        <p class="hint">
-          AI is called only after you activate Correctly. Each call may count
-          against your provider usage. The toolbar button always opens the
-          Correctly window.
-        </p>
-        <label class="check" for="trigger-keyboard">
-          <input id="trigger-keyboard" type="checkbox" disabled />
-          <span
-            >Keyboard shortcuts — open Correctly:
-            <strong id="open-shortcut-label">checking…</strong>; correct
-            directly: <strong id="shortcut-label">checking…</strong></span
-          >
-        </label>
-        <p class="hint">
-          Some key combinations are reserved by the browser or other apps.
-          <button id="open-shortcuts" type="button" class="ghost" disabled>
-            Change shortcut
-          </button>
-        </p>
-        <label class="check" for="trigger-menu">
-          <input id="trigger-menu" type="checkbox" disabled />
-          <span>Right-click menu: Correctly → Correct selected text</span>
-        </label>
-        <label class="check" for="trigger-smart">
-          <input id="trigger-smart" type="checkbox" disabled />
-          <span
-            >Correctly handle on the right edge of every page (click to open,
-            drag up or down to move; asks for access to all sites; turning it
-            off removes that access)</span
-          >
-        </label>
-        <p id="triggers-message" class="message" aria-live="polite"></p>
-      </section>
-
-      <section class="card" aria-labelledby="rewrite-title">
-        <h2 id="rewrite-title">Rewrite</h2>
-        <label class="check" for="rewrite-enabled">
-          <input id="rewrite-enabled" type="checkbox" disabled />
-          <span
-            >Offer “Rewrite selected text” (Reformulation tab, right-click menu,
-            optional shortcut)</span
-          >
-        </label>
-        <fieldset id="rewrite-styles" class="styles">
-          <legend>Styles selected by default</legend>
-        </fieldset>
-        <p class="hint">
-          You can change the styles each time before generating. All chosen
-          styles are produced by <strong>one</strong> AI request (one request in
-          the usage limits), in the language of your text — no translation.
-          Rewrites need an internet connection and may incur charges; they are
-          suggestions to review, and nothing changes until you click Apply.
-        </p>
-        <p id="rewrite-message" class="message" aria-live="polite"></p>
-      </section>
-
-      <section class="card" aria-labelledby="translation-title">
-        <h2 id="translation-title">Translation</h2>
-        <p class="hint">
-          Defaults for <strong>Translate</strong> and
-          <strong>Translate &amp; rewrite</strong> (Translation tab, right-click
-          menu, optional shortcut). You can change them each time before
-          translating. Translate &amp; rewrite uses the rewrite styles chosen
-          above.
-        </p>
-        <div class="key-row">
-          <label class="stack" for="translation-source"
-            >From
-            <select id="translation-source" disabled></select>
-          </label>
-          <label class="stack" for="translation-target"
-            >To
-            <select id="translation-target" disabled></select>
-          </label>
-          <label
-            class="stack"
-            id="translation-variant-row"
-            for="translation-variant"
-            >Arabic variant
-            <select id="translation-variant" disabled></select>
-          </label>
-        </div>
-        <p class="hint">
-          One AI request per translation (language detection included). Syrian
-          colloquial is everyday spoken Arabic; Modern Standard Arabic is the
-          formal written standard. Machine translation can be wrong: review it
-          before sending anything important.
-        </p>
-        <p id="translation-message" class="message" aria-live="polite"></p>
-      </section>
-
-      <section class="card" aria-labelledby="shortcuts-title">
-        <h2 id="shortcuts-title">Text shortcuts</h2>
-        <label class="check" for="shortcuts-enabled">
-          <input id="shortcuts-enabled" type="checkbox" disabled />
-          <span
-            >Expand my shortcuts while I type (asks for access to all sites;
-            turning it off removes that access if the Correctly handle is
-            off)</span
-          >
-        </label>
-        <p class="hint">
-          Type a shortcut followed by a space or <code>, ; : . ! ?</code> to
-          replace it locally — no internet, no AI, no quota. Never on paste, Tab
-          or Enter, and never in password, payment, code or rich editors.
-          Shortcuts are stored only in this browser profile (not synced): export
-          a backup.
-        </p>
-        <p id="shortcuts-status" class="message" aria-live="polite"></p>
-
-        <form id="shortcut-form" novalidate>
-          <label class="stack" for="shortcut-trigger"
-            >Shortcut (1–32 letters or digits)
-            <input
-              id="shortcut-trigger"
-              type="text"
-              maxlength="32"
-              autocomplete="off"
-              autocapitalize="off"
-              spellcheck="false"
-              disabled
-            />
-          </label>
-          <label class="stack" for="shortcut-replacement"
-            >Replacement text
-            <textarea
-              id="shortcut-replacement"
-              rows="2"
-              maxlength="2000"
-              disabled
-            ></textarea>
-          </label>
-          <label class="check" for="shortcut-entry-enabled">
-            <input
-              id="shortcut-entry-enabled"
-              type="checkbox"
-              checked
-              disabled
-            />
-            <span>Enabled</span>
-          </label>
-          <label class="check" for="shortcut-protect-trigger">
-            <input
-              id="shortcut-protect-trigger"
-              type="checkbox"
-              checked
-              disabled
-            />
-            <span
-              >Keep this shortcut unchanged when I ask Correctly to correct,
-              rewrite or translate</span
-            >
-          </label>
-          <label class="check" for="shortcut-protect-replacement">
-            <input id="shortcut-protect-replacement" type="checkbox" disabled />
-            <span
-              >Also keep the replacement text unchanged (for names, signatures
-              or codes — not for common words like “Bonjour”)</span
-            >
-          </label>
-          <div class="actions">
-            <button id="shortcut-save" type="submit" class="primary" disabled>
-              Add shortcut
-            </button>
-            <button id="shortcut-cancel" type="button" class="ghost" hidden>
-              Cancel edit
-            </button>
-          </div>
-          <p id="shortcut-message" class="message" aria-live="polite"></p>
-        </form>
-
-        <div class="key-row list-head">
-          <label class="stack" for="shortcut-search"
-            >Search
-            <input id="shortcut-search" type="search" disabled />
-          </label>
-          <span id="shortcut-count" class="hint">0 / 500</span>
-        </div>
-        <p id="shortcut-empty" class="hint">No shortcuts saved yet.</p>
-        <ul id="shortcut-list" class="shortcut-list"></ul>
-
-        <h3>Backup</h3>
-        <div class="actions">
-          <button id="shortcut-export" type="button" class="ghost" disabled>
-            Export JSON
-          </button>
-          <label class="file" for="shortcut-import"
-            >Import JSON
-            <input
-              id="shortcut-import"
-              type="file"
-              accept="application/json,.json"
-              disabled
-            />
-          </label>
-        </div>
-        <div id="import-preview" class="import" hidden>
-          <p id="import-summary"></p>
-          <fieldset class="styles">
-            <legend>If a shortcut already exists</legend>
-            <label class="check"
-              ><input type="radio" name="import-policy" value="skip" checked />
-              <span>Keep mine (add only new ones)</span></label
-            >
-            <label class="check"
-              ><input type="radio" name="import-policy" value="overwrite" />
-              <span>Replace mine with the file's version</span></label
-            >
-            <label class="check"
-              ><input type="radio" name="import-policy" value="replaceAll" />
-              <span>Replace ALL my shortcuts with the file</span></label
-            >
-          </fieldset>
-          <div class="actions">
-            <button id="import-confirm" type="button" class="primary">
-              Import
-            </button>
-            <button id="import-cancel" type="button" class="ghost">
-              Cancel
-            </button>
-          </div>
-        </div>
-        <p id="import-message" class="message" aria-live="polite"></p>
-      </section>
-
-      <section class="card" id="usage-limits" aria-labelledby="limits-title">
-        <div class="card-head">
-          <h2 id="limits-title">Usage limits</h2>
-          <p id="limits-state" class="status" data-tone="neutral">
-            <span class="dot"></span>Loading…
-          </p>
-        </div>
-        <p class="hint">
-          These limits apply to AI generation requests made by Correctly in this
-          browser profile. They do not guarantee a maximum API bill. One request
-          is counted when it is sent (or may have been sent), whatever the
-          number of styles or languages in it; key checks and text shortcuts
-          never count. A request is allowed only if every limit that is on
-          allows it; at 100% the matching requests are blocked before anything
-          is sent.
-        </p>
-        <p id="limits-status" class="message" role="status"></p>
-        <div id="limits-repair" class="warning" hidden>
-          <p>
-            The saved usage limits are missing or damaged, so no AI request is
-            sent. Restoring safe defaults keeps all recorded usage.
-          </p>
-          <button id="limits-repair-button" type="button">
-            Restore safe limits
-          </button>
-        </div>
-        <div id="limits-clock" class="warning" hidden>
-          <p>
-            Your computer's clock moved back since the last request, so AI
-            requests are paused (a clock change must not reset limits). Check
-            the date and time, then confirm.
-          </p>
-          <button id="limits-clock-confirm" type="button">
-            My clock is correct
-          </button>
-        </div>
-        <ul
-          id="limits-alerts"
-          class="alerts"
-          aria-label="Usage warnings"
-          aria-live="polite"
-        ></ul>
-        <label class="check" for="limits-pause">
-          <input id="limits-pause" type="checkbox" disabled />
-          <span
-            >Pause all AI requests (correction, rewrite, translation and tests).
-            Text shortcuts keep working.</span
-          >
-        </label>
-        <form id="limits-form" novalidate>
-          <div id="limits-groups"></div>
-          <p id="limits-global-error" class="message" data-tone="error"></p>
-          <details id="limits-advanced">
-            <summary>Limits per provider and per API key (optional)</summary>
-            <p class="hint">
-              These only add restrictions: they never give more than the total
-              and action limits allow. Correctly never switches to another key
-              or provider when one is blocked.
-            </p>
-            <div id="limits-advanced-groups"></div>
-          </details>
-          <fieldset class="route">
-            <legend>Warnings</legend>
-            <label class="check" for="limits-at80">
-              <input id="limits-at80" type="checkbox" disabled />
-              <span>Warn at 80% of a limit</span>
-            </label>
-            <label class="check" for="limits-at95">
-              <input id="limits-at95" type="checkbox" disabled />
-              <span>Warn at 95% of a limit</span>
-            </label>
-            <p class="hint">
-              At 100% the matching AI requests are always blocked. Warnings
-              appear next to the request that crossed them and here, once per
-              limit and period.
-            </p>
-          </fieldset>
-          <p class="hint">
-            Time zone of days, weeks (Monday to Sunday) and months:
-            <strong id="limits-timezone">—</strong>
-            <button
-              id="limits-timezone-change"
-              type="button"
-              class="ghost"
-              disabled
-            >
-              Change…
-            </button>
-          </p>
-          <div id="limits-timezone-row" hidden>
-            <label for="limits-timezone-input">IANA time zone</label>
-            <input
-              id="limits-timezone-input"
-              list="limits-timezones"
-              autocomplete="off"
-              aria-describedby="limits-timezone-error"
-            />
-            <datalist id="limits-timezones"></datalist>
-            <p class="hint">
-              Changing it never resets usage: the counts of the current day,
-              week and month carry over.
+    <a class="skip" href="#content">Aller au contenu</a>
+    <div class="layout">
+      <nav class="sidebar" aria-label="Sections des paramètres">
+        <div class="brand">
+          <img
+            class="logo"
+            src="/icons/icon-48.png"
+            alt=""
+            width="32"
+            height="32"
+          />
+          <div>
+            <p class="brand-name">Correctly</p>
+            <p class="brand-sub">
+              Paramètres <span id="app-version" class="version"></span>
             </p>
           </div>
-          <p id="limits-timezone-error" class="message" data-tone="error"></p>
-          <div class="actions">
-            <button id="limits-save" type="submit" class="primary" disabled>
-              Save limits
-            </button>
-            <button id="limits-reload" type="button" hidden>
-              Reload saved limits
-            </button>
-          </div>
-          <p id="limits-message" class="message" aria-live="polite"></p>
-        </form>
-        <p class="hint">
-          Full history, tokens and estimated cost:
-          <a href="#statistics">Statistics</a>.
-        </p>
-        <h3 class="subhead">Today by key, model and action</h3>
-        <ul
-          id="usage-routes"
-          class="hint"
-          aria-label="Today by key, model and action"
-        ></ul>
-        <p id="limits-tracking" class="hint"></p>
-        <p id="limit-note" class="hint">
-          Limits apply to this browser profile only: other browsers, profiles,
-          devices or apps using the same keys are not counted, and clearing the
-          browser's data erases them. A request whose answer was lost (timeout)
-          stays counted and may still be billed. Requests cost different amounts
-          (tokens), so a request limit is not a spending limit: set spend caps
-          at
-          <a
-            href="https://ai.google.dev/gemini-api/docs/billing"
-            target="_blank"
-            rel="noopener noreferrer"
-            >Google</a
-          >
-          and
-          <a
-            href="https://platform.openai.com/settings/organization/limits"
-            target="_blank"
-            rel="noopener noreferrer"
-            >OpenAI</a
-          >
-          (their enforcement may lag).
-        </p>
-      </section>
-
-      <section class="card" id="statistics" aria-labelledby="stats-title">
-        <div class="card-head">
-          <h2 id="stats-title">Statistics</h2>
-          <p id="stats-state" class="status" data-tone="neutral">
-            <span class="dot"></span>Loading…
-          </p>
         </div>
-        <p class="hint">
-          What Correctly recorded on this browser profile: requests sent,
-          results, edits applied, provider-reported tokens and an estimated
-          cost. Only metadata is kept (never your text or keys). Looking at,
-          filtering or exporting statistics never contacts an AI provider and
-          never changes a limit:
-          <a href="#usage-limits">Manage usage limits</a>.
-        </p>
-        <div class="period" role="group" aria-label="Period">
-          <button type="button" data-stats-preset="today" aria-pressed="true">
-            Today
-          </button>
-          <button type="button" data-stats-preset="week" aria-pressed="false">
-            This week
-          </button>
-          <button type="button" data-stats-preset="month" aria-pressed="false">
-            This month
-          </button>
-          <button type="button" data-stats-preset="custom" aria-pressed="false">
-            Custom range
-          </button>
-        </div>
-        <form id="stats-custom" class="key-row" novalidate hidden>
-          <label class="stack" for="stats-from"
-            >Start date <input id="stats-from" type="date"
-          /></label>
-          <label class="stack" for="stats-to"
-            >End date <input id="stats-to" type="date"
-          /></label>
-          <button type="submit">Show</button>
-        </form>
-        <p id="stats-range" class="hint"></p>
-        <div class="filters">
-          <label class="stack" for="stats-task"
-            >Action
-            <select id="stats-task" disabled></select
-          ></label>
-          <label class="stack" for="stats-provider"
-            >Provider
-            <select id="stats-provider" disabled></select
-          ></label>
-          <label class="stack" for="stats-model"
-            >Model
-            <select id="stats-model" disabled></select
-          ></label>
-          <label class="stack" for="stats-key"
-            >API key
-            <select id="stats-key" disabled></select
-          ></label>
-        </div>
-        <p id="stats-message" class="message" role="status"></p>
-        <p id="stats-coverage" class="warning" hidden></p>
-        <dl class="stats-cards">
-          <div>
-            <dt>Requests used</dt>
-            <dd id="stats-requests-value">—</dd>
-            <dd id="stats-requests-detail" class="hint"></dd>
-          </div>
-          <div>
-            <dt>Successful AI results</dt>
-            <dd id="stats-success-value">—</dd>
-            <dd id="stats-success-detail" class="hint"></dd>
-          </div>
-          <div>
-            <dt>AI edits applied</dt>
-            <dd id="stats-applied-value">—</dd>
-            <dd id="stats-applied-detail" class="hint"></dd>
-          </div>
-          <div>
-            <dt>Tokens reported</dt>
-            <dd id="stats-tokens-value">—</dd>
-            <dd id="stats-tokens-detail" class="hint"></dd>
-          </div>
-          <div>
-            <dt>Estimated API cost (USD)</dt>
-            <dd id="stats-cost-value">—</dd>
-            <dd id="stats-cost-detail" class="hint"></dd>
-          </div>
-        </dl>
-        <h3 class="subhead">Requests per day</h3>
-        <div id="stats-chart" class="chart" role="img"></div>
-        <details>
-          <summary>Requests per day as a table</summary>
-          <table id="stats-days" class="stats-table">
-            <thead>
-              <tr>
-                <th scope="col">Date</th>
-                <th scope="col">Requests</th>
-                <th scope="col">Successful</th>
-              </tr>
-            </thead>
-            <tbody></tbody>
-          </table>
-        </details>
-        <h3 class="subhead">By action</h3>
-        <div class="table-wrap">
-          <table id="stats-by-task" class="stats-table">
-            <thead>
-              <tr>
-                <th scope="col">Action</th>
-                <th scope="col">Requests</th>
-                <th scope="col">Successful</th>
-                <th scope="col">Tokens in / out</th>
-                <th scope="col">With tokens</th>
-                <th scope="col">Estimated USD</th>
-                <th scope="col">Cost coverage</th>
-              </tr>
-            </thead>
-            <tbody></tbody>
-          </table>
-        </div>
-        <p id="stats-applied-by-task" class="hint"></p>
-        <h3 class="subhead">By provider and model</h3>
-        <div class="table-wrap">
-          <table id="stats-by-model" class="stats-table">
-            <thead>
-              <tr>
-                <th scope="col">Model</th>
-                <th scope="col">Requests</th>
-                <th scope="col">Successful</th>
-                <th scope="col">Tokens in / out</th>
-                <th scope="col">With tokens</th>
-                <th scope="col">Estimated USD</th>
-                <th scope="col">Cost coverage</th>
-              </tr>
-            </thead>
-            <tbody></tbody>
-          </table>
-        </div>
-        <h3 class="subhead">By API key</h3>
-        <div class="table-wrap">
-          <table id="stats-by-key" class="stats-table">
-            <thead>
-              <tr>
-                <th scope="col">API key</th>
-                <th scope="col">Requests</th>
-                <th scope="col">Successful</th>
-                <th scope="col">Tokens in / out</th>
-                <th scope="col">With tokens</th>
-                <th scope="col">Estimated USD</th>
-                <th scope="col">Cost coverage</th>
-              </tr>
-            </thead>
-            <tbody></tbody>
-          </table>
-        </div>
-        <div class="actions">
-          <button id="stats-refresh" type="button">Refresh</button>
-          <button id="stats-csv" type="button" disabled>Export CSV</button>
-          <button id="stats-json" type="button" disabled>Export JSON</button>
-        </div>
-        <details id="stats-prices">
-          <summary>Price references (USD per 1M tokens)</summary>
-          <p class="hint">
-            Estimates use the tokens each provider reported and the price in
-            force when the request was sent. Official list prices were checked
-            on 15 October 2026 and may change: check your provider's current
-            rates. An estimate is not your invoice (no taxes, credits, free tier
-            or currency conversion).
-          </p>
-          <div class="table-wrap">
-            <table id="price-table" class="stats-table">
-              <thead>
-                <tr>
-                  <th scope="col">Model</th>
-                  <th scope="col">Input</th>
-                  <th scope="col">Cached input</th>
-                  <th scope="col">Output</th>
-                  <th scope="col">Applies to</th>
-                  <th scope="col">Source</th>
-                </tr>
-              </thead>
-              <tbody></tbody>
-            </table>
-          </div>
-          <form id="price-form" class="price-form" novalidate>
-            <label class="stack" for="price-provider"
-              >Provider
-              <select id="price-provider">
-                <option value="gemini">Google Gemini</option>
-                <option value="openai">OpenAI</option>
-              </select></label
-            >
-            <label class="stack" for="price-model"
-              >Exact model ID
-              <input id="price-model" list="price-models" autocomplete="off"
-            /></label>
-            <datalist id="price-models"></datalist>
-            <label class="stack" for="price-input"
-              >Input $ / 1M <input id="price-input" inputmode="decimal"
-            /></label>
-            <label class="stack" for="price-cached"
-              >Cached input $ / 1M (optional)
-              <input id="price-cached" inputmode="decimal"
-            /></label>
-            <label class="stack" for="price-output"
-              >Output $ / 1M <input id="price-output" inputmode="decimal"
-            /></label>
-            <label class="stack" for="price-from"
-              >Applies from <input id="price-from" type="date"
-            /></label>
-            <label class="stack" for="price-label"
-              >Source (text only) <input id="price-label" maxlength="120"
-            /></label>
-            <button type="submit">Add price reference</button>
-          </form>
-          <p id="price-message" class="message" aria-live="polite"></p>
-        </details>
-        <details id="stats-delete">
-          <summary>Delete statistics history</summary>
-          <p class="hint">
-            Deletes Correctly's local records of requests sent before the chosen
-            date and of the edits applied. Your API keys, your usage limits and
-            what they already counted are kept (limits stay enforced). Nothing
-            is deleted at Google or OpenAI. Export first if you want a copy.
-          </p>
-          <form id="stats-delete-form" class="key-row" novalidate>
-            <label class="stack" for="stats-delete-before"
-              >Delete requests sent before
-              <input id="stats-delete-before" type="date"
-            /></label>
-            <button type="submit" class="danger">Delete statistics</button>
-          </form>
-          <p id="stats-delete-message" class="message" aria-live="polite"></p>
-        </details>
-      </section>
-
-      <section class="card notes" aria-labelledby="notes-title">
-        <h2 id="notes-title">Notes</h2>
-        <ul>
+        <ul class="nav">
           <li>
-            Correctly reads a page selection only when you open it (toolbar
-            button, Ctrl+M, right-edge handle or right-click menu), sends it
-            only when you click Generate, and changes the page only when you
-            click Apply.
+            <a href="#start"
+              ><span class="nav-icon" aria-hidden="true">◎</span>Démarrage</a
+            >
           </li>
           <li>
-            OpenAI requests are sent with <code>store: false</code> (not kept
-            for later retrieval); this is not a zero-retention guarantee.
-            Documentation: <code>docs/v5.9/</code> in the project repository.
+            <a href="#providers"
+              ><span class="nav-icon" aria-hidden="true">⚿</span>Fournisseurs
+              IA</a
+            >
+          </li>
+          <li>
+            <a href="#actions"
+              ><span class="nav-icon" aria-hidden="true">✎</span>Actions</a
+            >
+          </li>
+          <li>
+            <a href="#shortcuts"
+              ><span class="nav-icon" aria-hidden="true">⌨</span>Raccourcis
+              texte</a
+            >
+          </li>
+          <li>
+            <a href="#usage-limits"
+              ><span class="nav-icon" aria-hidden="true">◔</span>Limites
+              d’usage</a
+            >
+          </li>
+          <li>
+            <a href="#statistics"
+              ><span class="nav-icon" aria-hidden="true">▤</span>Statistiques</a
+            >
+          </li>
+          <li>
+            <a href="#about"
+              ><span class="nav-icon" aria-hidden="true">ⓘ</span>À propos</a
+            >
           </li>
         </ul>
-      </section>
-    </main>
+      </nav>
+
+      <main id="app" aria-busy="true">
+        <div id="content" tabindex="-1"></div>
+
+        <!-- ============================================== Démarrage -->
+        <section class="page" id="start" aria-labelledby="start-title">
+          <header class="page-head">
+            <h1 id="start-title">Démarrage</h1>
+            <p class="lead">
+              Correctly corrige, reformule, traduit ou résume le texte que vous
+              sélectionnez, uniquement quand vous le demandez, et développe vos
+              raccourcis texte localement.
+            </p>
+          </header>
+
+          <ol class="steps">
+            <li>
+              <strong>Ajoutez une clé API</strong>
+              <span
+                >Google Gemini ou OpenAI, dans
+                <a href="#providers">Fournisseurs IA</a>.</span
+              >
+            </li>
+            <li>
+              <strong>Autorisez l’envoi</strong>
+              <span
+                >La case ci-dessous : sans elle, rien n’est jamais envoyé.</span
+              >
+            </li>
+            <li>
+              <strong>Sélectionnez du texte et ouvrez Correctly</strong>
+              <span
+                >Bouton de la barre d’outils, <kbd>Ctrl</kbd>+<kbd>M</kbd> ou la
+                poignée au bord droit de la page.</span
+              >
+            </li>
+          </ol>
+
+          <section class="card" aria-labelledby="correction-title">
+            <h2 id="correction-title">Envoi du texte à l’IA</h2>
+            <label class="check" for="correction-consent">
+              <input id="correction-consent" type="checkbox" disabled />
+              <span
+                >Envoyer le texte que je sélectionne au fournisseur d’IA de
+                l’action choisie (Google Gemini ou OpenAI) quand je demande à
+                Correctly de le corriger, reformuler, traduire ou résumer.</span
+              >
+            </label>
+            <p id="consent-message" class="message" aria-live="polite"></p>
+            <details class="more">
+              <summary>Comment ça marche</summary>
+              <p class="hint">
+                La sélection est copiée dans la fenêtre Correctly ; elle n’est
+                envoyée que quand vous cliquez sur un bouton
+                <strong>Générer</strong>. Rien ne change dans la page tant que
+                vous ne cliquez pas sur <strong>Appliquer</strong>, disponible
+                dans les zones de texte simples ; ailleurs, copiez le résultat.
+                Le texte d’un article peut être sélectionné pour le traduire ou
+                le résumer (copie seulement). Les champs mot de passe, e-mail,
+                téléphone, URL, nombre et recherche ne sont jamais lus. Chaque
+                génération compte comme une requête dans vos limites d’usage et
+                peut être facturée par votre fournisseur. Les suggestions
+                peuvent être fausses : vérifiez-les.
+              </p>
+            </details>
+          </section>
+
+          <section class="card" aria-labelledby="triggers-title">
+            <h2 id="triggers-title">Ouvrir Correctly</h2>
+            <p class="hint">
+              Le bouton de la barre d’outils ouvre toujours la fenêtre
+              Correctly. L’IA n’est appelée qu’après une action de votre part.
+            </p>
+            <label class="check" for="trigger-keyboard">
+              <input id="trigger-keyboard" type="checkbox" disabled />
+              <span
+                >Raccourcis clavier — ouvrir Correctly :
+                <strong id="open-shortcut-label">vérification…</strong> ;
+                corriger directement :
+                <strong id="shortcut-label">vérification…</strong></span
+              >
+            </label>
+            <p class="hint inline">
+              Certaines combinaisons sont réservées par le navigateur ou
+              d’autres applications.
+              <button id="open-shortcuts" type="button" class="ghost" disabled>
+                Modifier le raccourci
+              </button>
+            </p>
+            <label class="check" for="trigger-menu">
+              <input id="trigger-menu" type="checkbox" disabled />
+              <span
+                >Menu clic droit : Correctly → Corriger le texte
+                sélectionné</span
+              >
+            </label>
+            <label class="check" for="trigger-smart">
+              <input id="trigger-smart" type="checkbox" disabled />
+              <span
+                >Poignée Correctly au bord droit de chaque page (clic pour
+                ouvrir, glisser vers le haut ou le bas pour la déplacer ;
+                demande l’accès à tous les sites, retiré si vous la
+                désactivez)</span
+              >
+            </label>
+            <p id="triggers-message" class="message" aria-live="polite"></p>
+          </section>
+        </section>
+
+        <!-- ======================================== Fournisseurs IA -->
+        <section
+          class="page"
+          id="providers"
+          aria-labelledby="providers-title"
+          hidden
+        >
+          <header class="page-head">
+            <h1 id="providers-title">Fournisseurs IA</h1>
+            <p class="lead">
+              Utilisez vos propres clés API Google Gemini et/ou OpenAI, puis
+              choisissez la clé et le modèle de chaque action.
+              <strong
+                >Les abonnements ChatGPT et Gemini grand public sont séparés et
+                ne paient pas les appels API.</strong
+              >
+            </p>
+          </header>
+
+          <section class="card" aria-labelledby="keys-title">
+            <h2 id="keys-title">Clés API</h2>
+            <p id="providers-status" class="message" aria-live="polite"></p>
+            <p id="profile-empty" class="empty">
+              Aucune clé API enregistrée. Ajoutez-en une pour utiliser la
+              correction, la reformulation, la traduction et le résumé. Les
+              raccourcis texte fonctionnent sans clé.
+            </p>
+            <ul
+              id="profile-list"
+              class="shortcut-list"
+              aria-label="Clés API enregistrées"
+            ></ul>
+
+            <form
+              id="profile-form"
+              class="subcard"
+              novalidate
+              aria-labelledby="profile-form-title"
+            >
+              <h3 id="profile-form-title">Ajouter une clé API</h3>
+              <div class="grid-2">
+                <label class="stack" for="profile-provider"
+                  >Fournisseur
+                  <select id="profile-provider" disabled>
+                    <option value="gemini">Google Gemini</option>
+                    <option value="openai">OpenAI</option>
+                  </select>
+                </label>
+                <label class="stack" for="profile-label"
+                  >Nom (affiché seulement ici)
+                  <input
+                    id="profile-label"
+                    type="text"
+                    maxlength="40"
+                    autocomplete="off"
+                    disabled
+                  />
+                </label>
+              </div>
+              <label class="stack-label" for="profile-key">Clé API</label>
+              <div class="key-row">
+                <input
+                  id="profile-key"
+                  type="password"
+                  autocomplete="off"
+                  autocapitalize="off"
+                  spellcheck="false"
+                  aria-describedby="key-warning profile-message"
+                  disabled
+                />
+                <button
+                  id="profile-toggle"
+                  type="button"
+                  class="ghost"
+                  aria-controls="profile-key"
+                  aria-pressed="false"
+                  aria-label="Afficher la clé API saisie"
+                  disabled
+                >
+                  Afficher
+                </button>
+              </div>
+              <p class="hint">
+                Les espaces avant ou après la clé sont retirés. Enregistrer
+                n’envoie rien.
+                <a
+                  id="profile-help-link"
+                  href="https://aistudio.google.com/apikey"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  >Créer une clé dans Google AI Studio</a
+                >.
+              </p>
+              <div class="actions">
+                <button
+                  id="profile-save"
+                  type="submit"
+                  class="primary"
+                  disabled
+                >
+                  Enregistrer la clé
+                </button>
+                <button id="profile-cancel" type="button" class="ghost" hidden>
+                  Annuler
+                </button>
+              </div>
+              <p id="profile-message" class="message" aria-live="polite"></p>
+            </form>
+            <p id="key-warning" class="warning small">
+              Les clés sont stockées localement dans ce profil de navigateur
+              (non synchronisées, jamais exportées, jamais réaffichées). Ce
+              n’est pas un coffre-fort : toute personne ayant accès à ce profil
+              ou à cet ordinateur peut les lire. Fixez des plafonds de dépense
+              chez votre fournisseur et changez une clé en cas de doute.
+            </p>
+          </section>
+
+          <section class="card" aria-labelledby="routing-title">
+            <h2 id="routing-title">Clé et modèle de chaque action</h2>
+            <p class="hint">
+              Chaque action utilise exactement la clé et le modèle choisis ici
+              (ou la route par défaut). Si cette clé manque, est désactivée ou
+              refusée, l’action s’arrête avec un message :
+              <strong
+                >Correctly ne passe jamais tout seul à une autre clé, un autre
+                modèle ou un autre fournisseur</strong
+              >
+              et ne réessaie jamais seul. « Vérifier » est gratuit ; « Tester »
+              envoie un tout petit message et peut être facturé.
+            </p>
+            <div id="route-list" class="routes"></div>
+            <p class="hint">
+              Tarifs :
+              <a
+                href="https://ai.google.dev/gemini-api/docs/pricing"
+                target="_blank"
+                rel="noopener noreferrer"
+                >Gemini</a
+              >,
+              <a
+                href="https://openai.com/api/pricing/"
+                target="_blank"
+                rel="noopener noreferrer"
+                >OpenAI</a
+              >. Ils changent et dépendent de votre compte.
+            </p>
+          </section>
+        </section>
+
+        <!-- ================================================ Actions -->
+        <section
+          class="page"
+          id="actions"
+          aria-labelledby="actions-title"
+          hidden
+        >
+          <header class="page-head">
+            <h1 id="actions-title">Actions</h1>
+            <p class="lead">
+              Les choix par défaut des onglets Reformulation, Traduction et
+              Résumé. Vous pouvez les changer à chaque fois avant de générer.
+            </p>
+          </header>
+
+          <section class="card" aria-labelledby="rewrite-title">
+            <h2 id="rewrite-title">Reformulation</h2>
+            <label class="check" for="rewrite-enabled">
+              <input id="rewrite-enabled" type="checkbox" disabled />
+              <span
+                >Proposer la reformulation (onglet Reformulation, menu clic
+                droit, raccourci optionnel)</span
+              >
+            </label>
+            <fieldset id="rewrite-styles" class="styles">
+              <legend>Styles cochés par défaut</legend>
+            </fieldset>
+            <p class="hint">
+              Tous les styles choisis sont produits par <strong>une</strong>
+              seule requête IA, dans la langue de votre texte (pas de
+              traduction).
+            </p>
+            <p id="rewrite-message" class="message" aria-live="polite"></p>
+          </section>
+
+          <section class="card" aria-labelledby="translation-title">
+            <h2 id="translation-title">Traduction et résumé</h2>
+            <p class="hint">
+              Langues par défaut de l’onglet Traduction (et du menu clic droit).
+              L’onglet <strong>Résumé</strong> démarre avec la même langue cible
+              et la même variante d’arabe, et écrit le résumé directement dans
+              cette langue, en une requête.
+            </p>
+            <div class="grid-3">
+              <label class="stack" for="translation-source"
+                >De
+                <select id="translation-source" disabled></select>
+              </label>
+              <label class="stack" for="translation-target"
+                >Vers
+                <select id="translation-target" disabled></select>
+              </label>
+              <label
+                class="stack"
+                id="translation-variant-row"
+                for="translation-variant"
+                >Variante d’arabe
+                <select id="translation-variant" disabled></select>
+              </label>
+            </div>
+            <p class="hint">
+              Une requête IA par traduction (détection de la langue comprise).
+              Le syrien est l’arabe parlé au quotidien ; l’arabe standard
+              moderne est la norme écrite. Une traduction automatique peut être
+              fausse : relisez-la avant d’envoyer quelque chose d’important.
+            </p>
+            <p id="translation-message" class="message" aria-live="polite"></p>
+          </section>
+        </section>
+
+        <!-- ======================================= Raccourcis texte -->
+        <section
+          class="page"
+          id="shortcuts"
+          aria-labelledby="shortcuts-title"
+          hidden
+        >
+          <header class="page-head">
+            <h1 id="shortcuts-title">Raccourcis texte</h1>
+            <p class="lead">
+              Tapez un raccourci suivi d’un espace ou de
+              <code>, ; : . ! ?</code> pour le remplacer localement — sans
+              internet, sans IA, sans quota.
+            </p>
+          </header>
+
+          <section class="card" aria-label="Activation">
+            <label class="check" for="shortcuts-enabled">
+              <input id="shortcuts-enabled" type="checkbox" disabled />
+              <span
+                >Développer mes raccourcis pendant que je tape (demande l’accès
+                à tous les sites ; retiré si vous désactivez aussi la
+                poignée)</span
+              >
+            </label>
+            <p class="hint">
+              Jamais au collage, à Tab ou Entrée, ni dans les champs mot de
+              passe, paiement, code ou éditeurs riches. Les raccourcis restent
+              dans ce profil de navigateur (non synchronisés) : exportez une
+              sauvegarde.
+            </p>
+            <p id="shortcuts-status" class="message" aria-live="polite"></p>
+          </section>
+
+          <section class="card" aria-labelledby="shortcut-form-title">
+            <h2 id="shortcut-form-title">Ajouter un raccourci</h2>
+            <form id="shortcut-form" novalidate>
+              <label class="stack" for="shortcut-trigger"
+                >Raccourci (1 à 32 lettres ou chiffres)
+                <input
+                  id="shortcut-trigger"
+                  type="text"
+                  maxlength="32"
+                  autocomplete="off"
+                  autocapitalize="off"
+                  spellcheck="false"
+                  disabled
+                />
+              </label>
+              <label class="stack" for="shortcut-replacement"
+                >Texte de remplacement
+                <textarea
+                  id="shortcut-replacement"
+                  rows="2"
+                  maxlength="2000"
+                  disabled
+                ></textarea>
+              </label>
+              <label class="check" for="shortcut-entry-enabled">
+                <input
+                  id="shortcut-entry-enabled"
+                  type="checkbox"
+                  checked
+                  disabled
+                />
+                <span>Activé</span>
+              </label>
+              <label class="check" for="shortcut-protect-trigger">
+                <input
+                  id="shortcut-protect-trigger"
+                  type="checkbox"
+                  checked
+                  disabled
+                />
+                <span
+                  >Garder ce raccourci inchangé quand je demande à Correctly de
+                  corriger, reformuler, traduire ou résumer</span
+                >
+              </label>
+              <label class="check" for="shortcut-protect-replacement">
+                <input
+                  id="shortcut-protect-replacement"
+                  type="checkbox"
+                  disabled
+                />
+                <span
+                  >Garder aussi le texte de remplacement inchangé (noms,
+                  signatures, codes — pas des mots courants comme « Bonjour
+                  »)</span
+                >
+              </label>
+              <div class="actions">
+                <button
+                  id="shortcut-save"
+                  type="submit"
+                  class="primary"
+                  disabled
+                >
+                  Ajouter le raccourci
+                </button>
+                <button id="shortcut-cancel" type="button" class="ghost" hidden>
+                  Annuler la modification
+                </button>
+              </div>
+              <p id="shortcut-message" class="message" aria-live="polite"></p>
+            </form>
+          </section>
+
+          <section class="card" aria-labelledby="shortcut-list-title">
+            <div class="card-head">
+              <h2 id="shortcut-list-title">Mes raccourcis</h2>
+              <span id="shortcut-count" class="badge">0 / 500</span>
+            </div>
+            <label class="stack" for="shortcut-search"
+              >Rechercher
+              <input id="shortcut-search" type="search" disabled />
+            </label>
+            <p id="shortcut-empty" class="empty">
+              Aucun raccourci enregistré pour l’instant.
+            </p>
+            <ul id="shortcut-list" class="shortcut-list"></ul>
+          </section>
+
+          <section class="card" aria-labelledby="backup-title">
+            <h2 id="backup-title">Sauvegarde</h2>
+            <div class="actions">
+              <button id="shortcut-export" type="button" class="ghost" disabled>
+                Exporter (JSON)
+              </button>
+              <label class="file" for="shortcut-import"
+                >Importer (JSON)
+                <input
+                  id="shortcut-import"
+                  type="file"
+                  accept="application/json,.json"
+                  disabled
+                />
+              </label>
+            </div>
+            <div id="import-preview" class="import" hidden>
+              <p id="import-summary"></p>
+              <fieldset class="styles">
+                <legend>Si un raccourci existe déjà</legend>
+                <label class="check"
+                  ><input
+                    type="radio"
+                    name="import-policy"
+                    value="skip"
+                    checked
+                  />
+                  <span
+                    >Garder le mien (n’ajouter que les nouveaux)</span
+                  ></label
+                >
+                <label class="check"
+                  ><input type="radio" name="import-policy" value="overwrite" />
+                  <span>Remplacer le mien par celui du fichier</span></label
+                >
+                <label class="check"
+                  ><input
+                    type="radio"
+                    name="import-policy"
+                    value="replaceAll"
+                  />
+                  <span
+                    >Remplacer TOUS mes raccourcis par le fichier</span
+                  ></label
+                >
+              </fieldset>
+              <div class="actions">
+                <button id="import-confirm" type="button" class="primary">
+                  Importer
+                </button>
+                <button id="import-cancel" type="button" class="ghost">
+                  Annuler
+                </button>
+              </div>
+            </div>
+            <p id="import-message" class="message" aria-live="polite"></p>
+          </section>
+        </section>
+
+        <!-- ======================================= Limites d’usage -->
+        <section
+          class="page"
+          id="usage-limits"
+          aria-labelledby="limits-title"
+          hidden
+        >
+          <header class="page-head">
+            <div class="card-head">
+              <h1 id="limits-title">Limites d’usage</h1>
+              <p id="limits-state" class="status" data-tone="neutral">
+                <span class="dot"></span>Chargement…
+              </p>
+            </div>
+            <p class="lead">
+              Nombre maximal de requêtes IA envoyées par Correctly dans ce
+              profil de navigateur. Une requête compte quand elle est envoyée,
+              quel que soit le nombre de styles ou de langues ; vérifier une clé
+              et les raccourcis texte ne comptent jamais. À 100 %, les requêtes
+              concernées sont bloquées avant tout envoi.
+            </p>
+          </header>
+
+          <p id="limits-status" class="message" role="status"></p>
+          <div id="limits-repair" class="warning" hidden>
+            <p>
+              Les limites enregistrées sont absentes ou endommagées : aucune
+              requête IA n’est envoyée. Restaurer les valeurs sûres conserve
+              tout l’usage enregistré.
+            </p>
+            <button id="limits-repair-button" type="button">
+              Restaurer les limites sûres
+            </button>
+          </div>
+          <div id="limits-clock" class="warning" hidden>
+            <p>
+              L’horloge de votre ordinateur a reculé depuis la dernière requête
+              : les requêtes IA sont en pause (un changement d’heure ne doit pas
+              remettre les limites à zéro). Vérifiez la date et l’heure, puis
+              confirmez.
+            </p>
+            <button id="limits-clock-confirm" type="button">
+              Mon horloge est correcte
+            </button>
+          </div>
+          <ul
+            id="limits-alerts"
+            class="alerts"
+            aria-label="Alertes d’usage"
+            aria-live="polite"
+          ></ul>
+
+          <section class="card" aria-label="Pause">
+            <label class="check" for="limits-pause">
+              <input id="limits-pause" type="checkbox" disabled />
+              <span
+                >Mettre en pause toutes les requêtes IA (correction,
+                reformulation, traduction, résumé et tests). Les raccourcis
+                texte continuent de fonctionner.</span
+              >
+            </label>
+          </section>
+
+          <form id="limits-form" class="card" novalidate>
+            <h2>Limites</h2>
+            <div id="limits-groups" class="limit-groups"></div>
+            <p id="limits-global-error" class="message" data-tone="error"></p>
+            <details id="limits-tasks" class="more">
+              <summary>Limites par action (facultatif)</summary>
+              <p class="hint">
+                Correction, reformulation, traduction, résumé… Désactivées par
+                défaut, mais l’usage de chaque action est toujours compté.
+              </p>
+              <div id="limits-task-groups" class="limit-groups"></div>
+            </details>
+            <details id="limits-advanced" class="more">
+              <summary>
+                Limites par fournisseur et par clé API (facultatif)
+              </summary>
+              <p class="hint">
+                Elles ne font qu’ajouter des restrictions : jamais plus que ce
+                que permettent les limites totales et par action. Correctly ne
+                passe jamais à une autre clé ou un autre fournisseur quand l’une
+                est bloquée.
+              </p>
+              <div id="limits-advanced-groups" class="limit-groups"></div>
+            </details>
+            <fieldset class="route">
+              <legend>Alertes</legend>
+              <label class="check" for="limits-at80">
+                <input id="limits-at80" type="checkbox" disabled />
+                <span>Prévenir à 80 % d’une limite</span>
+              </label>
+              <label class="check" for="limits-at95">
+                <input id="limits-at95" type="checkbox" disabled />
+                <span>Prévenir à 95 % d’une limite</span>
+              </label>
+              <p class="hint">
+                À 100 %, les requêtes concernées sont toujours bloquées. Les
+                alertes s’affichent avec la requête qui les a déclenchées et
+                ici, une fois par limite et par période.
+              </p>
+            </fieldset>
+            <p class="hint inline">
+              Fuseau horaire des jours, semaines (lundi à dimanche) et mois :
+              <strong id="limits-timezone">—</strong>
+              <button
+                id="limits-timezone-change"
+                type="button"
+                class="ghost"
+                disabled
+              >
+                Modifier…
+              </button>
+            </p>
+            <div id="limits-timezone-row" hidden>
+              <label class="stack-label" for="limits-timezone-input"
+                >Fuseau horaire IANA</label
+              >
+              <input
+                id="limits-timezone-input"
+                list="limits-timezones"
+                autocomplete="off"
+                aria-describedby="limits-timezone-error"
+              />
+              <datalist id="limits-timezones"></datalist>
+              <p class="hint">
+                Le changer ne remet jamais l’usage à zéro : les compteurs du
+                jour, de la semaine et du mois sont conservés.
+              </p>
+            </div>
+            <p id="limits-timezone-error" class="message" data-tone="error"></p>
+            <div class="actions sticky-actions">
+              <button id="limits-save" type="submit" class="primary" disabled>
+                Enregistrer les limites
+              </button>
+              <button id="limits-reload" type="button" hidden>
+                Recharger les limites enregistrées
+              </button>
+            </div>
+            <p id="limits-message" class="message" aria-live="polite"></p>
+          </form>
+
+          <section class="card" aria-labelledby="today-title">
+            <h2 id="today-title">Aujourd’hui par clé, modèle et action</h2>
+            <ul
+              id="usage-routes"
+              class="hint list"
+              aria-label="Aujourd’hui par clé, modèle et action"
+            ></ul>
+            <p id="limits-tracking" class="hint"></p>
+            <p class="hint">
+              Historique complet, tokens et coût estimé :
+              <a href="#statistics">Statistiques</a>.
+            </p>
+          </section>
+
+          <p id="limit-note" class="hint footnote">
+            Les limites ne valent que pour ce profil de navigateur : les autres
+            navigateurs, profils, appareils ou applications utilisant les mêmes
+            clés ne sont pas comptés, et effacer les données du navigateur les
+            supprime. Une requête dont la réponse a été perdue reste comptée et
+            peut être facturée. Les requêtes ne coûtent pas toutes pareil
+            (tokens) : une limite de requêtes n’est pas une limite de dépense.
+            Fixez des plafonds chez
+            <a
+              href="https://ai.google.dev/gemini-api/docs/billing"
+              target="_blank"
+              rel="noopener noreferrer"
+              >Google</a
+            >
+            et
+            <a
+              href="https://platform.openai.com/settings/organization/limits"
+              target="_blank"
+              rel="noopener noreferrer"
+              >OpenAI</a
+            >
+            (leur application peut avoir du retard).
+          </p>
+        </section>
+
+        <!-- ========================================== Statistiques -->
+        <section
+          class="page"
+          id="statistics"
+          aria-labelledby="stats-title"
+          hidden
+        >
+          <header class="page-head">
+            <div class="card-head">
+              <h1 id="stats-title">Statistiques</h1>
+              <p id="stats-state" class="status" data-tone="neutral">
+                <span class="dot"></span>Chargement…
+              </p>
+            </div>
+            <p class="lead">
+              Ce que Correctly a enregistré dans ce profil : requêtes envoyées,
+              résultats, modifications appliquées, tokens déclarés et coût
+              estimé. Seules des métadonnées sont gardées (jamais votre texte ni
+              vos clés). Consulter ou exporter ne contacte jamais un fournisseur
+              et ne modifie aucune limite :
+              <a href="#usage-limits">gérer les limites d’usage</a>.
+            </p>
+          </header>
+
+          <section class="card" aria-label="Période et filtres">
+            <div class="period" role="group" aria-label="Période">
+              <button
+                type="button"
+                data-stats-preset="today"
+                aria-pressed="true"
+              >
+                Aujourd’hui
+              </button>
+              <button
+                type="button"
+                data-stats-preset="week"
+                aria-pressed="false"
+              >
+                Cette semaine
+              </button>
+              <button
+                type="button"
+                data-stats-preset="month"
+                aria-pressed="false"
+              >
+                Ce mois-ci
+              </button>
+              <button
+                type="button"
+                data-stats-preset="custom"
+                aria-pressed="false"
+              >
+                Personnalisée
+              </button>
+            </div>
+            <form id="stats-custom" class="key-row" novalidate hidden>
+              <label class="stack" for="stats-from"
+                >Date de début <input id="stats-from" type="date"
+              /></label>
+              <label class="stack" for="stats-to"
+                >Date de fin <input id="stats-to" type="date"
+              /></label>
+              <button type="submit">Afficher</button>
+            </form>
+            <p id="stats-range" class="hint"></p>
+            <div class="filters">
+              <label class="stack" for="stats-task"
+                >Action
+                <select id="stats-task" disabled></select
+              ></label>
+              <label class="stack" for="stats-provider"
+                >Fournisseur
+                <select id="stats-provider" disabled></select
+              ></label>
+              <label class="stack" for="stats-model"
+                >Modèle
+                <select id="stats-model" disabled></select
+              ></label>
+              <label class="stack" for="stats-key"
+                >Clé API
+                <select id="stats-key" disabled></select
+              ></label>
+            </div>
+          </section>
+
+          <p id="stats-message" class="message" role="status"></p>
+          <p id="stats-coverage" class="warning" hidden></p>
+          <dl class="stats-cards">
+            <div>
+              <dt>Requêtes utilisées</dt>
+              <dd id="stats-requests-value">—</dd>
+              <dd id="stats-requests-detail" class="hint"></dd>
+            </div>
+            <div>
+              <dt>Résultats IA réussis</dt>
+              <dd id="stats-success-value">—</dd>
+              <dd id="stats-success-detail" class="hint"></dd>
+            </div>
+            <div>
+              <dt>Modifications appliquées</dt>
+              <dd id="stats-applied-value">—</dd>
+              <dd id="stats-applied-detail" class="hint"></dd>
+            </div>
+            <div>
+              <dt>Tokens déclarés</dt>
+              <dd id="stats-tokens-value">—</dd>
+              <dd id="stats-tokens-detail" class="hint"></dd>
+            </div>
+            <div>
+              <dt>Coût API estimé (USD)</dt>
+              <dd id="stats-cost-value">—</dd>
+              <dd id="stats-cost-detail" class="hint"></dd>
+            </div>
+          </dl>
+
+          <section class="card" aria-labelledby="chart-title">
+            <h2 id="chart-title">Requêtes par jour</h2>
+            <div id="stats-chart" class="chart" role="img"></div>
+            <details class="more">
+              <summary>Voir sous forme de tableau</summary>
+              <table id="stats-days" class="stats-table">
+                <thead>
+                  <tr>
+                    <th scope="col">Date</th>
+                    <th scope="col">Requêtes</th>
+                    <th scope="col">Réussies</th>
+                  </tr>
+                </thead>
+                <tbody></tbody>
+              </table>
+            </details>
+          </section>
+
+          <section class="card" aria-labelledby="by-title">
+            <h2 id="by-title">Détail</h2>
+            <h3 class="subhead">Par action</h3>
+            <div class="table-wrap">
+              <table id="stats-by-task" class="stats-table">
+                <thead>
+                  <tr>
+                    <th scope="col">Action</th>
+                    <th scope="col">Requêtes</th>
+                    <th scope="col">Réussies</th>
+                    <th scope="col">Tokens entrée / sortie</th>
+                    <th scope="col">Avec tokens</th>
+                    <th scope="col">USD estimés</th>
+                    <th scope="col">Couverture du coût</th>
+                  </tr>
+                </thead>
+                <tbody></tbody>
+              </table>
+            </div>
+            <p id="stats-applied-by-task" class="hint"></p>
+            <h3 class="subhead">Par fournisseur et modèle</h3>
+            <div class="table-wrap">
+              <table id="stats-by-model" class="stats-table">
+                <thead>
+                  <tr>
+                    <th scope="col">Modèle</th>
+                    <th scope="col">Requêtes</th>
+                    <th scope="col">Réussies</th>
+                    <th scope="col">Tokens entrée / sortie</th>
+                    <th scope="col">Avec tokens</th>
+                    <th scope="col">USD estimés</th>
+                    <th scope="col">Couverture du coût</th>
+                  </tr>
+                </thead>
+                <tbody></tbody>
+              </table>
+            </div>
+            <h3 class="subhead">Par clé API</h3>
+            <div class="table-wrap">
+              <table id="stats-by-key" class="stats-table">
+                <thead>
+                  <tr>
+                    <th scope="col">Clé API</th>
+                    <th scope="col">Requêtes</th>
+                    <th scope="col">Réussies</th>
+                    <th scope="col">Tokens entrée / sortie</th>
+                    <th scope="col">Avec tokens</th>
+                    <th scope="col">USD estimés</th>
+                    <th scope="col">Couverture du coût</th>
+                  </tr>
+                </thead>
+                <tbody></tbody>
+              </table>
+            </div>
+            <div class="actions">
+              <button id="stats-refresh" type="button">Actualiser</button>
+              <button id="stats-csv" type="button" disabled>
+                Exporter CSV
+              </button>
+              <button id="stats-json" type="button" disabled>
+                Exporter JSON
+              </button>
+            </div>
+          </section>
+
+          <section class="card" aria-label="Réglages avancés des statistiques">
+            <details id="stats-prices" class="more">
+              <summary>Prix de référence (USD par million de tokens)</summary>
+              <p class="hint">
+                Les estimations utilisent les tokens déclarés par chaque
+                fournisseur et le prix en vigueur au moment de l’envoi. Les prix
+                officiels ont été vérifiés le 15 octobre 2026 et peuvent changer
+                : consultez les tarifs actuels de votre fournisseur. Une
+                estimation n’est pas votre facture (pas de taxes, crédits, offre
+                gratuite ni conversion de devise).
+              </p>
+              <div class="table-wrap">
+                <table id="price-table" class="stats-table">
+                  <thead>
+                    <tr>
+                      <th scope="col">Modèle</th>
+                      <th scope="col">Entrée</th>
+                      <th scope="col">Entrée en cache</th>
+                      <th scope="col">Sortie</th>
+                      <th scope="col">S’applique à</th>
+                      <th scope="col">Source</th>
+                    </tr>
+                  </thead>
+                  <tbody></tbody>
+                </table>
+              </div>
+              <form id="price-form" class="price-form" novalidate>
+                <label class="stack" for="price-provider"
+                  >Fournisseur
+                  <select id="price-provider">
+                    <option value="gemini">Google Gemini</option>
+                    <option value="openai">OpenAI</option>
+                  </select></label
+                >
+                <label class="stack" for="price-model"
+                  >Identifiant exact du modèle
+                  <input
+                    id="price-model"
+                    list="price-models"
+                    autocomplete="off"
+                /></label>
+                <datalist id="price-models"></datalist>
+                <label class="stack" for="price-input"
+                  >Entrée $ / 1M <input id="price-input" inputmode="decimal"
+                /></label>
+                <label class="stack" for="price-cached"
+                  >Entrée en cache $ / 1M (facultatif)
+                  <input id="price-cached" inputmode="decimal"
+                /></label>
+                <label class="stack" for="price-output"
+                  >Sortie $ / 1M <input id="price-output" inputmode="decimal"
+                /></label>
+                <label class="stack" for="price-from"
+                  >S’applique à partir du <input id="price-from" type="date"
+                /></label>
+                <label class="stack" for="price-label"
+                  >Source (texte) <input id="price-label" maxlength="120"
+                /></label>
+                <button type="submit">Ajouter le prix</button>
+              </form>
+              <p id="price-message" class="message" aria-live="polite"></p>
+            </details>
+            <details id="stats-delete" class="more">
+              <summary>Supprimer l’historique des statistiques</summary>
+              <p class="hint">
+                Supprime les enregistrements locaux de Correctly pour les
+                requêtes envoyées avant la date choisie, et les modifications
+                appliquées. Vos clés API, vos limites d’usage et ce qu’elles ont
+                déjà compté sont conservés (les limites restent appliquées).
+                Rien n’est supprimé chez Google ou OpenAI. Exportez d’abord si
+                vous voulez une copie.
+              </p>
+              <form id="stats-delete-form" class="key-row" novalidate>
+                <label class="stack" for="stats-delete-before"
+                  >Supprimer les requêtes envoyées avant le
+                  <input id="stats-delete-before" type="date"
+                /></label>
+                <button type="submit" class="danger">
+                  Supprimer les statistiques
+                </button>
+              </form>
+              <p
+                id="stats-delete-message"
+                class="message"
+                aria-live="polite"
+              ></p>
+            </details>
+          </section>
+        </section>
+
+        <!-- ============================================== À propos -->
+        <section class="page" id="about" aria-labelledby="notes-title" hidden>
+          <header class="page-head">
+            <h1 id="notes-title">À propos</h1>
+          </header>
+          <section class="card notes" aria-label="Confidentialité">
+            <ul>
+              <li>
+                Correctly ne lit la sélection d’une page que quand vous l’ouvrez
+                (bouton de la barre d’outils, Ctrl+M, poignée ou menu clic
+                droit), ne l’envoie que quand vous cliquez sur Générer, et ne
+                modifie la page que quand vous cliquez sur Appliquer.
+              </li>
+              <li>
+                Le texte sélectionné sur un article est en lecture seule : il
+                peut être traduit ou résumé et copié, jamais remplacé dans la
+                page.
+              </li>
+              <li>
+                Les requêtes OpenAI sont envoyées avec
+                <code>store: false</code> (non conservées pour être relues) ; ce
+                n’est pas une garantie de non-conservation.
+              </li>
+              <li>
+                Documentation : <code>docs/</code> dans le dépôt du projet.
+              </li>
+            </ul>
+          </section>
+        </section>
+      </main>
+    </div>
     <script type="module" src="./index.ts"></script>
   </body>
 </html>

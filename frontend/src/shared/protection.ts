@@ -13,6 +13,13 @@ export interface Shield {
   note: string;
   /** The candidate with originals restored, or null if any placeholder was lost, altered, duplicated or invented. */
   restore(candidate: string): string | null;
+  /** V5.12: the instruction matching restoreSome ('' when nothing is protected). */
+  noteSome: string;
+  /**
+   * V5.12 summaries may drop protected text: each placeholder at most once,
+   * none invented or altered; null otherwise.
+   */
+  restoreSome(candidate: string): string | null;
 }
 
 const randomTag = () => {
@@ -65,7 +72,14 @@ export function shield(
 ): Shield {
   const spans = protectedSpans(text, entries);
   if (!spans.length)
-    return { text, count: 0, note: '', restore: (candidate) => candidate };
+    return {
+      text,
+      count: 0,
+      note: '',
+      noteSome: '',
+      restore: (candidate) => candidate,
+      restoreSome: (candidate) => candidate,
+    };
   let prefix = '';
   // Regenerate until no placeholder-looking text already exists in the source.
   do prefix = `[[${tag()}_`;
@@ -80,24 +94,30 @@ export function shield(
     last = span.end;
   });
   masked += text.slice(last);
+  const put = (candidate: string, optional: boolean) => {
+    // Every marker of this operation must appear exactly once (summaries:
+    // at most once)…
+    for (const marker of originals.keys()) {
+      const parts = candidate.split(marker).length;
+      if (parts > 2 || (parts === 1 && !optional)) return null;
+    }
+    // …and nothing else may use the namespace (invented or altered markers).
+    const stripped = [...originals.keys()].reduce(
+      (rest, marker) => rest.split(marker).join(''),
+      candidate,
+    );
+    if (stripped.toUpperCase().includes(prefix.slice(2))) return null;
+    let restored = candidate;
+    for (const [marker, original] of originals)
+      restored = restored.split(marker).join(original);
+    return restored;
+  };
   return {
     text: masked,
     count: spans.length,
     note: `Placeholders such as ${prefix}1]] are protected text: copy each one exactly once, unchanged; never translate, split, rename or add placeholders.`,
-    restore(candidate) {
-      // Every marker of this operation must appear exactly once…
-      for (const marker of originals.keys())
-        if (candidate.split(marker).length !== 2) return null;
-      // …and nothing else may use the namespace (invented or altered markers).
-      const stripped = [...originals.keys()].reduce(
-        (rest, marker) => rest.split(marker).join(''),
-        candidate,
-      );
-      if (stripped.toUpperCase().includes(prefix.slice(2))) return null;
-      let restored = candidate;
-      for (const [marker, original] of originals)
-        restored = restored.split(marker).join(original);
-      return restored;
-    },
+    noteSome: `Placeholders such as ${prefix}1]] are protected text: keep any placeholder you use exactly unchanged and at most once; never translate, split, rename or add placeholders.`,
+    restore: (candidate) => put(candidate, false),
+    restoreSome: (candidate) => put(candidate, true),
   };
 }

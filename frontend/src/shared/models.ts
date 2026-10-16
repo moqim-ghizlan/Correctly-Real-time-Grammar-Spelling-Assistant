@@ -32,6 +32,8 @@ export const TASKS = [
   'rewrite',
   'translation',
   'translateRewrite',
+  // V5.12: its own route, limits and statistics (never counted as translation).
+  'summary',
 ] as const;
 export type TaskKind = (typeof TASKS)[number];
 export type RouteSlot = 'default' | TaskKind;
@@ -42,6 +44,7 @@ export const SLOT_LABELS: Record<RouteSlot, string> = {
   rewrite: 'Rewrite',
   translation: 'Translation',
   translateRewrite: 'Translate & rewrite',
+  summary: 'Summary',
 };
 export const isRouteSlot = (value: unknown): value is RouteSlot =>
   typeof value === 'string' &&
@@ -69,33 +72,33 @@ export const MODEL_CATALOG: readonly ModelInfo[] = [
     provider: 'gemini',
     id: 'gemini-3.1-flash-lite',
     label: 'Gemini 3.1 Flash-Lite',
-    note: 'Lowest listed price per token (V5.1 default).',
+    note: 'Prix par token le plus bas de la liste (défaut V5.1).',
   },
   {
     provider: 'gemini',
     id: 'gemini-3.5-flash-lite',
     label: 'Gemini 3.5 Flash-Lite',
-    note: 'Newer Flash-Lite model; slightly higher listed price.',
+    note: 'Modèle Flash-Lite plus récent ; prix affiché légèrement plus élevé.',
   },
   {
     provider: 'openai',
     id: 'gpt-5.6-luna',
     label: 'GPT-5.6 Luna',
-    note: 'Documented for cost-sensitive workloads; sent with reasoning "none".',
+    note: 'Documenté pour les usages sensibles au coût ; envoyé avec raisonnement « none ».',
     reasoning: 'none',
   },
   {
     provider: 'openai',
     id: 'gpt-6-luna',
     label: 'GPT-6 Luna',
-    note: 'Documented for high-volume tasks; sent with reasoning "none".',
+    note: 'Documenté pour les gros volumes ; envoyé avec raisonnement « none ».',
     reasoning: 'none',
   },
   {
     provider: 'openai',
     id: 'gpt-5-nano',
     label: 'GPT-5 nano',
-    note: 'Older small model; sent with reasoning "minimal".',
+    note: 'Petit modèle plus ancien ; envoyé avec raisonnement « minimal ».',
     reasoning: 'minimal',
   },
 ];

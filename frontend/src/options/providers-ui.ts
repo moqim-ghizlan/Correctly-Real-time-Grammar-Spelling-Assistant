@@ -4,7 +4,6 @@ import {
   toConnectionResult,
   toKeyCheckResult,
 } from '../shared/contracts';
-import { errorMessage } from '../shared/errors';
 import {
   MODEL_CATALOG,
   PROVIDERS,
@@ -19,7 +18,6 @@ import {
   ProviderError,
   ROUTE_SLOTS,
   SECRETS_KEY,
-  SLOT_LABELS,
   addProfile,
   deleteProfile,
   emptyProviders,
@@ -37,8 +35,13 @@ import {
   type ProviderStore,
   type RouteSlot,
 } from '../shared/providers';
-import { describeNote } from '../shared/quota';
 import type { StorageArea } from '../shared/storage';
+import {
+  SLOT_FR as SLOT_LABELS,
+  dateHeure,
+  decrireNote as describeNote,
+  erreur as errorMessage,
+} from './fr';
 import type { Tone } from './settings-ui';
 
 // V5.7 "AI providers": API-key profiles and the key + model each action
@@ -56,7 +59,7 @@ export interface ProvidersDeps {
 
 const time = (iso: string) => {
   const date = new Date(iso);
-  return Number.isNaN(date.getTime()) ? iso : date.toLocaleString();
+  return Number.isNaN(date.getTime()) ? iso : dateHeure(date);
 };
 
 const providerName = (provider: ProviderId) => PROVIDERS[provider].label;
@@ -113,13 +116,13 @@ export class ProvidersSection {
       if (loaded.damaged)
         this.message(
           'providers-status',
-          'Saved AI provider settings are damaged. They were left untouched; no AI request can be sent.',
+          'Les réglages des fournisseurs IA enregistrés sont endommagés. Ils n’ont pas été modifiés ; aucune requête IA ne peut être envoyée.',
           'error',
         );
       else if (loaded.dropped)
         this.message(
           'providers-status',
-          `${loaded.dropped} saved key(s) were invalid and are ignored. Add them again if needed.`,
+          `${loaded.dropped} clé(s) enregistrée(s) invalide(s) ignorée(s). Ajoutez-les à nouveau si besoin.`,
           'error',
         );
     } catch {
@@ -141,9 +144,9 @@ export class ProvidersSection {
     this.keyInput.type = 'password';
     if (clear) this.keyInput.value = '';
     const toggle = this.el<HTMLButtonElement>('profile-toggle');
-    toggle.textContent = 'Show';
+    toggle.textContent = 'Afficher';
     toggle.setAttribute('aria-pressed', 'false');
-    toggle.setAttribute('aria-label', 'Show the API key being typed');
+    toggle.setAttribute('aria-label', 'Afficher la clé API saisie');
   }
 
   private bind() {
@@ -162,9 +165,9 @@ export class ProvidersSection {
       if (this.keyInput.type !== 'password') return this.hideKey();
       this.keyInput.type = 'text';
       const toggle = this.el<HTMLButtonElement>('profile-toggle');
-      toggle.textContent = 'Hide';
+      toggle.textContent = 'Masquer';
       toggle.setAttribute('aria-pressed', 'true');
-      toggle.setAttribute('aria-label', 'Hide the API key being typed');
+      toggle.setAttribute('aria-label', 'Masquer la clé API saisie');
     });
   }
 
@@ -201,8 +204,8 @@ export class ProvidersSection {
     this.el<HTMLInputElement>('profile-label').value = '';
     this.hideKey(true);
     this.el<HTMLSelectElement>('profile-provider').disabled = false;
-    this.el('profile-form-title').textContent = 'Add an API key';
-    this.el('profile-save').textContent = 'Save key';
+    this.el('profile-form-title').textContent = 'Ajouter une clé API';
+    this.el('profile-save').textContent = 'Enregistrer la clé';
     this.el('profile-cancel').hidden = true;
     this.keyInput.placeholder = '';
     this.renderHelp();
@@ -215,9 +218,9 @@ export class ProvidersSection {
     provider.disabled = true;
     this.el<HTMLInputElement>('profile-label').value = profile.label;
     this.hideKey(true);
-    this.keyInput.placeholder = 'Leave empty to keep the saved key';
-    this.el('profile-form-title').textContent = `Edit “${profile.label}”`;
-    this.el('profile-save').textContent = 'Save changes';
+    this.keyInput.placeholder = 'Laisser vide pour garder la clé enregistrée';
+    this.el('profile-form-title').textContent = `Modifier « ${profile.label} »`;
+    this.el('profile-save').textContent = 'Enregistrer les modifications';
     this.el('profile-cancel').hidden = false;
     this.renderHelp();
     this.el<HTMLInputElement>('profile-label').focus();
@@ -233,7 +236,7 @@ export class ProvidersSection {
       if (
         await this.run(
           addProfile({ provider, label, key }, this.deps.now?.()),
-          'Key saved. Nothing was sent. Use “Check key” to verify it, then choose it below for your actions.',
+          'Clé enregistrée. Rien n’a été envoyé. Utilisez « Vérifier » pour la tester, puis choisissez-la ci-dessous pour vos actions.',
           'profile-message',
         )
       )
@@ -243,10 +246,10 @@ export class ProvidersSection {
     if (
       key.trim() &&
       !this.deps.confirm(
-        `Replace the saved key of “${editing.label}”? The old key is removed from Correctly and earlier checks no longer apply.`,
+        `Remplacer la clé enregistrée de « ${editing.label} » ? L’ancienne clé est supprimée de Correctly et les vérifications précédentes ne s’appliquent plus.`,
       )
     ) {
-      this.message('profile-message', 'Nothing changed.');
+      this.message('profile-message', 'Rien n’a changé.');
       return;
     }
     const now = this.deps.now?.();
@@ -264,8 +267,8 @@ export class ProvidersSection {
           return next;
         },
         key.trim()
-          ? 'Key replaced. Nothing was sent; check it again.'
-          : 'Changes saved.',
+          ? 'Clé remplacée. Rien n’a été envoyé ; vérifiez-la à nouveau.'
+          : 'Modifications enregistrées.',
         'profile-message',
       )
     )
@@ -278,13 +281,13 @@ export class ProvidersSection {
       profile.enabled &&
       used.length &&
       !this.deps.confirm(
-        `Disable “${profile.label}”? ${used.map((s) => SLOT_LABELS[s]).join(', ')} will stop working until you enable it or choose another key — no other key is used automatically.`,
+        `Désactiver « ${profile.label} » ? ${used.map((s) => SLOT_LABELS[s]).join(', ')} cessera de fonctionner jusqu’à ce que vous la réactiviez ou choisissiez une autre clé — aucune autre clé n’est utilisée automatiquement.`,
       )
     )
       return;
     await this.run(
       setProfileEnabled(profile, !profile.enabled, this.deps.now?.()),
-      `“${profile.label}” ${profile.enabled ? 'disabled' : 'enabled'}.`,
+      `« ${profile.label} » ${profile.enabled ? 'désactivée' : 'activée'}.`,
       'profile-message',
     );
   }
@@ -292,18 +295,18 @@ export class ProvidersSection {
   private async remove(profile: ProviderProfile): Promise<void> {
     const used = slotsUsing(this.store, profile.id);
     const impact = used.length
-      ? ` ${used.map((s) => SLOT_LABELS[s]).join(', ')} will stop working until you choose another key — no other key is used automatically.`
+      ? ` ${used.map((s) => SLOT_LABELS[s]).join(', ')} cessera de fonctionner jusqu’à ce que vous choisissiez une autre clé — aucune autre clé n’est utilisée automatiquement.`
       : '';
     if (
       !this.deps.confirm(
-        `Delete “${profile.label}” and remove its key from this browser profile?${impact} A request already sent may still be billed.`,
+        `Supprimer « ${profile.label} » et retirer sa clé de ce profil de navigateur ?${impact} Une requête déjà envoyée peut encore être facturée.`,
       )
     )
       return;
     if (this.editing?.id === profile.id) this.resetForm();
     await this.run(
       deleteProfile(profile),
-      `“${profile.label}” deleted.`,
+      `« ${profile.label} » supprimée.`,
       'profile-message',
     );
   }
@@ -323,8 +326,8 @@ export class ProvidersSection {
       this.message(
         'profile-message',
         result.ok
-          ? `“${profile.label}” accepted by ${providerName(profile.provider)}: ${result.models} text model(s) listed. This proves access, not that a model will answer.`
-          : `“${profile.label}”: ${result.message}`,
+          ? `« ${profile.label} » acceptée par ${providerName(profile.provider)} : ${result.models} modèle(s) de texte listé(s). Cela prouve l’accès, pas qu’un modèle répondra.`
+          : `« ${profile.label} » : ${errorMessage(result.code)}`,
         result.ok ? 'ok' : 'error',
       );
     } finally {
@@ -373,10 +376,10 @@ export class ProvidersSection {
       await this.run(
         setRoute(slot, route),
         route
-          ? `${SLOT_LABELS[slot]} saved. Requests already running keep their route; the next one uses this.`
+          ? `${SLOT_LABELS[slot]} : route enregistrée. Les requêtes déjà en cours gardent leur route ; la suivante utilise celle-ci.`
           : slot === 'default'
-            ? 'Default route removed. Actions set to “Use the default” are now blocked.'
-            : `${SLOT_LABELS[slot]} now uses the default route.`,
+            ? 'Route par défaut supprimée. Les actions réglées sur « Utiliser la route par défaut » sont maintenant bloquées.'
+            : `${SLOT_LABELS[slot]} utilise maintenant la route par défaut.`,
         `route-message-${slot}`,
       )
     )
@@ -390,7 +393,7 @@ export class ProvidersSection {
     if (this.busy.has(id)) return;
     if (
       !this.deps.confirm(
-        `Send one tiny test prompt (“Reply with OK only.”, no page text) through the saved ${SLOT_LABELS[slot]} route? It counts as one request in your usage limits and may be billed by the provider.`,
+        `Envoyer un tout petit message de test (« Reply with OK only. », aucun texte de page) par la route enregistrée « ${SLOT_LABELS[slot]} » ? Il compte comme une requête dans vos limites d’usage et peut être facturé par le fournisseur.`,
       )
     )
       return;
@@ -402,17 +405,17 @@ export class ProvidersSection {
       );
       if (result.ok) {
         const usage = result.usage
-          ? ` Tokens reported: ${result.usage.inputTokens ?? '?'} in / ${result.usage.outputTokens ?? '?'} out.`
+          ? ` Tokens déclarés : ${result.usage.inputTokens ?? '?'} en entrée / ${result.usage.outputTokens ?? '?'} en sortie.`
           : '';
         this.message(
           `route-message-${slot}`,
-          `Model answered — ${providerName(result.provider)} • ${result.model} replied “${result.sample}” on ${time(result.checkedAt)}.${usage}`,
+          `Le modèle a répondu — ${providerName(result.provider)} • ${result.model} a répondu « ${result.sample} » le ${time(result.checkedAt)}.${usage}`,
           'ok',
         );
       } else
         this.message(
           `route-message-${slot}`,
-          `${result.message}${result.httpStatus ? ` (HTTP ${result.httpStatus})` : ''}${result.quota ? ` ${describeNote(result.quota)}` : ''}`,
+          `${errorMessage(result.code)}${result.httpStatus ? ` (HTTP ${result.httpStatus})` : ''}${result.quota ? ` ${describeNote(result.quota)}` : ''}`,
           'error',
         );
     } finally {
@@ -425,13 +428,13 @@ export class ProvidersSection {
   routeSummary(slot: RouteSlot): { text: string; tone: Tone } {
     const own = this.store.routes[slot];
     const route = own ?? this.store.routes.default;
-    const via = own || slot === 'default' ? '' : ' (default)';
+    const via = own || slot === 'default' ? '' : ' (par défaut)';
     if (!route)
       return {
         text:
           slot === 'default'
-            ? 'No default route: actions set to “Use the default” are blocked.'
-            : 'Needs configuration: no default route is set.',
+            ? 'Aucune route par défaut : les actions réglées sur « Utiliser la route par défaut » sont bloquées.'
+            : 'À configurer : aucune route par défaut n’est définie.',
         tone: 'error',
       };
     const profile = this.store.profiles.find(
@@ -439,19 +442,19 @@ export class ProvidersSection {
     );
     if (!profile)
       return {
-        text: `Needs configuration${via}: the chosen key was deleted. No other key is used.`,
+        text: `À configurer${via} : la clé choisie a été supprimée. Aucune autre clé n’est utilisée.`,
         tone: 'error',
       };
     const target = `${profile.label} (${providerName(profile.provider)}) • ${route.modelId}`;
     if (!profile.enabled)
       return {
-        text: `Blocked${via}: “${profile.label}” is disabled. No other key is used.`,
+        text: `Bloquée${via} : « ${profile.label} » est désactivée. Aucune autre clé n’est utilisée.`,
         tone: 'error',
       };
     const status = modelStatus(profile.provider, route.modelId);
     if (status === 'invalid' || status === 'mismatch')
       return {
-        text: `Needs configuration${via}: the saved model is not valid for ${providerName(profile.provider)}.`,
+        text: `À configurer${via} : le modèle enregistré n’est pas valide pour ${providerName(profile.provider)}.`,
         tone: 'error',
       };
     return { text: `${SLOT_LABELS[slot]} → ${target}${via}`, tone: 'ok' };
@@ -466,18 +469,18 @@ export class ProvidersSection {
     const status = modelStatus(provider, modelId.trim());
     if (status === 'invalid')
       return modelId.trim()
-        ? 'Not a valid model ID.'
-        : 'Choose or type a model ID.';
+        ? 'Identifiant de modèle invalide.'
+        : 'Choisissez ou saisissez un identifiant de modèle.';
     if (status === 'mismatch')
-      return `This is not a ${providerName(provider)} model.`;
+      return `Ce n’est pas un modèle ${providerName(provider)}.`;
     const listed = this.checks[credentialId]?.models ?? [];
     const notListed =
       listed.length && !listed.includes(modelId.trim())
-        ? ' It was not in this key’s last model list.'
+        ? ' Il n’était pas dans la dernière liste de modèles de cette clé.'
         : '';
     if (status === 'reviewed')
       return `${catalogModel(provider, modelId.trim())?.note ?? ''}${notListed}`;
-    return `Not reviewed by Correctly: it must support structured JSON output. Every answer is still checked strictly; if the model cannot comply the request fails — nothing else is tried.${notListed}`;
+    return `Non vérifié par Correctly : il doit gérer la sortie JSON structurée. Chaque réponse reste contrôlée strictement ; si le modèle ne peut pas suivre, la requête échoue — rien d’autre n’est essayé.${notListed}`;
   }
 
   // ---- Rendering ----------------------------------------------------------
@@ -503,7 +506,7 @@ export class ProvidersSection {
     const provider = isProviderId(value) ? value : 'gemini';
     const link = this.el<HTMLAnchorElement>('profile-help-link');
     link.href = PROVIDERS[provider].keysUrl;
-    link.textContent = `Create a key in ${PROVIDERS[provider].keysSite}`;
+    link.textContent = `Créer une clé dans ${PROVIDERS[provider].keysSite}`;
   }
 
   render(): void {
@@ -538,20 +541,20 @@ export class ProvidersSection {
           (s) => SLOT_LABELS[s],
         );
         details.textContent = [
-          profile.enabled ? 'Enabled' : 'Disabled',
+          profile.enabled ? 'Activée' : 'Désactivée',
           !current
-            ? 'Not checked'
+            ? 'Non vérifiée'
             : check.ok
-              ? `Accepted on ${time(check.checkedAt)} (${check.models.length} models)`
-              : `Check failed on ${time(check.checkedAt)}: ${check.errorCode ? errorMessage(check.errorCode) : ''}`,
+              ? `Acceptée le ${time(check.checkedAt)} (${check.models.length} modèles)`
+              : `Échec de la vérification le ${time(check.checkedAt)} : ${check.errorCode ? errorMessage(check.errorCode) : ''}`,
           used.length
-            ? `Used by: ${used.join(', ')}`
-            : 'Not used by any action',
+            ? `Utilisée par : ${used.join(', ')}`
+            : 'Utilisée par aucune action',
         ].join(' · ');
         const checking = this.busy.has(`key:${profile.id}`);
         const checkButton = this.button(
-          checking ? 'Checking…' : 'Check key',
-          `Check the key “${profile.label}” (free, sends no text)`,
+          checking ? 'Vérification…' : 'Vérifier',
+          `Vérifier la clé « ${profile.label} » (gratuit, n’envoie aucun texte)`,
           () => void this.checkKey(profile),
           checking,
         );
@@ -562,18 +565,18 @@ export class ProvidersSection {
           details,
           checkButton,
           this.button(
-            'Edit',
-            `Rename or replace the key “${profile.label}”`,
+            'Modifier',
+            `Renommer ou remplacer la clé « ${profile.label} »`,
             () => this.edit(profile),
           ),
           this.button(
-            profile.enabled ? 'Disable' : 'Enable',
-            `${profile.enabled ? 'Disable' : 'Enable'} “${profile.label}”`,
+            profile.enabled ? 'Désactiver' : 'Activer',
+            `${profile.enabled ? 'Désactiver' : 'Activer'} « ${profile.label} »`,
             () => void this.toggle(profile),
           ),
           this.button(
-            'Delete',
-            `Delete “${profile.label}”`,
+            'Supprimer',
+            `Supprimer « ${profile.label} »`,
             () => void this.remove(profile),
           ),
         );
@@ -607,26 +610,26 @@ export class ProvidersSection {
     const keyLabel = this.doc.createElement('label');
     keyLabel.className = 'stack';
     keyLabel.htmlFor = `route-key-${slot}`;
-    keyLabel.textContent = 'API key';
+    keyLabel.textContent = 'Clé API';
     const select = this.doc.createElement('select');
     select.id = `route-key-${slot}`;
     const none = this.doc.createElement('option');
     none.value = '';
     none.textContent =
-      slot === 'default' ? '— None —' : 'Use the default route';
+      slot === 'default' ? '— Aucune —' : 'Utiliser la route par défaut';
     select.append(none);
     const known = new Set<string>();
     for (const profile of this.store.profiles) {
       known.add(profile.id);
       const option = this.doc.createElement('option');
       option.value = profile.id;
-      option.textContent = `${profile.label} (${providerName(profile.provider)})${profile.enabled ? '' : ' — disabled'}`;
+      option.textContent = `${profile.label} (${providerName(profile.provider)})${profile.enabled ? '' : ' — désactivée'}`;
       select.append(option);
     }
     if (draft.credentialId && !known.has(draft.credentialId)) {
       const option = this.doc.createElement('option');
       option.value = draft.credentialId;
-      option.textContent = '(deleted key — choose another)';
+      option.textContent = '(clé supprimée — choisissez-en une autre)';
       select.append(option);
     }
     select.value = draft.credentialId;
@@ -638,7 +641,7 @@ export class ProvidersSection {
     const modelLabel = this.doc.createElement('label');
     modelLabel.className = 'stack';
     modelLabel.htmlFor = `route-model-${slot}`;
-    modelLabel.textContent = 'Model ID';
+    modelLabel.textContent = 'Modèle';
     const model = this.doc.createElement('input');
     model.id = `route-model-${slot}`;
     model.type = 'text';
@@ -664,7 +667,7 @@ export class ProvidersSection {
         const option = this.doc.createElement('option');
         option.value = id;
         const reviewed = profile && catalogModel(profile.provider, id);
-        if (reviewed) option.label = `${reviewed.label} — reviewed`;
+        if (reviewed) option.label = `${reviewed.label} — vérifié`;
         return option;
       }),
     );
@@ -703,8 +706,8 @@ export class ProvidersSection {
     actions.className = 'actions';
     const dirty = slot in this.drafts;
     const save = this.button(
-      'Save',
-      `Save the ${SLOT_LABELS[slot]} route`,
+      'Enregistrer',
+      `Enregistrer la route « ${SLOT_LABELS[slot]} »`,
       () => void this.saveRoute(slot),
     );
     save.className = 'primary';
@@ -712,8 +715,8 @@ export class ProvidersSection {
     const testing = this.busy.has(`route:${slot}`);
     const usable = this.routeSummary(slot).tone === 'ok';
     const test = this.button(
-      testing ? 'Testing…' : 'Test (may be billed)',
-      `Send one tiny test prompt through the saved ${SLOT_LABELS[slot]} route; may be billed`,
+      testing ? 'Test en cours…' : 'Tester (peut être facturé)',
+      `Envoyer un petit message de test par la route « ${SLOT_LABELS[slot]} » enregistrée ; peut être facturé`,
       () => void this.testRoute(slot),
       testing || dirty || !usable,
     );
@@ -722,8 +725,8 @@ export class ProvidersSection {
     actions.append(save, test);
     if (dirty) {
       const cancel = this.button(
-        'Cancel',
-        `Discard changes to ${SLOT_LABELS[slot]}`,
+        'Annuler',
+        `Annuler les modifications de « ${SLOT_LABELS[slot]} »`,
         () => {
           delete this.drafts[slot];
           this.render();

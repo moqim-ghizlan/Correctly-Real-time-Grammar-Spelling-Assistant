@@ -29,6 +29,8 @@ export const SMART_BUTTON_OFF = 'correctly.v5.smartButtonOff';
 export const REWRITE_TEXT = 'correctly.v5.rewriteText';
 /** Sent by the injected content script with text, languages and styles. */
 export const TRANSLATE_TEXT = 'correctly.v5.translateText';
+/** V5.12: sent by the modal's Summary tab with text, target and options. */
+export const SUMMARIZE_TEXT = 'correctly.v5.summarizeText';
 /**
  * V5.11: sent by the right-edge handle (no data): asks the worker to open the
  * Correctly modal in that frame, like the toolbar icon and Ctrl+M.
@@ -94,6 +96,11 @@ export const REWRITE_COMMAND = 'rewrite-selection';
 export const TRANSLATE_COMMAND = 'translate-selection';
 /** Bounds cost and latency; longer selections are refused, never truncated. */
 export const MAX_CORRECTION_CODE_POINTS = 2000;
+/**
+ * V5.12: a summary may read a longer selection (about 2,000 words), still in
+ * ONE bounded request. Longer text is refused, never truncated or chunked.
+ */
+export const MAX_SUMMARY_CODE_POINTS = 12000;
 // A reply may double the length (2× + 50 code points, see parseCorrection);
 // in UTF-16 units that is at most 4× + 100.
 const MAX_CORRECTED_CHARS = 4 * MAX_CORRECTION_CODE_POINTS + 100;

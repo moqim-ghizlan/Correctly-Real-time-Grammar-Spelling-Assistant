@@ -2,7 +2,13 @@
 
 Extension personnelle Chrome/Brave, **Manifest V3, TypeScript strict**, qui
 deviendra un assistant d'écriture IA à la demande (Gemini et OpenAI, clés
-personnelles de l'utilisateur). État actuel : **V5.11** (poignée en demi-cercle
+personnelles de l'utilisateur). État actuel : **V5.12** (4ᵉ onglet Résumé
+`shared/summary.ts` + `background/summary.ts`, tâche `summary` distincte
+(route, limites, stats), résumé écrit directement dans la langue cible en
+une requête ; texte de page sélectionné accepté en lecture seule, copie
+seulement, `capture(doc, { readOnlyPage })` ; rapport
+`docs/v5.12/TEST_REPORT.md`, checklist propriétaire non faite ; V5.11 :
+poignée en demi-cercle
 au bord droit `content/handle.ts` + modale unique à trois onglets
 Correction/Reformulation/Traduction `content/modal.ts`, ouverte par la
 poignée, Ctrl+M ou l'icône ; rapport `docs/v5.11/TEST_REPORT.md`, checklist
@@ -97,7 +103,13 @@ npm run format:check
   demande explicite. `dist/` et `release/` sont ignorés par Git.
 - Shell : Windows 10 ; PowerShell par défaut, Git Bash disponible.
 - Le code, les commentaires et les messages UI sont en **anglais** ; les
-  échanges avec l'utilisateur en **français**.
+  échanges avec l'utilisateur en **français**. Exception (décision du
+  propriétaire, 2026-10-16) : la **page de paramètres** est en français
+  (`options/options.html`, `options/*.ts`, libellés et erreurs via
+  `options/fr.ts` ; messages de validation de `shared/providers.ts`,
+  `shared/shortcuts.ts`, `shared/stats.ts` affichés seulement là). La modale
+  et le panneau dans les pages restent en anglais. Mise en page : menu
+  latéral, une page à la fois selon l'ancre (`options/nav.ts`).
 
 ## Skills du projet (`.claude/skills/`)
 

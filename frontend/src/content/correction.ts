@@ -67,6 +67,11 @@ export const NOTICES = {
     'A number, link or email address differs from your text. Check it and copy it if it is right; Apply is disabled.',
   noTarget:
     'No text box selection to replace: Apply is disabled. Copy the result instead.',
+  pageText:
+    'Text selected on the page: results can be copied, never applied to the page.',
+  readOnlyPage:
+    'This text was selected on the page, which Correctly never edits. Copy the result instead.',
+  multiRange: 'Select one continuous piece of text, then ask Correctly again.',
 } as const;
 
 // Same exclusions as V4: credentials, payment and secrets by any label, and
@@ -100,9 +105,14 @@ export function deepActiveElement(doc: Document): Element | null {
   return el;
 }
 
+/** Where a snapshot's text comes from (V5.12). */
+export type SelectionSource = 'editable' | 'read_only_page';
+
 /** Immutable, in-memory picture of what the user asked to correct. */
 export interface Snapshot {
   readonly text: string;
+  /** read_only_page: plain page text, never writable (copy only). */
+  readonly source: SelectionSource;
   readonly field: TextField | null;
   readonly start: number;
   readonly end: number;
@@ -111,8 +121,24 @@ export interface Snapshot {
   readonly copyOnlyReason: string;
 }
 
+export interface CaptureOptions {
+  /**
+   * V5.12: also accept one plain selection of page text (the modal and
+   * translation), as a copy-only snapshot. Only the selection is read.
+   */
+  readOnlyPage?: boolean;
+  /** Longest accepted selection (code points). */
+  max?: number;
+}
+
 /** Returns a snapshot, or the notice explaining why nothing is sent. */
-export function capture(doc: Document): Snapshot | string {
+export function capture(
+  doc: Document,
+  {
+    readOnlyPage = false,
+    max = MAX_CORRECTION_CODE_POINTS,
+  }: CaptureOptions = {},
+): Snapshot | string {
   const active = deepActiveElement(doc);
   let snapshot: Snapshot;
   if (
@@ -125,6 +151,7 @@ export function capture(doc: Document): Snapshot | string {
     const end = active.selectionEnd ?? 0;
     snapshot = {
       text: active.value.slice(start, end),
+      source: 'editable',
       field: active,
       start,
       end,
@@ -134,7 +161,7 @@ export function capture(doc: Document): Snapshot | string {
     };
   } else {
     // contenteditable and rich editors: suggestion only. Plain page text is
-    // never sent.
+    // read only when the caller allows it (V5.12), and is never writable.
     const selection = doc.getSelection();
     const anchor = selection?.anchorNode;
     const editor = (
@@ -143,23 +170,33 @@ export function capture(doc: Document): Snapshot | string {
     // V5.10: a secret-labelled editor is never read, like such an input.
     if (editor && hasSensitiveLabel(editor)) return NOTICES.sensitive;
     const text = selection?.toString() ?? '';
+    const inEditor = !!editor?.contains(selection?.focusNode ?? null);
+    if (text.trim() && !inEditor && !readOnlyPage) return NOTICES.notEditable;
+    // V5.12: exactly one live, non-collapsed range of page text; nothing
+    // around it (no page, sibling or hidden text) is ever read.
     if (
       text.trim() &&
-      !(editor && editor.contains(selection?.focusNode ?? null))
+      !inEditor &&
+      (selection?.rangeCount !== 1 ||
+        selection.isCollapsed ||
+        !selection.getRangeAt(0).commonAncestorContainer.isConnected)
     )
-      return NOTICES.notEditable;
+      return NOTICES.multiRange;
     snapshot = {
       text,
+      source: inEditor ? 'editable' : 'read_only_page',
       field: null,
       start: 0,
       end: 0,
       value: '',
-      copyOnlyReason: NOTICES.copyOnly,
+      copyOnlyReason: inEditor ? NOTICES.copyOnly : NOTICES.readOnlyPage,
     };
   }
   if (!snapshot.text.trim()) return NOTICES.select;
-  if ([...snapshot.text].length > MAX_CORRECTION_CODE_POINTS)
-    return NOTICES.tooLong;
+  if ([...snapshot.text].length > max)
+    return max === MAX_CORRECTION_CODE_POINTS
+      ? NOTICES.tooLong
+      : `Select at most ${max.toLocaleString('en')} characters.`;
   return snapshot;
 }
 
@@ -988,7 +1025,10 @@ export function runInPage(
   const snapshot =
     intent === 'unreachable' || intent === 'rewriteOff'
       ? NOTICES[intent]
-      : capture(doc);
+      : // V5.12: page text can be translated (copy only), not corrected.
+        capture(doc, {
+          readOnlyPage: intent === 'translate' || intent === 'translateRewrite',
+        });
   if (typeof snapshot === 'string') return panel.notice(snapshot);
   const normalized = normalizeStyleIds(styles);
   const defaults: RewriteStyleId[] = normalized.length

@@ -1,10 +1,15 @@
-import { errorMessage } from '../shared/errors';
 import { REWRITE_STYLES, normalizeStyleIds } from '../shared/rewrite';
 import {
   ARABIC_VARIANTS,
   LANGUAGES,
   normalizeTranslation,
 } from '../shared/translate';
+import {
+  LANGUAGE_FR,
+  STYLE_FR,
+  VARIANT_FR,
+  erreur as errorMessage,
+} from './fr';
 import type { V51Settings } from '../shared/settings';
 import {
   STORAGE_KEYS,
@@ -84,7 +89,10 @@ export class SettingsPage {
       box.disabled = true;
       box.dataset.rewriteStyle = '';
       const text = this.doc.createElement('span');
-      text.textContent = `${style.label} — ${style.description}`;
+      const fr = STYLE_FR[style.id];
+      const name = this.doc.createElement('strong');
+      name.textContent = fr.label;
+      text.append(name, ` — ${fr.description}`);
       label.append(box, text);
       fieldset.append(label);
     }
@@ -105,14 +113,23 @@ export class SettingsPage {
       );
     const languages = LANGUAGES.map((language) => ({
       id: language.id,
-      label: `${language.label} — ${language.native}`,
+      label:
+        LANGUAGE_FR[language.id] === language.native
+          ? language.native
+          : `${LANGUAGE_FR[language.id]} — ${language.native}`,
     }));
     fill('translation-source', [
-      { id: 'auto', label: 'Auto-detect' },
+      { id: 'auto', label: 'Détection automatique' },
       ...languages,
     ]);
     fill('translation-target', languages);
-    fill('translation-variant', ARABIC_VARIANTS);
+    fill(
+      'translation-variant',
+      ARABIC_VARIANTS.map((item) => ({
+        id: item.id,
+        label: VARIANT_FR[item.id],
+      })),
+    );
   }
 
   private get styleBoxes(): HTMLInputElement[] {
@@ -232,8 +249,8 @@ export class SettingsPage {
       this.message(
         'consent-message',
         consent
-          ? 'Correction enabled. Select text on a page, then click the Correctly button.'
-          : 'Correction disabled. No selected text will be sent.',
+          ? 'Envoi autorisé. Sélectionnez du texte sur une page, puis ouvrez Correctly.'
+          : 'Envoi désactivé. Aucun texte sélectionné ne sera envoyé.',
         'ok',
       );
     } catch {
@@ -254,7 +271,8 @@ export class SettingsPage {
       read(this.deps.getShortcut),
       read(this.deps.getOpenShortcut),
     ]);
-    const notSet = 'not set (choose one with Change shortcut)';
+    const notSet =
+      'non défini (choisissez-en un avec « Modifier le raccourci »)';
     this.el('shortcut-label').textContent = shortcut || notSet;
     this.el('open-shortcut-label').textContent = open || notSet;
   }
@@ -267,7 +285,7 @@ export class SettingsPage {
         ...settings,
         triggers: { ...settings.triggers, keyboard, contextMenu },
       }));
-      this.message('triggers-message', 'Entry points saved.', 'ok');
+      this.message('triggers-message', 'Points d’entrée enregistrés.', 'ok');
     } catch {
       this.message('triggers-message', errorMessage('STORAGE_ERROR'), 'error');
     }
@@ -284,7 +302,7 @@ export class SettingsPage {
     if (translation.source === translation.target) {
       this.message(
         'translation-message',
-        'Source and target are the same. The previous choice is kept.',
+        'La langue source et la langue cible sont identiques. Le choix précédent est conservé.',
         'error',
       );
       this.render();
@@ -292,7 +310,11 @@ export class SettingsPage {
     }
     try {
       await this.update((settings) => ({ ...settings, translation }));
-      this.message('translation-message', 'Translation defaults saved.', 'ok');
+      this.message(
+        'translation-message',
+        'Langues par défaut enregistrées.',
+        'ok',
+      );
     } catch {
       this.message(
         'translation-message',
@@ -311,7 +333,7 @@ export class SettingsPage {
     if (!defaultStyles.length) {
       this.message(
         'rewrite-message',
-        'Keep at least one default style. The previous choice is kept.',
+        'Gardez au moins un style par défaut. Le choix précédent est conservé.',
         'error',
       );
       this.render();
@@ -322,7 +344,11 @@ export class SettingsPage {
         ...settings,
         rewrite: { enabled, defaultStyles },
       }));
-      this.message('rewrite-message', 'Rewrite settings saved.', 'ok');
+      this.message(
+        'rewrite-message',
+        'Réglages de reformulation enregistrés.',
+        'ok',
+      );
     } catch {
       this.message('rewrite-message', errorMessage('STORAGE_ERROR'), 'error');
     }
@@ -337,7 +363,7 @@ export class SettingsPage {
       if (on && !(await this.deps.enableSmartButton?.())) {
         this.message(
           'triggers-message',
-          'Site access was not granted, so the Correctly handle stays off.',
+          'L’accès aux sites n’a pas été accordé : la poignée Correctly reste désactivée.',
           'error',
         );
         this.render();
@@ -352,8 +378,8 @@ export class SettingsPage {
       this.message(
         'triggers-message',
         on
-          ? 'Correctly handle on. Reload already open pages to see it.'
-          : 'Correctly handle off. Site access removed.',
+          ? 'Poignée Correctly activée. Rechargez les pages déjà ouvertes pour la voir.'
+          : 'Poignée Correctly désactivée. Accès aux sites retiré.',
         'ok',
       );
     } catch {

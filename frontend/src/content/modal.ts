@@ -2,9 +2,11 @@ import {
   AI_EDIT,
   CORRECT_TEXT,
   MAX_CORRECTION_CODE_POINTS,
+  MAX_SUMMARY_CODE_POINTS,
   OPEN_LIMITS,
   OPEN_SETTINGS,
   REWRITE_TEXT,
+  SUMMARIZE_TEXT,
   TRANSLATE_TEXT,
   toCorrectionResult,
 } from '../shared/contracts';
@@ -17,6 +19,16 @@ import {
   toRewriteResult,
   type RewriteStyleId,
 } from '../shared/rewrite';
+import {
+  DEFAULT_SUMMARY_FORMAT,
+  DEFAULT_SUMMARY_LENGTH,
+  SUMMARY_FORMATS,
+  SUMMARY_LENGTHS,
+  isSummaryFormat,
+  isSummaryLength,
+  toSummaryResult,
+  type SummaryOptions,
+} from '../shared/summary';
 import {
   ARABIC_VARIANTS,
   LANGUAGES,
@@ -43,8 +55,10 @@ import { gearIcon, hideIcon, logo } from './icons';
 // the toolbar icon. Opening, switching tabs, typing or changing options never
 // sends anything; only a Generate click does, through the same worker
 // messages (consent, route, usage limits) as the V5.2–V5.5 pickers.
+// V5.12: a fourth tab, Summary, and plain page text as a copy-only source.
 
-export type ModalTab = 'correction' | 'reformulation' | 'translation';
+export type ModalTab =
+  'correction' | 'reformulation' | 'translation' | 'summary';
 export const MODAL_TABS: readonly {
   id: ModalTab;
   label: string;
@@ -69,6 +83,12 @@ export const MODAL_TABS: readonly {
     action: 'Generate translation',
     loading: 'Translating…',
   },
+  {
+    id: 'summary',
+    label: 'Summary',
+    action: 'Generate summary',
+    loading: 'Summarizing…',
+  },
 ];
 /** How long the Undo offer stays after a successful Apply. */
 export const UNDO_MS = 5000;
@@ -90,6 +110,8 @@ interface Choice {
   label: string;
   text: string;
   suspicious: boolean;
+  /** Language of the result when known (summaries), for rendering. */
+  lang?: string;
 }
 
 /** Everything one tab shows; replaced as a whole on any reset. */
@@ -117,6 +139,20 @@ const emptyTab = (): TabState => ({
   limits: false,
   pending: 0,
 });
+
+const emptyTabs = (): Record<ModalTab, TabState> =>
+  Object.fromEntries(MODAL_TABS.map((item) => [item.id, emptyTab()])) as Record<
+    ModalTab,
+    TabState
+  >;
+
+/** Longest text each tab may send in its one request. */
+const TEXT_LIMITS: Record<ModalTab, number> = {
+  correction: MAX_CORRECTION_CODE_POINTS,
+  reformulation: MAX_CORRECTION_CODE_POINTS,
+  translation: MAX_CORRECTION_CODE_POINTS,
+  summary: MAX_SUMMARY_CODE_POINTS,
+};
 
 /** Shared by every bundle loaded in this isolated world (content.js, smart.js). */
 interface PageUi {
@@ -268,11 +304,7 @@ export class CorrectlyModal {
   readonly target: Snapshot | null;
   private readonly captureNotice: string;
   private readonly rewriteEnabled: boolean;
-  private tabs: Record<ModalTab, TabState> = {
-    correction: emptyTab(),
-    reformulation: emptyTab(),
-    translation: emptyTab(),
-  };
+  private tabs: Record<ModalTab, TabState> = emptyTabs();
   private nextToken = 0;
   private composing = false;
   private copied = '';
@@ -300,6 +332,11 @@ export class CorrectlyModal {
     variantRow: HTMLElement;
     alsoRewrite: HTMLInputElement;
     sameNote: HTMLElement;
+    summaryTo: HTMLSelectElement;
+    summaryVariant: HTMLSelectElement;
+    summaryVariantRow: HTMLElement;
+    summaryLength: HTMLSelectElement;
+    summaryFormat: HTMLSelectElement;
     apply: HTMLButtonElement;
     copy: HTMLButtonElement;
     cancel: HTMLButtonElement;
@@ -317,9 +354,13 @@ export class CorrectlyModal {
     this.target = typeof captured === 'string' ? null : captured;
     this.sharedText = this.target?.text ?? '';
     this.captureNotice =
-      typeof captured === 'string' && captured !== NOTICES.select
-        ? captured
-        : '';
+      typeof captured === 'string'
+        ? captured !== NOTICES.select
+          ? captured
+          : ''
+        : captured.source === 'read_only_page'
+          ? NOTICES.pageText
+          : '';
     this.rewriteEnabled = options.rewriteEnabled;
     this.host = doc.createElement('correctly-modal');
     this.root = this.host.attachShadow({ mode: 'closed' });
@@ -502,6 +543,39 @@ export class CorrectlyModal {
     sameNote.setAttribute('aria-live', 'polite');
     panel.translation.append(langs, also, translate.fieldset, sameNote);
 
+    // Summary (V5.12): written directly in the chosen language, ONE request.
+    const summaryTo = select('Summary language', languages, prefs.target);
+    const summaryVariant = select(
+      'Arabic variant',
+      ARABIC_VARIANTS,
+      prefs.arabicVariant,
+    );
+    const summaryLength = select(
+      'Length',
+      SUMMARY_LENGTHS,
+      DEFAULT_SUMMARY_LENGTH,
+    );
+    const summaryFormat = select(
+      'Format',
+      SUMMARY_FORMATS,
+      DEFAULT_SUMMARY_FORMAT,
+    );
+    const summaryOptions = make('div', 'langs');
+    summaryOptions.append(
+      summaryTo.wrap,
+      summaryVariant.wrap,
+      summaryLength.wrap,
+      summaryFormat.wrap,
+    );
+    panel.summary.append(
+      summaryOptions,
+      make(
+        'p',
+        'hint',
+        'The summary is written directly in the chosen language in ONE AI request. Only the text above is sent, when you click Generate summary.',
+      ),
+    );
+
     for (const item of MODAL_TABS) {
       const row = make('div', 'row');
       row.append(generate[item.id], limits[item.id]);
@@ -546,6 +620,11 @@ export class CorrectlyModal {
       variantRow: variant.wrap,
       alsoRewrite,
       sameNote,
+      summaryTo: summaryTo.node,
+      summaryVariant: summaryVariant.node,
+      summaryVariantRow: summaryVariant.wrap,
+      summaryLength: summaryLength.node,
+      summaryFormat: summaryFormat.node,
       apply,
       copy,
       cancel,
@@ -578,6 +657,13 @@ export class CorrectlyModal {
       ...translate.boxes,
     ])
       node.addEventListener('change', () => this.optionsChanged('translation'));
+    for (const node of [
+      summaryTo.node,
+      summaryVariant.node,
+      summaryLength.node,
+      summaryFormat.node,
+    ])
+      node.addEventListener('change', () => this.optionsChanged('summary'));
     apply.addEventListener('click', () => this.apply());
     copy.addEventListener('click', () => void this.copy());
     cancel.addEventListener('click', () => this.cancel());
@@ -606,11 +692,7 @@ export class CorrectlyModal {
     if (this.ui.textarea.value !== next) this.ui.textarea.value = next;
     this.revision += 1;
     this.copied = '';
-    this.tabs = {
-      correction: emptyTab(),
-      reformulation: emptyTab(),
-      translation: emptyTab(),
-    };
+    this.tabs = emptyTabs();
     for (const item of MODAL_TABS) this.renderResults(item.id);
     this.render();
   }
@@ -634,12 +716,33 @@ export class CorrectlyModal {
     this.render();
   }
 
-  /** Why the shared text cannot be sent ('' = it can). */
-  private textProblem(): string {
+  /** Why the shared text cannot be sent by this tab ('' = it can). */
+  private textProblem(tab: ModalTab = this.activeTab): string {
     if (!this.sharedText.trim()) return 'empty';
-    if ([...this.sharedText].length > MAX_CORRECTION_CODE_POINTS)
-      return NOTICES.tooLong;
-    return '';
+    const max = TEXT_LIMITS[tab];
+    if ([...this.sharedText].length <= max) return '';
+    // Never cut automatically: the user shortens the text or switches tab.
+    return max === MAX_SUMMARY_CODE_POINTS
+      ? `Summary accepts at most ${max.toLocaleString('en')} characters; nothing is cut automatically.`
+      : `${NOTICES.tooLong} Summary accepts up to ${MAX_SUMMARY_CODE_POINTS.toLocaleString('en')}.`;
+  }
+
+  private summaryChoice(): SummaryOptions {
+    const { summaryTo, summaryVariant, summaryLength, summaryFormat } = this.ui;
+    const target = isLanguageId(summaryTo.value) ? summaryTo.value : 'en';
+    return {
+      target,
+      variant:
+        target === 'ar' && isArabicVariant(summaryVariant.value)
+          ? summaryVariant.value
+          : null,
+      length: isSummaryLength(summaryLength.value)
+        ? summaryLength.value
+        : DEFAULT_SUMMARY_LENGTH,
+      format: isSummaryFormat(summaryFormat.value)
+        ? summaryFormat.value
+        : DEFAULT_SUMMARY_FORMAT,
+    };
   }
 
   private chosenStyles(boxes: HTMLInputElement[]): RewriteStyleId[] {
@@ -668,7 +771,7 @@ export class CorrectlyModal {
 
   /** Generate is possible for this tab now (no request in flight, valid input). */
   ready(tab: ModalTab): boolean {
-    if (!this.visible || this.tabs[tab].pending || this.textProblem())
+    if (!this.visible || this.tabs[tab].pending || this.textProblem(tab))
       return false;
     if (tab === 'reformulation')
       return (
@@ -711,6 +814,14 @@ export class CorrectlyModal {
       message = { type: REWRITE_TEXT, text, styleIds: styles };
       parse = (reply) =>
         this.parseCandidates(reply, styles, styleLabel, text, 'reformulation');
+    } else if (tab === 'summary') {
+      // Options are frozen with the request (the controls stay locked while
+      // it runs), so the label always matches what was asked.
+      const choice = this.summaryChoice();
+      const target = targetLabel(choice.target, choice.variant);
+      message = { type: SUMMARIZE_TEXT, text, ...choice };
+      parse = (reply) =>
+        this.parseSummary(reply, `Summary → ${target}`, choice.target);
     } else {
       const choice = this.translationChoice();
       const target = targetLabel(choice.target, choice.variant);
@@ -782,6 +893,32 @@ export class CorrectlyModal {
           text: result.correctedText,
           suspicious: result.suspicious,
         },
+      ],
+      chosen: 0,
+    };
+  }
+
+  private parseSummary(reply: unknown, label: string, lang: string): TabState {
+    const result = toSummaryResult(reply);
+    const state = this.withQuota(emptyTab(), result);
+    if (!result.ok)
+      return {
+        ...state,
+        status: `${result.message} Your text was not changed.`,
+        tone: 'error',
+      };
+    if (result.unsummarizable)
+      return {
+        ...state,
+        status:
+          'This text cannot be summarized faithfully (too short, unclear or incomplete). Nothing was invented.',
+      };
+    return {
+      ...state,
+      status: 'Suggested summary.',
+      operationId: result.operationId ?? null,
+      choices: [
+        { label, text: result.text, suspicious: result.suspicious, lang },
       ],
       chosen: 0,
     };
@@ -990,10 +1127,10 @@ export class CorrectlyModal {
     box.replaceChildren();
     const [only] = state.choices;
     if (!only) return;
-    const text = (value: string) =>
-      Object.assign(this.make('p', 'text', value), { dir: 'auto' });
+    const text = (value: string, lang = '') =>
+      Object.assign(this.make('p', 'text', value), { dir: 'auto', lang });
     if (state.choices.length === 1) {
-      box.append(this.make('h2', '', only.label), text(only.text));
+      box.append(this.make('h2', '', only.label), text(only.text, only.lang));
       return;
     }
     const group = this.make('div');
@@ -1059,6 +1196,15 @@ export class CorrectlyModal {
       node.disabled = busyTranslate;
     ui.variantRow.hidden = ui.to.value !== 'ar';
     ui.translateStyleBox.hidden = !ui.alsoRewrite.checked;
+    const busySummary = !!this.tabs.summary.pending;
+    for (const node of [
+      ui.summaryTo,
+      ui.summaryVariant,
+      ui.summaryLength,
+      ui.summaryFormat,
+    ])
+      node.disabled = busySummary;
+    ui.summaryVariantRow.hidden = ui.summaryTo.value !== 'ar';
     const choice = this.translationChoice();
     ui.sameNote.textContent =
       choice.source === choice.target
@@ -1199,8 +1345,12 @@ export function openModal(
     current.focus();
     return current;
   }
-  // Capture first: nothing below may move the focus or the selection.
-  const captured = capture(doc);
+  // Capture first: nothing below may move the focus or the selection. V5.12:
+  // plain page text is accepted too, as a copy-only source.
+  const captured = capture(doc, {
+    readOnlyPage: true,
+    max: MAX_SUMMARY_CODE_POINTS,
+  });
   const panel = pageUi.correctlyPanel;
   if (panel && !panel.busy) panel.close();
   const modal = new CorrectlyModal(doc, captured, options, send);

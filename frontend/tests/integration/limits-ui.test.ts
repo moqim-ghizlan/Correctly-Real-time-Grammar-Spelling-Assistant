@@ -50,13 +50,28 @@ async function openPage(quota: QuotaStore = store(), now = NOW) {
   return section;
 }
 
+// The page is in French; tests name periods and actions by their IDs.
+const PERIOD = {
+  Daily: 'Par jour',
+  Weekly: 'Par semaine',
+  Monthly: 'Par mois',
+} as const;
+const LEGEND: Record<string, string> = {
+  Rewrite: 'Reformulation',
+  Translation: 'Traduction',
+  Summary: 'Résumé',
+};
+/** French thousands separator (narrow no-break space). */
+const thousands = (text: string) => text.replace(',', '\u202f');
+
 /** The row of one scope/period: [checkbox, maximum, usage text, progress]. */
-function row(legend: string, period: 'Daily' | 'Weekly' | 'Monthly') {
+function row(legend: string, period: keyof typeof PERIOD) {
   const fieldset = [...document.querySelectorAll('fieldset.limits')].find(
-    (node) => node.querySelector('legend')?.textContent === legend,
+    (node) =>
+      node.querySelector('legend')?.textContent === (LEGEND[legend] ?? legend),
   )!;
   const line = [...fieldset.querySelectorAll('.cap-row')].find(
-    (node) => node.querySelector('label span')?.textContent === period,
+    (node) => node.querySelector('label span')?.textContent === PERIOD[period],
   )!;
   return {
     box: line.querySelector<HTMLInputElement>('input[type=checkbox]')!,
@@ -66,7 +81,7 @@ function row(legend: string, period: 'Daily' | 'Weekly' | 'Monthly') {
     bar: line.querySelector('progress')!,
   };
 }
-const TOTAL = 'Total (all actions, providers and keys)';
+const TOTAL = 'Total (toutes actions, tous fournisseurs et toutes clés)';
 
 function type(input: HTMLInputElement, value: string) {
   input.value = value;
@@ -103,19 +118,19 @@ beforeEach(() => {
 describe('first open (UX-001)', () => {
   it('shows the safe initial limits: 20 per day in total, the rest off but tracked', async () => {
     await openPage();
-    expect(text('limits-state')).toBe('Active');
+    expect(text('limits-state')).toBe('Actives');
     const total = row(TOTAL, 'Daily');
     expect(total.box.checked).toBe(true);
     expect(total.max.value).toBe('20');
     expect(total.usage).toMatch(
-      /^Available — used 0 \/ 20, 20 remaining now\. Resets \w{3} \d+ \w{3}, 00:00 \(.+\)\.$/,
+      /^Disponible — 0 \/ 20 utilisée\(s\), 20 restante\(s\)\. Remise à zéro : \S+ \d+ \S+ 00:00 \(.+\)\.$/,
     );
     expect(total.bar.getAttribute('aria-label')).toBe(
-      `Daily ${TOTAL} usage: 0 percent, 0 of 20`,
+      `Usage par jour — ${TOTAL} : 0 pour cent, 0 sur 20`,
     );
     expect(row('Correction', 'Weekly').box.checked).toBe(false);
     expect(row('Correction', 'Weekly').usage).toMatch(
-      /^Off \(still tracking usage\): 0 used\./,
+      /^Désactivée \(usage toujours compté\) : 0 utilisée\(s\)\./,
     );
     expect(saveDisabled()).toBe(true);
     expect($<HTMLInputElement>('limits-pause').checked).toBe(false);
@@ -133,12 +148,14 @@ describe('first open (UX-001)', () => {
     });
     await openPage(store(), Date.now());
     expect(row(TOTAL, 'Daily').max.value).toBe('7');
-    expect(row(TOTAL, 'Daily').usage).toMatch(/used 3 \/ 7, 4 remaining/);
-    expect(text('limits-tracking')).toMatch(
-      /Usage is counted since .*earlier days of this week and month are unknown/,
+    expect(row(TOTAL, 'Daily').usage).toMatch(
+      /3 \/ 7 utilisée\(s\), 4 restante\(s\)/,
     );
     expect(text('limits-tracking')).toMatch(
-      /3 request\(s\) made today before V5\.7 count in the total only/,
+      /L’usage est compté depuis le .*les jours précédents de cette semaine et de ce mois sont inconnus/,
+    );
+    expect(text('limits-tracking')).toMatch(
+      /3 requête\(s\) faite\(s\) aujourd’hui avant la V5\.7 compte\(nt\) seulement dans le total/,
     );
   });
 });
@@ -151,7 +168,7 @@ describe('editing (UX-002…010, POL-017…021)', () => {
     type(row('Correction', 'Daily').max, '3 000');
     expect(saveDisabled()).toBe(false);
     await section.save();
-    expect(text('limits-message')).toMatch(/Limits saved/);
+    expect(text('limits-message')).toMatch(/Limites enregistrées/);
     const { policy } = await store().snapshot(NOW, []);
     expect(policy!.global.daily).toEqual({ enabled: true, max: 5000 });
     expect(policy!.tasks.correction.daily).toEqual({
@@ -159,8 +176,8 @@ describe('editing (UX-002…010, POL-017…021)', () => {
       max: 3000,
     });
     await openPage();
-    expect(row(TOTAL, 'Daily').max.value).toBe('5,000');
-    expect(row('Correction', 'Daily').max.value).toBe('3,000');
+    expect(row(TOTAL, 'Daily').max.value).toBe(thousands('5,000'));
+    expect(row('Correction', 'Daily').max.value).toBe(thousands('3,000'));
     expect(saveDisabled()).toBe(true);
   });
 
@@ -171,7 +188,7 @@ describe('editing (UX-002…010, POL-017…021)', () => {
       type(row(TOTAL, 'Daily').max, value);
       expect(saveDisabled()).toBe(true);
       expect(row(TOTAL, 'Daily').error).toMatch(
-        /whole number from 1 to 1,000,000/,
+        /nombre entier de 1 à 1\u202f000\u202f000/,
       );
       expect(row(TOTAL, 'Daily').max.getAttribute('aria-invalid')).toBe('true');
       await section.save();
@@ -185,7 +202,7 @@ describe('editing (UX-002…010, POL-017…021)', () => {
     toggle(row(TOTAL, 'Daily').box, false);
     expect(saveDisabled()).toBe(true);
     expect(text('limits-global-error')).toMatch(
-      /Keep at least one total limit on/,
+      /Gardez au moins une limite totale active/,
     );
     toggle(row(TOTAL, 'Monthly').box, true);
     expect(saveDisabled()).toBe(false);
@@ -195,22 +212,22 @@ describe('editing (UX-002…010, POL-017…021)', () => {
     for (let i = 0; i < 4; i++) await send({ task: 'rewrite' });
     const section = await openPage();
     expect(row('Rewrite', 'Daily').usage).toMatch(
-      /^Off \(still tracking usage\): 4 used/,
+      /^Désactivée \(usage toujours compté\) : 4 utilisée\(s\)/,
     );
     toggle(row('Rewrite', 'Daily').box, true);
     type(row('Rewrite', 'Daily').max, '4');
     expect(row('Rewrite', 'Daily').error).toMatch(
-      /Already 4 used in this period: new requests it covers are blocked once saved/,
+      /Déjà 4 utilisée\(s\) sur cette période : les nouvelles requêtes concernées seront bloquées après l’enregistrement/,
     );
     await section.save();
     expect(row('Rewrite', 'Daily').usage).toMatch(
-      /^Limit reached — used 4 \/ 4, 0 remaining now/,
+      /^Limite atteinte — 4 \/ 4 utilisée\(s\), 0 restante\(s\)/,
     );
     toggle(row('Rewrite', 'Daily').box, false);
     await section.save();
     expect(row('Rewrite', 'Daily').max.value).toBe('4');
     expect(row('Rewrite', 'Daily').usage).toMatch(
-      /^Off \(still tracking usage\): 4 used/,
+      /^Désactivée \(usage toujours compté\) : 4 utilisée\(s\)/,
     );
   });
 
@@ -219,11 +236,11 @@ describe('editing (UX-002…010, POL-017…021)', () => {
     const section = await openPage();
     type(row(TOTAL, 'Daily').max, '2');
     expect(row(TOTAL, 'Daily').error).toMatch(
-      /Below what is already used \(3\)/,
+      /En dessous de ce qui est déjà utilisé \(3\)/,
     );
     await section.save();
     expect(row(TOTAL, 'Daily').usage).toMatch(
-      /^Over limit — used 3 \/ 2 \(over limit\), 0 remaining now/,
+      /^Limite dépassée — 3 \/ 2 utilisée\(s\) \(dépassement\), 0 restante\(s\)/,
     );
     expect(row(TOTAL, 'Daily').bar.value).toBe(2);
   });
@@ -245,7 +262,7 @@ describe('editing (UX-002…010, POL-017…021)', () => {
     );
     await openPage(quota);
     expect(row(TOTAL, 'Daily').usage).toMatch(
-      /used 0 \/ 20, 19 remaining now, 1 in progress/,
+      /0 \/ 20 utilisée\(s\), 19 restante\(s\), 1 en cours/,
     );
   });
 });
@@ -265,7 +282,9 @@ describe('saving safely (RACE-014, UX-020/021)', () => {
     );
     type(row(TOTAL, 'Daily').max, '50');
     await stale.save();
-    expect(text('limits-message')).toMatch(/changed in another tab or window/);
+    expect(text('limits-message')).toMatch(
+      /modifiées dans un autre onglet ou une autre fenêtre/,
+    );
     expect($('limits-reload').hidden).toBe(false);
     expect((await quota.snapshot(NOW, [])).policy!.global.daily.max).toBe(9);
     $('limits-reload').click();
@@ -278,15 +297,17 @@ describe('saving safely (RACE-014, UX-020/021)', () => {
     quota.savePolicy = () => Promise.reject(new Error('disk full'));
     type(row(TOTAL, 'Daily').max, '42');
     await section.save();
-    expect(text('limits-message')).toMatch(/Browser storage could not be read/);
+    expect(text('limits-message')).toMatch(
+      /stockage du navigateur n’a pas pu être lu/,
+    );
     expect(row(TOTAL, 'Daily').max.value).toBe('42');
   });
 
   it('UX-012: unreadable usage records → "unavailable", never "0 of 20"', async () => {
     await openPage(new QuotaStore(undefined));
-    expect(text('limits-state')).toBe('Unavailable');
-    expect(text('limits-status')).toMatch(/Usage temporarily unavailable/);
-    expect(row(TOTAL, 'Daily').usage).toBe('Usage temporarily unavailable.');
+    expect(text('limits-state')).toBe('Indisponible');
+    expect(text('limits-status')).toMatch(/Usage momentanément indisponible/);
+    expect(row(TOTAL, 'Daily').usage).toBe('Usage momentanément indisponible.');
     expect(row(TOTAL, 'Daily').box.disabled).toBe(true);
     expect($<HTMLInputElement>('limits-pause').disabled).toBe(true);
   });
@@ -299,8 +320,10 @@ describe('pause, warnings, time zone, repair, clock', () => {
     pause.checked = true;
     await section.savePause();
     expect((await store().snapshot(NOW, [])).policy!.pauseAll).toBe(true);
-    expect(text('limits-state')).toBe('AI paused');
-    expect(text('limits-message')).toMatch(/Text shortcuts keep working/);
+    expect(text('limits-state')).toBe('IA en pause');
+    expect(text('limits-message')).toMatch(
+      /raccourcis texte continuent de fonctionner/,
+    );
   });
 
   it('NOTE-007/020/024: warnings are listed once, as text, and Dismiss only hides them', async () => {
@@ -323,7 +346,7 @@ describe('pause, warnings, time zone, repair, clock', () => {
       );
     expect(alerts()).toEqual([
       expect.stringMatching(
-        /^Correctly: 80% of your daily total AI request limit used \(4 \/ 5\)\. 1 remain\./,
+        /^Correctly : 80 % de votre limite journalière du total des requêtes IA utilisés \(4 \/ 5\)\. Il reste 1\./,
       ),
     ]);
     document.querySelector<HTMLButtonElement>('#limits-alerts button')!.click();
@@ -340,7 +363,7 @@ describe('pause, warnings, time zone, repair, clock', () => {
     expect($('limits-timezone-row').hidden).toBe(false);
     type($<HTMLInputElement>('limits-timezone-input'), 'Mars/Olympus');
     expect(saveDisabled()).toBe(true);
-    expect(text('limits-timezone-error')).toMatch(/Unknown time zone/);
+    expect(text('limits-timezone-error')).toMatch(/Fuseau horaire inconnu/);
     const zone =
       text('limits-timezone') === 'America/New_York'
         ? 'Europe/Paris'
@@ -350,9 +373,9 @@ describe('pause, warnings, time zone, repair, clock', () => {
     await section.save();
     expect(text('limits-timezone')).not.toBe(zone);
     await section.save();
-    expect(confirm.mock.calls.at(-1)![0]).toMatch(/nothing is reset/);
+    expect(confirm.mock.calls.at(-1)![0]).toMatch(/rien n’est remis à zéro/);
     expect(text('limits-timezone')).toBe(zone);
-    expect(row(TOTAL, 'Daily').usage).toMatch(/used 1 \/ 20/);
+    expect(row(TOTAL, 'Daily').usage).toMatch(/1 \/ 20 utilisée/);
   });
 
   it('POL-002: damaged limits → repair keeps the usage', async () => {
@@ -368,18 +391,18 @@ describe('pause, warnings, time zone, repair, clock', () => {
     });
     db.close();
     const section = await openPage();
-    expect(text('limits-state')).toBe('Needs repair');
+    expect(text('limits-state')).toBe('À réparer');
     expect($('limits-repair').hidden).toBe(false);
     await section.repair();
-    expect(text('limits-state')).toBe('Active');
-    expect(row(TOTAL, 'Daily').usage).toMatch(/used 1 \/ 20/);
+    expect(text('limits-state')).toBe('Actives');
+    expect(row(TOTAL, 'Daily').usage).toMatch(/1 \/ 20 utilisée/);
   });
 
   it('CAL-017: a clock moved back shows a confirmation that resumes requests', async () => {
     await send();
     const quota = store();
     const section = await openPage(quota, NOW - 3_600_000);
-    expect(text('limits-state')).toBe('Clock check needed');
+    expect(text('limits-state')).toBe('Vérifier l’horloge');
     expect($('limits-clock').hidden).toBe(false);
     await section.confirmClock();
     expect($('limits-clock').hidden).toBe(true);
@@ -401,7 +424,7 @@ describe('per provider and per key (S-06)', () => {
     );
     const section = await openPage();
     expect(document.querySelector('#limits-advanced-groups img')).toBeNull();
-    const legend = `Key “<img src=x onerror=alert(1)>” (OpenAI)`;
+    const legend = `Clé « <img src=x onerror=alert(1)> » (OpenAI)`;
     toggle(row(legend, 'Monthly').box, true);
     type(row(legend, 'Monthly').max, '150');
     toggle(row('OpenAI', 'Daily').box, true);
@@ -414,5 +437,46 @@ describe('per provider and per key (S-06)', () => {
     expect(Object.keys(policy!.credentials)).toEqual([OPENAI_ID]);
     expect(policy!.providers.openai.daily.enabled).toBe(true);
     expect(JSON.stringify(policy)).not.toContain('img');
+  });
+});
+
+describe('V5.12 Summary limits', () => {
+  it('QUO-002/WP7: Summary has its own off-but-tracked limits that can be saved', async () => {
+    const section = await openPage();
+    expect(row('Summary', 'Daily').box.checked).toBe(false);
+    expect(row('Summary', 'Daily').usage).toMatch(/usage toujours compté/);
+    toggle(row('Summary', 'Daily').box, true);
+    type(row('Summary', 'Daily').max, '4');
+    await section.save();
+    const { policy } = await store().snapshot(NOW, []);
+    expect(policy!.tasks.summary.daily).toEqual({ enabled: true, max: 4 });
+    expect(policy!.tasks.translation.daily.enabled).toBe(false);
+  });
+
+  it('summaries are counted in their own row, not as translations', async () => {
+    await send({ task: 'summary' });
+    await openPage();
+    expect(row('Summary', 'Daily').usage).toMatch(/ : 1 utilisée/);
+    expect(row('Translation', 'Daily').usage).toMatch(/ : 0 utilisée/);
+    expect(row(TOTAL, 'Daily').usage).toMatch(/1 \/ 20 utilisée/);
+  });
+});
+
+describe('settings layout (per-action limits folded)', () => {
+  it('the total stays in view; per-action limits are folded unless one is on', async () => {
+    await openPage();
+    const folded = $<HTMLDetailsElement>('limits-tasks');
+    expect(folded.open).toBe(false);
+    expect(
+      document.querySelectorAll('#limits-groups fieldset.limits'),
+    ).toHaveLength(1);
+    expect(
+      document.querySelectorAll('#limits-task-groups fieldset.limits'),
+    ).toHaveLength(5);
+    const section = await openPage();
+    toggle(row('Summary', 'Daily').box, true);
+    await section.save();
+    await openPage();
+    expect($<HTMLDetailsElement>('limits-tasks').open).toBe(true);
   });
 });

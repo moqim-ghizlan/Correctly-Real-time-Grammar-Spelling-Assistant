@@ -1,12 +1,15 @@
-# Correctly V5.11
+# Correctly V5.12
 
 Personal Chrome/Brave extension (Manifest V3, TypeScript): an on-demand AI
 writing assistant using your own Google Gemini and/or OpenAI API keys.
 
-- **One Correctly window (V5.11).** The toolbar button, **Ctrl+M** and the
-  optional logo handle on the right edge of every page open the same
-  centered window with three tabs: **Correction**, **Reformulation** and
-  **Translation**. Your selected text is copied into one shared, editable
+- **One Correctly window (V5.11–V5.12).** The toolbar button, **Ctrl+M** and
+  the optional logo handle on the right edge of every page open the same
+  centered window with four tabs: **Correction**, **Reformulation**,
+  **Translation** and **Summary** (V5.12: a summary written directly in the
+  chosen language and Arabic variant, short/medium/detailed, paragraph or key
+  points, in one request). Text selected on an ordinary web page can be read
+  too: results are copy-only, the page is never edited. Your selected text is copied into one shared, editable
   text field (or it starts empty). Nothing is sent until you click a tab's
   **Generate** button; each tab keeps its result until you edit the text.
   **Apply** replaces exactly the original selection in a plain text box and
@@ -87,7 +90,7 @@ npm run lint
 Optional:
 
 ```powershell
-npm run package        # release/Correctly-V5.11-Extension.zip (+ .sha256)
+npm run package        # release/Correctly-V5.12-Extension.zip (+ .sha256)
 npm run test:browser   # real-browser smoke test (Brave by default)
 node scripts/verify-browser.mjs --browser=chrome
 ```
@@ -153,11 +156,12 @@ IndexedDB.
 | `frontend/tests/`            | unit and integration tests                                |
 | `frontend/manifest.json`     | the only manifest (copied to `dist/` by Vite)             |
 | `scripts/`                   | dist audit, packaging, dev watch, browser smoke test      |
-| `docs/v5.1/` … `docs/v5.11/` | architecture, security, test reports, checklists          |
+| `docs/v5.1/` … `docs/v5.12/` | architecture, security, test reports, checklists          |
 | `v5/`                        | V5.1–V5.x specifications                                  |
 | `plans/`                     | V1–V4 plans (history)                                     |
 
-See [docs/v5.11/TEST_REPORT.md](docs/v5.11/TEST_REPORT.md) (right-edge handle and three-tab modal),
+See [docs/v5.12/TEST_REPORT.md](docs/v5.12/TEST_REPORT.md) (Summary tab, read-only page selection, French settings page),
+[docs/v5.11/TEST_REPORT.md](docs/v5.11/TEST_REPORT.md) (right-edge handle and three-tab modal),
 [docs/v5.10/V5.10_REPORT.md](docs/v5.10/V5.10_REPORT.md) (release audit and owner guide [docs/v5.10/USER_GUIDE.md](docs/v5.10/USER_GUIDE.md)),
 [docs/v5.9/V5.9_REPORT.md](docs/v5.9/V5.9_REPORT.md),
 [docs/v5.8/V5.8_REPORT.md](docs/v5.8/V5.8_REPORT.md),

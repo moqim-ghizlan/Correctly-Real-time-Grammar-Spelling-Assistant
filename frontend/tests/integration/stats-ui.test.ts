@@ -100,23 +100,27 @@ beforeEach(() => {
 describe('first open (Scenario A)', () => {
   it('a healthy empty history is a true zero, with $0.00 and an honest start date', async () => {
     await openPage();
-    expect(text('stats-state')).toBe('No requests');
+    expect(text('stats-state')).toBe('Aucune requête');
     expect(text('stats-requests-value')).toBe('0');
     expect(text('stats-cost-value')).toBe('$0.00');
     expect(text('stats-cost-detail')).toBe(
-      'No request was sent in this period.',
+      'Aucune requête envoyée sur cette période.',
     );
     expect(text('stats-range')).toMatch(/^2026-10-15 → 2026-10-15 \(.+\)\./);
     expect($('stats-coverage').hidden).toBe(false);
-    expect(text('stats-coverage')).toMatch(/Detailed statistics start on/);
+    expect(text('stats-coverage')).toMatch(
+      /Les statistiques détaillées commencent le/,
+    );
     expect(document.querySelectorAll('#stats-days tbody tr')).toHaveLength(1);
     expect(fetchSpy).not.toHaveBeenCalled();
   });
 
   it('BRW: storage unavailable → "unavailable", never a fake zero', async () => {
     await openPage(new QuotaStore(undefined));
-    expect(text('stats-state')).toBe('Unavailable');
-    expect(text('stats-message')).toMatch(/Statistics temporarily unavailable/);
+    expect(text('stats-state')).toBe('Indisponible');
+    expect(text('stats-message')).toMatch(
+      /Statistiques momentanément indisponibles/,
+    );
     expect(text('stats-requests-value')).toBe('—');
     expect($<HTMLButtonElement>('stats-csv').disabled).toBe(true);
   });
@@ -135,25 +139,27 @@ describe('with activity (Scenarios B–H)', () => {
       NOW + 1000,
     );
     await openPage();
-    expect(text('stats-state')).toBe('Ready');
+    expect(text('stats-state')).toBe('À jour');
     expect(text('stats-requests-value')).toBe('3');
     expect(text('stats-success-value')).toBe('2');
     expect(text('stats-success-detail')).toMatch(
-      /correction 1, rewrite 1.*answer lost: 1/,
+      /correction 1, reformulation 1.*réponses perdues : 1/,
     );
     expect(text('stats-applied-value')).toBe('1');
-    expect(text('stats-tokens-value')).toBe('1,500 in / 300 out');
-    expect(text('stats-tokens-detail')).toMatch(/2 of 3 requests .*Partial/);
+    expect(text('stats-tokens-value')).toBe('1\u202f500 entrée / 300 sortie');
+    expect(text('stats-tokens-detail')).toMatch(
+      /2 requête\(s\) sur 3 .*Partiel/,
+    );
     // (1,500 × 0.25 + 300 × 1.50) per million = $0.000825
-    expect(text('stats-cost-value')).toBe('$0.00082 (partial)');
+    expect(text('stats-cost-value')).toBe('$0.00082 (partiel)');
     expect(text('stats-cost-detail')).toMatch(
-      /Partial estimate for 2 of 3 requests.*1 without token counts.*not an invoice/,
+      /Estimation partielle pour 2 requête\(s\) sur 3.*1 sans nombre de tokens.*pas une facture/,
     );
     const rows = [...document.querySelectorAll('#stats-by-task tbody tr')].map(
       (row) => row.textContent,
     );
     expect(rows).toHaveLength(3);
-    expect($('stats-chart').getAttribute('aria-label')).toMatch(/3 in total/);
+    expect($('stats-chart').getAttribute('aria-label')).toMatch(/3 au total/);
     expect(fetchSpy).not.toHaveBeenCalled();
   });
 
@@ -177,9 +183,9 @@ describe('with activity (Scenarios B–H)', () => {
     );
     expect(keys).toEqual(
       expect.arrayContaining([
-        'All API keys',
+        'Toutes les clés API',
         'Gemini personal',
-        'Deleted key (…9999)',
+        'Clé supprimée (…9999)',
       ]),
     );
     void section;
@@ -204,7 +210,7 @@ describe('with activity (Scenarios B–H)', () => {
     $('stats-custom').dispatchEvent(new Event('submit'));
     await vi.waitFor(() =>
       expect(text('stats-message')).toBe(
-        'The end date is before the start date.',
+        'La date de fin est avant la date de début.',
       ),
     );
     $<HTMLInputElement>('stats-from').value = '2026-10-15';
@@ -250,7 +256,7 @@ describe('export, prices, deletion (CSV, USD, INV-15)', () => {
     $<HTMLInputElement>('price-output').value = 'abc';
     await section.addPrice();
     expect(text('price-message')).toMatch(
-      /Input price.*Output price.*Choose the date/,
+      /Prix d’entrée.*Prix de sortie.*Choisissez la date/,
     );
     $<HTMLInputElement>('price-input').value = '0.30';
     $<HTMLInputElement>('price-output').value = '2';
@@ -258,14 +264,14 @@ describe('export, prices, deletion (CSV, USD, INV-15)', () => {
     $<HTMLInputElement>('price-label').value = '<b>contract</b>';
     await section.addPrice();
     expect(confirm.mock.calls.at(-1)![0]).toMatch(
-      /requests sent from 2026-10-01/,
+      /requêtes envoyées depuis le 2026-10-01/,
     );
-    expect(text('price-message')).toMatch(/Price reference added/);
+    expect(text('price-message')).toMatch(/Prix de référence ajouté/);
     const rows = [...document.querySelectorAll('#price-table tbody tr')].map(
       (row) => row.textContent ?? '',
     );
     expect(
-      rows.some((row) => row.includes('Your entry: <b>contract</b>')),
+      rows.some((row) => row.includes('Votre saisie : <b>contract</b>')),
     ).toBe(true);
     expect(document.querySelector('#price-table b')).toBeNull();
   });
@@ -289,14 +295,14 @@ describe('export, prices, deletion (CSV, USD, INV-15)', () => {
     expect(text('stats-requests-value')).toBe('1');
     await section.deleteHistory();
     expect(confirm.mock.calls.at(-1)![0]).toMatch(
-      /does NOT delete your API keys, your usage limits/,
+      /ne supprime PAS vos clés API, vos limites d’usage/,
     );
     expect(text('stats-delete-message')).toMatch(
-      /Deleted 1 request record\(s\)\. Usage limits are unchanged\./,
+      /1 enregistrement\(s\) de requête supprimé\(s\)\. Les limites d’usage sont inchangées\./,
     );
     expect(text('stats-requests-value')).toBe('0');
     expect(text('stats-coverage')).toMatch(
-      /deleted on request\. Usage limits still count/,
+      /supprimées à votre demande\. Les limites d’usage comptent toujours/,
     );
     const blocked = await quota.admit(
       {
