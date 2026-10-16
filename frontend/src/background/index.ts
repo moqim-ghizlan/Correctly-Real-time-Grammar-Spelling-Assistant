@@ -23,7 +23,7 @@ import {
   resolveRoute,
   type TaskKind,
 } from '../shared/providers';
-import { isRewriteTextRequest } from '../shared/rewrite';
+import { DEFAULT_FORMALITY, isRewriteTextRequest } from '../shared/rewrite';
 import { SHORTCUTS_KEY, loadShortcuts } from '../shared/shortcuts';
 import {
   KEYBINDINGS_KEY,
@@ -166,6 +166,7 @@ async function inject(
   translation: unknown = null,
   rewriteEnabled = true,
   locale: Locale = 'en',
+  formality: number = DEFAULT_FORMALITY,
 ): Promise<void> {
   const target = frameIds ? { tabId, frameIds } : { tabId };
   await chrome.scripting.executeScript({ target, files: [CONTENT_SCRIPT] });
@@ -177,6 +178,7 @@ async function inject(
       translation: unknown,
       rewriteEnabled: boolean,
       locale: string,
+      formality: number,
     ) => {
       (
         globalThis as {
@@ -186,11 +188,19 @@ async function inject(
             translation: unknown,
             rewriteEnabled: boolean,
             locale: string,
+            formality: number,
           ) => void;
         }
-      ).correctlyRun?.(intent, styles, translation, rewriteEnabled, locale);
+      ).correctlyRun?.(
+        intent,
+        styles,
+        translation,
+        rewriteEnabled,
+        locale,
+        formality,
+      );
     },
-    args: [intent, styles, translation, rewriteEnabled, locale],
+    args: [intent, styles, translation, rewriteEnabled, locale, formality],
   });
 }
 
@@ -214,6 +224,7 @@ export async function correctInTab(
   let styles: string[] = [];
   let translation: unknown = null;
   let rewriteEnabled = true;
+  let formality: number = DEFAULT_FORMALITY;
   let locale: Locale = resolveLocale('auto');
   try {
     const settings = await loadSettings(area);
@@ -225,6 +236,7 @@ export async function correctInTab(
     if (intent !== 'correct') {
       // Translate & rewrite reuses the same default styles as Rewrite.
       styles = settings.rewrite.defaultStyles;
+      formality = settings.rewrite.formality;
       translation = settings.translation;
     }
     if (
@@ -245,6 +257,7 @@ export async function correctInTab(
       translation,
       rewriteEnabled,
       locale,
+      formality,
     );
   } catch {
     if (frameId === 0) return chrome.runtime.openOptionsPage();
@@ -397,7 +410,12 @@ export function registerServiceWorker(
       isContentScriptSender(sender, chrome.runtime.id) &&
       isRewriteTextRequest(message)
     )
-      task = controller.rewrite(message.text, message.styleIds, origin(sender));
+      task = controller.rewrite(
+        message.text,
+        message.styleIds,
+        origin(sender),
+        message.formality,
+      );
     else if (
       isContentScriptSender(sender, chrome.runtime.id) &&
       isTranslateTextRequest(message)

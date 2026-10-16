@@ -1,4 +1,26 @@
-# Correctly 5.13.0 — Release notes
+# Correctly 5.13.3 — Release notes
+
+## New: Custom formality (Reformulation)
+
+- New rewrite style **Custom formality** with a 5-step slider from _Less
+  formal_ to _More formal_: Light touch (keep the author's words and tone;
+  only fix errors, smooth the sentence structure, read naturally), Relaxed,
+  **Neutral** (default), Polished, Very formal.
+- Available in the Reformulation tab, Translate & rewrite and the
+  right-click panel; the slider shows while the style is checked and never
+  sends anything by itself. Results are labeled with the level
+  (e.g. "Custom formality · Light touch"). Still ONE AI request per
+  Generate, whatever the styles chosen.
+- Settings → Actions → Reformulation: starting level of the slider
+  (`rewrite.formality`, default 3; invalid values read as 3).
+- Messages: `formality` (1–5) is required with the `custom` style and
+  refused without it (`isRewriteTextRequest`, `isTranslateTextRequest`).
+  The worker passes the default level to content.js (`correctlyRun` 6th
+  argument). No new permission, host or dependency.
+- Tests: 36 files, 672 tests. Not yet checked in Chrome/Brave nor with a
+  real key (owner checklist).
+
+## 5.13.0 — Release notes
 
 ## New: English and French interface
 

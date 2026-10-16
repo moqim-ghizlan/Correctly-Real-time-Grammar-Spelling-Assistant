@@ -1,4 +1,9 @@
-import { REWRITE_STYLES, normalizeStyleIds } from '../shared/rewrite';
+import {
+  REWRITE_STYLES,
+  normalizeFormality,
+  normalizeStyleIds,
+  type Formality,
+} from '../shared/rewrite';
 import {
   ARABIC_VARIANTS,
   LANGUAGES,
@@ -162,6 +167,13 @@ export class SettingsPage {
       box.addEventListener('change', () => {
         void this.saveRewrite();
       });
+    const formality = this.el<HTMLInputElement>('rewrite-formality');
+    formality.addEventListener('input', () =>
+      this.showFormality(normalizeFormality(Number(formality.value))),
+    );
+    formality.addEventListener('change', () => {
+      void this.saveRewrite();
+    });
     this.el<HTMLInputElement>('correction-consent').addEventListener(
       'change',
       () => {
@@ -194,6 +206,7 @@ export class SettingsPage {
       'trigger-smart',
       'open-shortcuts',
       'rewrite-enabled',
+      'rewrite-formality',
       'translation-source',
       'translation-target',
       'translation-variant',
@@ -236,6 +249,16 @@ export class SettingsPage {
       box.checked = settings.rewrite.defaultStyles.some(
         (id) => id === box.value,
       );
+    this.el<HTMLInputElement>('rewrite-formality').value = String(
+      settings.rewrite.formality,
+    );
+    this.showFormality(settings.rewrite.formality);
+  }
+
+  private showFormality(level: Formality) {
+    const range = this.el<HTMLInputElement>('rewrite-formality');
+    range.setAttribute('aria-valuetext', this.c.formality[level]);
+    this.el('rewrite-formality-level').textContent = this.c.formality[level];
   }
 
   /** Read-modify-write from fresh storage so other tabs' changes survive. */
@@ -307,6 +330,9 @@ export class SettingsPage {
 
   async saveRewrite(): Promise<void> {
     const enabled = this.el<HTMLInputElement>('rewrite-enabled').checked;
+    const formality = normalizeFormality(
+      Number(this.el<HTMLInputElement>('rewrite-formality').value),
+    );
     const defaultStyles = normalizeStyleIds(
       this.styleBoxes.filter((box) => box.checked).map((box) => box.value),
     );
@@ -318,7 +344,7 @@ export class SettingsPage {
     try {
       await this.update((settings) => ({
         ...settings,
-        rewrite: { enabled, defaultStyles },
+        rewrite: { enabled, defaultStyles, formality },
       }));
       this.message('rewrite-message', this.m.rewriteSaved, 'ok');
     } catch {

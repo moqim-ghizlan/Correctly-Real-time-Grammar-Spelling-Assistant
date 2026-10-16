@@ -7,6 +7,7 @@ import type {
 } from '../shared/contracts';
 import type {
   CandidatesResult,
+  Formality,
   RewriteResult,
   RewriteStyleId,
 } from '../shared/rewrite';
@@ -242,8 +243,11 @@ export class ConnectionController {
     text: string,
     styleIds: readonly RewriteStyleId[],
     origin?: Origin,
+    formality?: Formality,
   ): Promise<RewriteResult> {
-    return this.enqueue(() => this.runRewrite(text, styleIds, origin));
+    return this.enqueue(() =>
+      this.runRewrite(text, styleIds, origin, formality),
+    );
   }
 
   /** One request: detection, translation and any styles together. */
@@ -610,13 +614,14 @@ export class ConnectionController {
     text: string,
     styleIds: readonly RewriteStyleId[],
     origin?: Origin,
+    formality?: Formality,
   ): Promise<RewriteResult> {
     const [lead, core, trail] = splitEdges(text);
     const guard = await this.protect(core);
     const result = await this.generate(
       core,
       'rewrite',
-      rewriteTask(guard.text, styleIds, guard.note),
+      rewriteTask(guard.text, styleIds, guard.note, formality),
       REWRITE_TIMEOUT_MS,
       (raw) => {
         const parsed = parseRewrite(raw, guard.text, styleIds);

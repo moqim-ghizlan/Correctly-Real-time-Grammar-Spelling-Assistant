@@ -23,7 +23,11 @@ describe('settings defaults and validation', () => {
       safety: { dailyTestAttemptLimit: 20 },
       correction: { consent: false },
       triggers: { keyboard: true, contextMenu: true, smartButton: false },
-      rewrite: { enabled: true, defaultStyles: ['professional'] },
+      rewrite: {
+        enabled: true,
+        defaultStyles: ['professional'],
+        formality: 3,
+      },
       translation: { source: 'auto', target: 'en', arabicVariant: 'msa' },
       ui: { language: 'auto' },
     });

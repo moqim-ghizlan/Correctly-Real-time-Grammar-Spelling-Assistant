@@ -58,6 +58,7 @@ export type HtmlKey =
   | 'cost'
   | 'createKey'
   | 'custom'
+  | 'defaultFormality'
   | 'defaultStyles'
   | 'deleteBefore'
   | 'deleteHint'
@@ -90,11 +91,13 @@ export type HtmlKey =
   | 'languageHint'
   | 'languageLabel'
   | 'languageTitle'
+  | 'lessFormal'
   | 'limitNote'
   | 'limitsLead'
   | 'limitsTitle'
   | 'loading'
   | 'model'
+  | 'moreFormal'
   | 'myKeys'
   | 'myShortcuts'
   | 'navAbout'
@@ -266,6 +269,7 @@ export const HTML_EN: Record<HtmlKey, string> = {
   cost: 'Estimated API cost (USD)',
   createKey: 'Create a key in Google AI Studio',
   custom: 'Custom range',
+  defaultFormality: 'Starting level of the “Custom formality” style',
   defaultStyles: 'Styles selected by default',
   deleteBefore: 'Delete requests sent before',
   deleteHint:
@@ -305,6 +309,7 @@ export const HTML_EN: Record<HtmlKey, string> = {
     'Applies to these settings, the Correctly window, the handle and the right-click menu. What is sent to the AI does not change.',
   languageLabel: 'Language',
   languageTitle: 'Interface language',
+  lessFormal: 'Less formal',
   limitNote:
     'Limits apply to this browser profile only: other browsers, profiles, devices or apps using the same keys are not counted, and clearing the browser’s data erases them. A request whose answer was lost stays counted and may still be billed. Requests cost different amounts (tokens), so a request limit is not a spending limit: set spend caps at your provider (their enforcement may lag).',
   limitsLead:
@@ -312,6 +317,7 @@ export const HTML_EN: Record<HtmlKey, string> = {
   limitsTitle: 'Limits',
   loading: 'Loading…',
   model: 'Model',
+  moreFormal: 'More formal',
   myKeys: 'My Correctly shortcuts',
   myShortcuts: 'My shortcuts',
   navAbout: 'About',
@@ -493,6 +499,7 @@ export const HTML_FR: Record<HtmlKey, string> = {
   cost: 'Coût API estimé (USD)',
   createKey: 'Créer une clé dans Google AI Studio',
   custom: 'Personnalisée',
+  defaultFormality: 'Niveau de départ du style « Formalité personnalisée »',
   defaultStyles: 'Styles cochés par défaut',
   deleteBefore: 'Supprimer les requêtes envoyées avant le',
   deleteHint:
@@ -533,6 +540,7 @@ export const HTML_FR: Record<HtmlKey, string> = {
     'S’applique à ces paramètres, à la fenêtre Correctly, à la poignée et au menu clic droit. Les textes envoyés à l’IA ne changent pas.',
   languageLabel: 'Langue',
   languageTitle: 'Langue de l’interface',
+  lessFormal: 'Moins formel',
   limitNote:
     'Les limites ne valent que pour ce profil de navigateur : les autres navigateurs, profils, appareils ou applications utilisant les mêmes clés ne sont pas comptés, et effacer les données du navigateur les supprime. Une requête dont la réponse a été perdue reste comptée et peut être facturée. Les requêtes ne coûtent pas toutes pareil (tokens) : une limite de requêtes n’est pas une limite de dépense. Fixez des plafonds chez votre fournisseur (leur application peut avoir du retard).',
   limitsLead:
@@ -540,6 +548,7 @@ export const HTML_FR: Record<HtmlKey, string> = {
   limitsTitle: 'Limites',
   loading: 'Chargement…',
   model: 'Modèle',
+  moreFormal: 'Plus formel',
   myKeys: 'Mes raccourcis Correctly',
   myShortcuts: 'Mes raccourcis',
   navAbout: 'À propos',

@@ -45,6 +45,11 @@ export const REWRITE_STYLES = [
     label: 'Funny',
     description: 'light, kind humor; stay respectful when the topic is serious',
   },
+  {
+    id: 'custom',
+    label: 'Custom formality',
+    description: 'choose how formal, from a light touch to very formal',
+  },
 ] as const;
 
 export type RewriteStyleId = (typeof REWRITE_STYLES)[number]['id'];
@@ -52,6 +57,88 @@ export const DEFAULT_REWRITE_STYLES: RewriteStyleId[] = ['professional'];
 
 export const isRewriteStyleId = (value: unknown): value is RewriteStyleId =>
   REWRITE_STYLES.some((style) => style.id === value);
+
+/**
+ * Custom formality (owner request 2026-10-16): the slider of the "custom"
+ * style, from 1 (keep the author's voice, only fix and smooth) to 5 (very
+ * formal). `prompt` is the instruction sent to the model for that level.
+ */
+export const FORMALITY_LEVELS = [
+  {
+    id: 1,
+    label: 'Light touch',
+    prompt:
+      "light touch: keep the author's words, tone and casual register; only fix errors, smooth the sentence structure and make it read naturally",
+  },
+  {
+    id: 2,
+    label: 'Relaxed',
+    prompt:
+      'relaxed: natural, conversational everyday language, lightly polished',
+  },
+  {
+    id: 3,
+    label: 'Neutral',
+    prompt: 'neutral: clear, standard register, neither casual nor formal',
+  },
+  {
+    id: 4,
+    label: 'Polished',
+    prompt:
+      'polished: careful, professional register that still reads naturally',
+  },
+  {
+    id: 5,
+    label: 'Very formal',
+    prompt: 'very formal: elevated register and formal, polite diction',
+  },
+] as const;
+
+export type Formality = (typeof FORMALITY_LEVELS)[number]['id'];
+export const DEFAULT_FORMALITY: Formality = 3;
+
+export const isFormality = (value: unknown): value is Formality =>
+  FORMALITY_LEVELS.some((level) => level.id === value);
+
+export const normalizeFormality = (value: unknown): Formality =>
+  isFormality(value) ? value : DEFAULT_FORMALITY;
+
+/** `{ formality }` only when the custom style is requested, `{}` otherwise. */
+export const formalityField = (
+  styleIds: readonly RewriteStyleId[],
+  formality: Formality,
+): { formality?: Formality } =>
+  styleIds.includes('custom') ? { formality } : {};
+
+/** `- id: description` lines for the model (custom: its level's prompt). */
+export function styleLines(
+  styleIds: readonly RewriteStyleId[],
+  formality: Formality = DEFAULT_FORMALITY,
+): string[] {
+  const level = FORMALITY_LEVELS.find((item) => item.id === formality);
+  return REWRITE_STYLES.filter((style) => styleIds.includes(style.id)).map(
+    (style) =>
+      `- ${style.id}: ${style.id === 'custom' && level ? level.prompt : style.description}`,
+  );
+}
+
+/**
+ * Exact keys of a request carrying `styleIds`: `formality` is required (and
+ * valid) with the custom style and forbidden without it.
+ */
+export function formalityKeysValid(
+  data: Record<string, unknown>,
+  keys: string,
+): boolean {
+  if (!Array.isArray(data.styleIds)) return false;
+  if (!data.styleIds.includes('custom'))
+    return Object.keys(data).sort().join() === keys;
+  return (
+    Object.keys(data).sort().join() ===
+      [...keys.split(','), 'formality'].sort().join() &&
+    isFormality(data.formality)
+  );
+}
 
 export const styleLabel = (id: RewriteStyleId): string =>
   REWRITE_STYLES.find((style) => style.id === id)?.label ?? id;
@@ -66,16 +153,21 @@ export interface RewriteTextRequest {
   type: typeof REWRITE_TEXT;
   text: string;
   styleIds: RewriteStyleId[];
+  /** Present exactly when styleIds includes 'custom'. */
+  formality?: Formality;
 }
 
-/** Exact shape, bounded text, 1–7 known and unique style IDs. */
+/**
+ * Exact shape, bounded text, 1–8 known and unique style IDs, and a valid
+ * formality level exactly when the custom style is chosen.
+ */
 export function isRewriteTextRequest(
   value: unknown,
 ): value is RewriteTextRequest {
   if (!value || typeof value !== 'object' || Array.isArray(value)) return false;
   const data = value as Record<string, unknown>;
   return (
-    Object.keys(data).sort().join() === 'styleIds,text,type' &&
+    formalityKeysValid(data, 'styleIds,text,type') &&
     data.type === REWRITE_TEXT &&
     typeof data.text === 'string' &&
     data.text.trim() !== '' &&

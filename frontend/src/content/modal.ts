@@ -20,9 +20,13 @@ import {
 import type { Locale } from '../shared/locale';
 import type { QuotaNote } from '../shared/quota';
 import {
+  DEFAULT_FORMALITY,
   REWRITE_STYLES,
+  formalityField,
+  normalizeFormality,
   normalizeStyleIds,
   toRewriteResult,
+  type Formality,
   type RewriteStyleId,
 } from '../shared/rewrite';
 import {
@@ -50,7 +54,9 @@ import {
   LIMIT_CODES,
   applyBlocker,
   capture,
+  formalitySlider,
   replaceRange,
+  styleName,
   type Snapshot,
 } from './correction';
 import { closeIcon, gearIcon, logo, minimizeIcon } from './icons';
@@ -105,6 +111,8 @@ export interface ModalOptions {
   rewriteEnabled: boolean;
   /** 5.13: interface language (English when absent). */
   locale?: Locale;
+  /** Starting level of the custom-formality slider (normalized here). */
+  formality?: unknown;
 }
 
 /** chrome.runtime.sendMessage, injectable for tests. */
@@ -246,6 +254,10 @@ fieldset { margin: 10px 0 0; padding: 6px 10px 8px; border: 1px solid var(--bord
 legend { padding: 0 4px; font-size: 12px; color: var(--muted); }
 .choice { display: flex; gap: 8px; align-items: baseline; margin: 4px 0; }
 .choice small { color: var(--muted); }
+.formality { display: grid; grid-template-columns: auto 1fr auto; gap: 4px 8px; align-items: center; margin: 2px 0 8px 24px; }
+.formality small { color: var(--muted); }
+.formality input { width: 100%; margin: 0; }
+.formality .level { grid-column: 1 / -1; }
 .card { display: block; margin-top: 8px; padding: 8px 10px; border: 1px solid var(--border); border-radius: 10px; cursor: pointer; }
 .card:has(input:checked) { border-color: var(--accent); }
 .card strong { margin-left: 6px; }
@@ -338,7 +350,11 @@ export class CorrectlyModal {
     limits: Record<ModalTab, HTMLButtonElement>;
     results: Record<ModalTab, HTMLElement>;
     rewriteStyles: HTMLInputElement[];
+    rewriteFormality: () => Formality;
     translateStyles: HTMLInputElement[];
+    translateFormality: () => Formality;
+    rewriteRange: HTMLInputElement | null;
+    translateRange: HTMLInputElement | null;
     translateStyleBox: HTMLElement;
     from: HTMLSelectElement;
     to: HTMLSelectElement;
@@ -477,9 +493,11 @@ export class CorrectlyModal {
     panel.correction.append(make('p', 'hint', m.correctionHint));
 
     // Reformulation: the V5.4 styles; all chosen styles in ONE request.
+    const startLevel = normalizeFormality(options.formality);
     const styleBoxes = (defaults: readonly RewriteStyleId[]) => {
       const fieldset = make('fieldset');
       fieldset.append(make('legend', '', m.styles));
+      let formality = (): Formality => DEFAULT_FORMALITY;
       const boxes = REWRITE_STYLES.map((item) => {
         const row = make('label', 'choice');
         const box = make('input');
@@ -492,9 +510,19 @@ export class CorrectlyModal {
           make('small', '', this.c.style[item.id].description),
         );
         fieldset.append(row);
+        if (item.id === 'custom') {
+          const slider = formalitySlider(doc, this.c, startLevel);
+          const sync = () => (slider.wrap.hidden = !box.checked);
+          box.addEventListener('change', sync);
+          sync();
+          formality = slider.value;
+          fieldset.append(slider.wrap);
+        }
         return box;
       });
-      return { fieldset, boxes };
+      const range =
+        fieldset.querySelector<HTMLInputElement>('input[type=range]');
+      return { fieldset, boxes, formality: () => formality(), range };
     };
     const normalized = normalizeStyleIds(options.styles);
     const defaults: RewriteStyleId[] = normalized.length
@@ -619,7 +647,11 @@ export class CorrectlyModal {
       limits,
       results,
       rewriteStyles: rewrite.boxes,
+      rewriteFormality: rewrite.formality,
       translateStyles: translate.boxes,
+      translateFormality: translate.formality,
+      rewriteRange: rewrite.range,
+      translateRange: translate.range,
       translateStyleBox: translate.fieldset,
       from: from.node,
       to: to.node,
@@ -657,6 +689,12 @@ export class CorrectlyModal {
       box.addEventListener('change', () =>
         this.optionsChanged('reformulation'),
       );
+    rewrite.range?.addEventListener('change', () =>
+      this.optionsChanged('reformulation'),
+    );
+    translate.range?.addEventListener('change', () =>
+      this.optionsChanged('translation'),
+    );
     for (const node of [
       from.node,
       to.node,
@@ -767,6 +805,9 @@ export class CorrectlyModal {
     const target = isLanguageId(to.value) ? to.value : 'en';
     const source =
       from.value === 'auto' || isLanguageId(from.value) ? from.value : 'auto';
+    const styleIds = alsoRewrite.checked
+      ? this.chosenStyles(this.ui.translateStyles)
+      : [];
     return {
       source,
       target,
@@ -774,9 +815,8 @@ export class CorrectlyModal {
         target === 'ar' && isArabicVariant(variant.value)
           ? variant.value
           : null,
-      styleIds: alsoRewrite.checked
-        ? this.chosenStyles(this.ui.translateStyles)
-        : [],
+      styleIds,
+      ...formalityField(styleIds, this.ui.translateFormality()),
     };
   }
 
@@ -822,12 +862,18 @@ export class CorrectlyModal {
       parse = (reply) => this.parseCorrection(reply);
     } else if (tab === 'reformulation') {
       const styles = this.chosenStyles(this.ui.rewriteStyles);
-      message = { type: REWRITE_TEXT, text, styleIds: styles };
+      const formality = this.ui.rewriteFormality();
+      message = {
+        type: REWRITE_TEXT,
+        text,
+        styleIds: styles,
+        ...formalityField(styles, formality),
+      };
       parse = (reply) =>
         this.parseCandidates(
           reply,
           styles,
-          (id: RewriteStyleId) => this.c.style[id].label,
+          (id: RewriteStyleId) => styleName(this.c, id, formality),
           text,
           'reformulation',
         );
@@ -842,6 +888,7 @@ export class CorrectlyModal {
     } else {
       const choice = this.translationChoice();
       const target = targetName(this.c, choice.target, choice.variant);
+      const formality = choice.formality ?? DEFAULT_FORMALITY;
       message = { type: TRANSLATE_TEXT, text, ...choice };
       parse = (reply) =>
         this.parseCandidates(
@@ -850,7 +897,7 @@ export class CorrectlyModal {
           (key: TranslationKey) =>
             key === NEUTRAL
               ? this.m.translationLabel(target)
-              : this.m.styledLabel(this.c.style[key].label, target),
+              : this.m.styledLabel(styleName(this.c, key, formality), target),
           text,
           'translation',
           this.m.sameLanguage(target, 'reformulation'),
@@ -1224,6 +1271,7 @@ export class CorrectlyModal {
     }
     const busyRewrite = !!this.tabs.reformulation.pending;
     for (const box of ui.rewriteStyles) box.disabled = busyRewrite;
+    if (ui.rewriteRange) ui.rewriteRange.disabled = busyRewrite;
     const busyTranslate = !!this.tabs.translation.pending;
     for (const node of [
       ui.from,
@@ -1231,6 +1279,7 @@ export class CorrectlyModal {
       ui.variant,
       ui.alsoRewrite,
       ...ui.translateStyles,
+      ...(ui.translateRange ? [ui.translateRange] : []),
     ])
       node.disabled = busyTranslate;
     ui.variantRow.hidden = ui.to.value !== 'ar';

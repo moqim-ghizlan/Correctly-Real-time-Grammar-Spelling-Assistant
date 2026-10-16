@@ -475,6 +475,54 @@ describe('reformulation and translation options', () => {
     expect(ai()).toHaveLength(1);
   });
 
+  it('custom formality: the slider level travels with the ONE request and labels the result', async () => {
+    field('tkt je passe demain', 0, 19);
+    const modal = openModal(document, { ...OPTIONS, formality: 4 }, send);
+    modal.selectTab('reformulation');
+    const panel = ui(modal).panel('reformulation');
+    const custom = panel.querySelector<HTMLInputElement>(
+      'input[value="custom"]',
+    )!;
+    const slider = panel.querySelector<HTMLElement>('.formality')!;
+    const range = slider.querySelector<HTMLInputElement>('input[type=range]')!;
+    expect(slider.hidden).toBe(true);
+    custom.click();
+    expect(slider.hidden).toBe(false);
+    expect(range.value).toBe('4');
+    expect(slider.textContent).toContain('Polished');
+    range.value = '1';
+    range.dispatchEvent(new Event('input'));
+    range.dispatchEvent(new Event('change'));
+    expect(slider.textContent).toContain('Light touch');
+    expect(ai()).toHaveLength(0);
+    ui(modal).button('Generate reformulation').click();
+    expect(ai()).toEqual([
+      {
+        type: REWRITE_TEXT,
+        text: 'tkt je passe demain',
+        styleIds: ['formal', 'concise', 'custom'],
+        formality: 1,
+      },
+    ]);
+    expect(range.disabled).toBe(true); // locked while running
+    replies[0]!({
+      ok: true,
+      candidates: [
+        {
+          styleId: 'custom',
+          text: 'T’inquiète, je passe demain.',
+          suspicious: false,
+        },
+      ],
+      missing: ['formal', 'concise'],
+    });
+    await flush();
+    // A single result is shown under its label, without cards.
+    expect(panel.querySelector('.results h2')?.textContent).toBe(
+      'Custom formality · Light touch',
+    );
+  });
+
   it('rewrite turned off: the tab explains it and cannot send', () => {
     field('Hi', 0, 2);
     const modal = openModal(

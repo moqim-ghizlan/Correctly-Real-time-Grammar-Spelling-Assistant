@@ -1,8 +1,11 @@
 import { DEFAULT_MODEL_ID, isAllowedModelId } from './models';
 import { isLocalDate } from './local-date';
 import {
+  DEFAULT_FORMALITY,
   DEFAULT_REWRITE_STYLES,
+  normalizeFormality,
   normalizeStyleIds,
+  type Formality,
   type RewriteStyleId,
 } from './rewrite';
 import { normalizeTranslation, type TranslationPreferences } from './translate';
@@ -30,7 +33,12 @@ export interface V51Settings {
   // it is off until the user enables it (and grants that access).
   triggers: { keyboard: boolean; contextMenu: boolean; smartButton: boolean };
   // V5.4: styles pre-selected in the rewrite picker (stable IDs only).
-  rewrite: { enabled: boolean; defaultStyles: RewriteStyleId[] };
+  // Custom formality (2026-10-16): the slider's starting level.
+  rewrite: {
+    enabled: boolean;
+    defaultStyles: RewriteStyleId[];
+    formality: Formality;
+  };
   // V5.5: picker defaults; Translate & rewrite reuses rewrite.defaultStyles.
   translation: TranslationPreferences;
   // 5.13: interface language ('auto' follows the browser's language).
@@ -99,7 +107,11 @@ export const defaultSettings = (): V51Settings => ({
   safety: { dailyTestAttemptLimit: DAILY_LIMIT_DEFAULT },
   correction: { consent: false },
   triggers: { keyboard: true, contextMenu: true, smartButton: false },
-  rewrite: { enabled: true, defaultStyles: [...DEFAULT_REWRITE_STYLES] },
+  rewrite: {
+    enabled: true,
+    defaultStyles: [...DEFAULT_REWRITE_STYLES],
+    formality: DEFAULT_FORMALITY,
+  },
   translation: normalizeTranslation(undefined),
   ui: { language: 'auto' },
 });
@@ -188,6 +200,7 @@ export function normalizeSettings(value: unknown): V51Settings {
       defaultStyles: normalizeStyleIds(rewrite.defaultStyles).length
         ? normalizeStyleIds(rewrite.defaultStyles)
         : [...DEFAULT_REWRITE_STYLES],
+      formality: normalizeFormality(rewrite.formality),
     },
     translation: normalizeTranslation(data.translation),
     ui: {

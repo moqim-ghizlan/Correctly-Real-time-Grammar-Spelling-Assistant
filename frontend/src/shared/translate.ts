@@ -1,5 +1,10 @@
 import { MAX_CORRECTION_CODE_POINTS, TRANSLATE_TEXT } from './contracts';
-import { normalizeStyleIds, type RewriteStyleId } from './rewrite';
+import {
+  formalityKeysValid,
+  normalizeStyleIds,
+  type Formality,
+  type RewriteStyleId,
+} from './rewrite';
 
 /** Stable target languages (IDs never localized), in display order. */
 export const LANGUAGES = [
@@ -93,11 +98,14 @@ export interface TranslateTextRequest {
   variant: ArabicVariant | null;
   // Empty = faithful neutral translation; otherwise translate & rewrite.
   styleIds: RewriteStyleId[];
+  /** Present exactly when styleIds includes 'custom'. */
+  formality?: Formality;
 }
 
 /**
  * Exact shape and only valid combinations: known languages, a variant only
- * for Arabic, source ≠ target, 0–7 unique known styles, bounded text.
+ * for Arabic, source ≠ target, 0–8 unique known styles (a formality level
+ * exactly with the custom style), bounded text.
  */
 export function isTranslateTextRequest(
   value: unknown,
@@ -105,8 +113,7 @@ export function isTranslateTextRequest(
   if (!value || typeof value !== 'object' || Array.isArray(value)) return false;
   const data = value as Record<string, unknown>;
   return (
-    Object.keys(data).sort().join() ===
-      'source,styleIds,target,text,type,variant' &&
+    formalityKeysValid(data, 'source,styleIds,target,text,type,variant') &&
     data.type === TRANSLATE_TEXT &&
     typeof data.text === 'string' &&
     data.text.trim() !== '' &&

@@ -154,6 +154,7 @@ describe('V5.4 rewrite settings', () => {
     expect((await loadSettings(area)).rewrite).toEqual({
       enabled: true,
       defaultStyles: ['professional', 'funny'],
+      formality: 3,
     });
     box('professional').checked = false;
     box('funny').checked = false;

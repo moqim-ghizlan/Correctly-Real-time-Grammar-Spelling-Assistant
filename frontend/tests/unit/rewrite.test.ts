@@ -6,8 +6,12 @@ import {
   rewriteInstruction,
 } from '../../src/background/rewrite';
 import { geminiBody } from '../../src/background/gemini-client';
+import { REWRITE_TEXT } from '../../src/shared/contracts';
 import {
+  FORMALITY_LEVELS,
   REWRITE_STYLES,
+  formalityField,
+  isRewriteTextRequest,
   normalizeStyleIds,
   toRewriteResult,
   type RewriteStyleId,
@@ -27,7 +31,7 @@ const ALL = REWRITE_STYLES.map((style) => style.id);
 const reply = (candidates: unknown) => JSON.stringify({ candidates });
 
 describe('style catalog', () => {
-  it('has the seven stable IDs in display order, Professional first', () => {
+  it('has the eight stable IDs in display order, Professional first', () => {
     expect(ALL).toEqual([
       'professional',
       'formal',
@@ -36,6 +40,7 @@ describe('style catalog', () => {
       'polite',
       'concise',
       'funny',
+      'custom',
     ]);
   });
 
@@ -249,6 +254,25 @@ describe('ConnectionController.rewrite', () => {
     expect(body.contents[0]!.parts[0]!.text).toBe('Salut');
   });
 
+  it('custom formality: the chosen level reaches the instruction, still ONE call', async () => {
+    await configure();
+    fetchImpl.mockResolvedValueOnce(answerAll(['custom']));
+    const result = await controller().rewrite(
+      'tkt je passe demain',
+      ['custom'],
+      undefined,
+      1,
+    );
+    expect(result).toMatchObject({ ok: true, missing: [] });
+    expect(fetchImpl).toHaveBeenCalledTimes(1);
+    const body = JSON.parse(fetchImpl.mock.calls[0]![1]!.body as string) as {
+      systemInstruction: { parts: { text: string }[] };
+    };
+    const instruction = body.systemInstruction.parts[0]!.text;
+    expect(instruction).toContain('- custom: light touch:');
+    expect(instruction).not.toContain('very formal');
+  });
+
   it('quota, consent and invalid replies: no call or a safe error, never a retry', async () => {
     await configure(20, false);
     expect(await controller().rewrite('x', ['formal'])).toMatchObject({
@@ -289,5 +313,63 @@ describe('ConnectionController.rewrite', () => {
     );
     expect(fetchImpl).toHaveBeenCalledTimes(2);
     expect(results.filter((result) => result.ok)).toHaveLength(2);
+  });
+});
+
+describe('custom formality', () => {
+  const base = { type: REWRITE_TEXT, text: 'Salut' };
+
+  it('five ordered levels, Neutral in the middle', () => {
+    expect(FORMALITY_LEVELS.map((level) => level.id)).toEqual([1, 2, 3, 4, 5]);
+    expect(FORMALITY_LEVELS[2].label).toBe('Neutral');
+  });
+
+  it('a level is required with the custom style and forbidden without it', () => {
+    expect(
+      isRewriteTextRequest({ ...base, styleIds: ['custom'], formality: 1 }),
+    ).toBe(true);
+    expect(
+      isRewriteTextRequest({
+        ...base,
+        styleIds: ['formal', 'custom'],
+        formality: 5,
+      }),
+    ).toBe(true);
+    for (const bad of [
+      { ...base, styleIds: ['custom'] },
+      { ...base, styleIds: ['custom'], formality: 0 },
+      { ...base, styleIds: ['custom'], formality: 6 },
+      { ...base, styleIds: ['custom'], formality: 2.5 },
+      { ...base, styleIds: ['custom'], formality: '3' },
+      { ...base, styleIds: ['formal'], formality: 3 },
+      { ...base, styleIds: ['custom'], formality: 3, extra: 1 },
+    ])
+      expect(isRewriteTextRequest(bad)).toBe(false);
+    expect(isRewriteTextRequest({ ...base, styleIds: ['formal'] })).toBe(true);
+  });
+
+  it('formalityField adds the level only with the custom style', () => {
+    expect(formalityField(['formal'], 4)).toEqual({});
+    expect(formalityField(['formal', 'custom'], 4)).toEqual({ formality: 4 });
+  });
+
+  it('each level sends its own prompt for the custom style only', () => {
+    for (const level of FORMALITY_LEVELS) {
+      const instruction = rewriteInstruction(['formal', 'custom'], level.id);
+      expect(instruction).toContain(`- custom: ${level.prompt}`);
+      expect(instruction).toContain('- formal: higher register');
+    }
+    expect(rewriteInstruction(['custom'])).toContain('- custom: neutral:');
+  });
+
+  it('settings: the starting level defaults to Neutral and survives corruption', () => {
+    expect(normalizeSettings({}).rewrite.formality).toBe(3);
+    expect(
+      normalizeSettings({ rewrite: { formality: 1 } }).rewrite.formality,
+    ).toBe(1);
+    for (const bad of [0, 6, '2', null, 2.5])
+      expect(
+        normalizeSettings({ rewrite: { formality: bad } }).rewrite.formality,
+      ).toBe(3);
   });
 });

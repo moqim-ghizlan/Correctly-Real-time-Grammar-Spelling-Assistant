@@ -71,7 +71,13 @@ describe('style picker (no network until Generate)', () => {
     styleBox(panel, 'funny').click();
     styleBox(panel, 'professional').click();
     expect(send).not.toHaveBeenCalled();
-    expect($$(panel, 'fieldset input')).toHaveLength(7);
+    expect($$(panel, 'fieldset input[type=checkbox]')).toHaveLength(8);
+    // The formality slider shows only while Custom formality is checked.
+    const slider = panel.root.querySelector<HTMLElement>('.formality');
+    expect(slider?.hidden).toBe(true);
+    styleBox(panel, 'custom').click();
+    expect(slider?.hidden).toBe(false);
+    expect(send).not.toHaveBeenCalled();
   });
 
   it('no style selected disables Generate', () => {
@@ -92,11 +98,11 @@ describe('style picker (no network until Generate)', () => {
     button(panel, 'Generate rewrites').click();
     await panel.generateRewrites(send);
     expect(send).toHaveBeenCalledTimes(1);
-    expect(send).toHaveBeenCalledWith("I can't attend the meeting tomorrow.", [
-      'formal',
-      'friendly',
-      'concise',
-    ]);
+    expect(send).toHaveBeenCalledWith(
+      "I can't attend the meeting tomorrow.",
+      ['formal', 'friendly', 'concise'],
+      3,
+    );
     expect(styleBox(panel, 'funny').disabled).toBe(true); // locked while running
   });
 });

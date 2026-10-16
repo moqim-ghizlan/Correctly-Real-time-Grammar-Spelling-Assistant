@@ -507,6 +507,29 @@ fieldset.styles legend {
   font-weight: 500;
 }
 
+.formality-setting {
+  margin: 12px 0 0;
+}
+
+.formality-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-top: 6px;
+}
+
+.formality-row input {
+  flex: 1;
+  min-width: 0;
+  min-height: 0;
+  padding: 0;
+}
+
+.formality-row small {
+  flex: none;
+  color: var(--muted);
+}
+
 fieldset.route input:not([type='checkbox']):not([type='radio']) {
   width: 100%;
 }

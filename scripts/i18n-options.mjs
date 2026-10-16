@@ -148,6 +148,12 @@ const TEXTS = {
     'Offer rewriting (Reformulation tab, right-click menu, optional shortcut)',
   ],
   defaultStyles: ['Styles cochés par défaut', 'Styles selected by default'],
+  defaultFormality: [
+    'Niveau de départ du style « Formalité personnalisée »',
+    'Starting level of the “Custom formality” style',
+  ],
+  lessFormal: ['Moins formel', 'Less formal'],
+  moreFormal: ['Plus formel', 'More formal'],
   rewriteHint: [
     'Tous les styles choisis sont produits par <strong>une</strong> seule requête IA, dans la langue de votre texte (pas de traduction).',
     'All chosen styles are produced by <strong>one</strong> AI request, in the language of your text (no translation).',
@@ -580,6 +586,15 @@ const TEMPLATE = `<!doctype html>
             <fieldset id="rewrite-styles" class="styles">
               <legend ${T('defaultStyles')}</legend>
             </fieldset>
+            <div class="formality-setting">
+              <label for="rewrite-formality" ${T('defaultFormality')}</label>
+              <div class="formality-row">
+                <small ${T('lessFormal')}</small>
+                <input id="rewrite-formality" type="range" min="1" max="5" step="1" disabled />
+                <small ${T('moreFormal')}</small>
+              </div>
+              <p id="rewrite-formality-level" class="hint" aria-live="polite"></p>
+            </div>
             <p class="hint" ${H('rewriteHint')}</p>
             <p id="rewrite-message" class="message" aria-live="polite"></p>
           </section>

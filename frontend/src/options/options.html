@@ -415,6 +415,28 @@
                 Styles cochés par défaut
               </legend>
             </fieldset>
+            <div class="formality-setting">
+              <label for="rewrite-formality" data-i18n="defaultFormality"
+                >Niveau de départ du style « Formalité personnalisée »</label
+              >
+              <div class="formality-row">
+                <small data-i18n="lessFormal">Moins formel</small>
+                <input
+                  id="rewrite-formality"
+                  type="range"
+                  min="1"
+                  max="5"
+                  step="1"
+                  disabled
+                />
+                <small data-i18n="moreFormal">Plus formel</small>
+              </div>
+              <p
+                id="rewrite-formality-level"
+                class="hint"
+                aria-live="polite"
+              ></p>
+            </div>
             <p class="hint" data-i18n-html="rewriteHint">
               Tous les styles choisis sont produits par
               <strong>une</strong> seule requête IA, dans la langue de votre

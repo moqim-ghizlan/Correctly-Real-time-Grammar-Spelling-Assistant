@@ -15,7 +15,12 @@ import {
   type QuotaNote,
   type QuotaTask,
 } from './quota';
-import { REWRITE_STYLES, type RewriteStyleId } from './rewrite';
+import {
+  FORMALITY_LEVELS,
+  REWRITE_STYLES,
+  type Formality,
+  type RewriteStyleId,
+} from './rewrite';
 import {
   SUMMARY_FORMATS,
   SUMMARY_LENGTHS,
@@ -49,6 +54,9 @@ export interface CommonMessages {
   task: Record<QuotaTask, string>;
   period: Record<Period, string>;
   style: Record<RewriteStyleId, { label: string; description: string }>;
+  /** Custom formality slider: level names and the two ends. */
+  formality: Record<Formality, string>;
+  formalityScale: { name: string; less: string; more: string };
   language: Record<LanguageId, string>;
   variant: Record<ArabicVariant, string>;
   summaryLength: Record<SummaryLength, string>;
@@ -60,7 +68,7 @@ export interface CommonMessages {
   note: (note: QuotaNote, credentialLabel?: string) => string;
 }
 
-const fromCatalog = <K extends string>(
+const fromCatalog = <K extends string | number>(
   items: readonly { id: K; label: string }[],
 ): Record<K, string> =>
   Object.fromEntries(items.map((item) => [item.id, item.label])) as Record<
@@ -89,6 +97,12 @@ const EN: CommonMessages = {
       { label: s.label, description: s.description },
     ]),
   ) as CommonMessages['style'],
+  formality: fromCatalog(FORMALITY_LEVELS),
+  formalityScale: {
+    name: 'Formality level',
+    less: 'Less formal',
+    more: 'More formal',
+  },
   language: fromCatalog(LANGUAGES),
   variant: fromCatalog(ARABIC_VARIANTS),
   summaryLength: fromCatalog(SUMMARY_LENGTHS),
@@ -239,6 +253,22 @@ const FR: CommonMessages = {
       label: 'Drôle',
       description: 'humour léger et bienveillant, sérieux si le sujet l’est',
     },
+    custom: {
+      label: 'Formalité personnalisée',
+      description: 'choisissez le niveau, de la retouche légère au très formel',
+    },
+  },
+  formality: {
+    1: 'Retouche légère',
+    2: 'Détendu',
+    3: 'Neutre',
+    4: 'Soigné',
+    5: 'Très formel',
+  },
+  formalityScale: {
+    name: 'Niveau de formalité',
+    less: 'Moins formel',
+    more: 'Plus formel',
   },
   language: {
     fr: 'Français',

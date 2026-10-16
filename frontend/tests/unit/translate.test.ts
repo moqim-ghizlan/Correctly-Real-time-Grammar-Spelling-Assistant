@@ -361,3 +361,34 @@ describe('C: ConnectionController.translate', () => {
     expect(fetchImpl).toHaveBeenCalledTimes(2);
   });
 });
+
+describe('custom formality in translate & rewrite', () => {
+  it('needs a valid level exactly with the custom style', () => {
+    expect(
+      isTranslateTextRequest({
+        ...request({ styleIds: ['custom'] }),
+        formality: 2,
+      }),
+    ).toBe(true);
+    expect(isTranslateTextRequest(request({ styleIds: ['custom'] }))).toBe(
+      false,
+    );
+    expect(
+      isTranslateTextRequest({ ...request({ styleIds: [] }), formality: 2 }),
+    ).toBe(false);
+    expect(
+      isTranslateTextRequest({
+        ...request({ styleIds: ['custom'] }),
+        formality: 9,
+      }),
+    ).toBe(false);
+  });
+
+  it('the level prompt is part of the instruction', () => {
+    const instruction = translationInstruction({
+      ...options({ styleIds: ['custom'] }),
+      formality: 5,
+    });
+    expect(instruction).toContain('- custom: very formal:');
+  });
+});

@@ -24,10 +24,15 @@ import {
   type Notices,
 } from './messages';
 import {
+  DEFAULT_FORMALITY,
+  FORMALITY_LEVELS,
   REWRITE_STYLES,
+  formalityField,
+  normalizeFormality,
   normalizeStyleIds,
   toRewriteResult,
   type Candidate,
+  type Formality,
   type RewriteStyleId,
 } from '../shared/rewrite';
 import {
@@ -44,6 +49,62 @@ import {
 } from '../shared/translate';
 
 export type TranslationChoice = Omit<TranslateTextRequest, 'type' | 'text'>;
+type RewriteSend = (
+  text: string,
+  styleIds: RewriteStyleId[],
+  formality: Formality,
+) => Promise<unknown>;
+
+/** A style's result label; the custom style also names its level. */
+export const styleName = (
+  c: CommonMessages,
+  id: RewriteStyleId,
+  formality: Formality,
+): string =>
+  id === 'custom'
+    ? `${c.style.custom.label} · ${c.formality[formality]}`
+    : c.style[id].label;
+
+/**
+ * The custom-formality slider (owner request 2026-10-16), shown under its
+ * checkbox while it is checked. Moving it never sends anything.
+ */
+export function formalitySlider(
+  doc: Document,
+  c: CommonMessages,
+  initial: Formality,
+): { wrap: HTMLElement; range: HTMLInputElement; value: () => Formality } {
+  const make = (tag: string, className: string, text = '') => {
+    const node = doc.createElement(tag);
+    node.className = className;
+    node.textContent = text;
+    return node;
+  };
+  const wrap = make('div', 'formality');
+  const range = doc.createElement('input');
+  range.type = 'range';
+  range.min = '1';
+  range.max = String(FORMALITY_LEVELS.length);
+  range.step = '1';
+  range.value = String(initial);
+  range.setAttribute('aria-label', c.formalityScale.name);
+  const level = make('span', 'level');
+  const value = () => normalizeFormality(Number(range.value));
+  const sync = () => {
+    const colon = c.locale === 'fr' ? ' : ' : ': ';
+    level.textContent = `${c.formalityScale.name}${colon}${c.formality[value()]}`;
+    range.setAttribute('aria-valuetext', c.formality[value()]);
+  };
+  range.addEventListener('input', sync);
+  sync();
+  wrap.append(
+    make('small', '', c.formalityScale.less),
+    range,
+    make('small', '', c.formalityScale.more),
+    level,
+  );
+  return { wrap, range, value };
+}
 
 /** Refusals by the V5.8 usage limits: nothing was sent. */
 export const LIMIT_CODES: readonly ErrorCode[] = [
@@ -271,6 +332,10 @@ fieldset { margin: 8px 0 0; padding: 6px 10px 8px; border: 1px solid var(--borde
 legend { padding: 0 4px; font-size: 12px; color: var(--muted); }
 .choice { display: flex; gap: 8px; align-items: baseline; margin: 4px 0; }
 .choice small { color: var(--muted); }
+.formality { display: grid; grid-template-columns: auto 1fr auto; gap: 4px 8px; align-items: center; margin: 2px 0 8px 24px; }
+.formality small { color: var(--muted); }
+.formality input { width: 100%; margin: 0; }
+.formality .level { grid-column: 1 / -1; }
 .card { display: block; margin-top: 8px; padding: 8px 10px; border: 1px solid var(--border); border-radius: 8px; cursor: pointer; }
 .card:has(input:checked) { border-color: var(--accent); }
 .card strong { margin-left: 6px; }
@@ -298,6 +363,8 @@ export class CorrectionPanel {
     () => undefined;
   /** Request that produced the shown result (from the worker's reply). */
   private operationId: string | null = null;
+  /** The custom-formality slider's level (set by buildStyleBoxes). */
+  private formality: () => Formality = () => DEFAULT_FORMALITY;
   private snapshot: Snapshot | null = null;
   private corrected = '';
   /** Only wording differs between correction, rewrite and translation. */
@@ -644,10 +711,11 @@ export class CorrectionPanel {
   startRewrite(
     snapshot: Snapshot,
     defaults: readonly RewriteStyleId[],
-    send: (text: string, styleIds: RewriteStyleId[]) => Promise<unknown>,
+    send: RewriteSend,
+    formality: Formality = DEFAULT_FORMALITY,
   ): void {
     this.openPicker(snapshot, 'rewrite', this.m.generateRewrites);
-    this.buildStyleBoxes(defaults);
+    this.buildStyleBoxes(defaults, formality);
     this.generateReady = () => this.chosenStyles().length > 0;
     this.ui.generate.onclick = () => void this.generateRewrites(send);
     this.refreshGenerate();
@@ -655,16 +723,15 @@ export class CorrectionPanel {
     this.ui.styles.querySelector('input')?.focus();
   }
 
-  async generateRewrites(
-    send: (text: string, styleIds: RewriteStyleId[]) => Promise<unknown>,
-  ): Promise<void> {
+  async generateRewrites(send: RewriteSend): Promise<void> {
     const styles = this.chosenStyles();
     if (!styles.length) return;
+    const formality = this.formality();
     await this.generate(
       this.m.generatingRewrites,
       styles,
-      (id: RewriteStyleId) => this.c.style[id].label,
-      (text) => send(text, styles),
+      (id: RewriteStyleId) => styleName(this.c, id, formality),
+      (text) => send(text, styles, formality),
     );
   }
 
@@ -678,6 +745,7 @@ export class CorrectionPanel {
     styles: readonly RewriteStyleId[],
     withStyles: boolean,
     send: (request: TranslationChoice) => Promise<unknown>,
+    formality: Formality = DEFAULT_FORMALITY,
   ): void {
     const m = this.m;
     this.openPicker(snapshot, 'translation', m.translate);
@@ -726,7 +794,7 @@ export class CorrectionPanel {
     const langs = this.make('div', 'langs');
     langs.append(from.wrap, to.wrap, variant.wrap);
     this.ui.styles.before(langs, styled);
-    this.buildStyleBoxes(styles);
+    this.buildStyleBoxes(styles, formality);
     this.translationControls = [from.node, to.node, variant.node, styledBox];
 
     const choice = (): TranslationChoice => {
@@ -735,6 +803,7 @@ export class CorrectionPanel {
         from.node.value === 'auto' || isLanguageId(from.node.value)
           ? from.node.value
           : 'auto';
+      const styleIds = styledBox.checked ? this.chosenStyles() : [];
       return {
         source,
         target,
@@ -742,7 +811,8 @@ export class CorrectionPanel {
           target === 'ar' && isArabicVariant(variant.node.value)
             ? variant.node.value
             : null,
-        styleIds: styledBox.checked ? this.chosenStyles() : [],
+        styleIds,
+        ...formalityField(styleIds, this.formality()),
       };
     };
     const sync = () => {
@@ -769,10 +839,11 @@ export class CorrectionPanel {
       if (!this.generateReady()) return;
       const keys = translationKeys(request.styleIds);
       const target = targetName(this.c, request.target, request.variant);
+      const formality = request.formality ?? DEFAULT_FORMALITY;
       const label = (key: TranslationKey) =>
         key === NEUTRAL
           ? m.translationLabel(target)
-          : m.styledLabel(this.c.style[key].label, target);
+          : m.styledLabel(styleName(this.c, key, formality), target);
       void this.generate(
         m.translatingInto(target),
         keys,
@@ -797,7 +868,10 @@ export class CorrectionPanel {
     this.ui.picker.hidden = false;
   }
 
-  private buildStyleBoxes(defaults: readonly RewriteStyleId[]) {
+  private buildStyleBoxes(
+    defaults: readonly RewriteStyleId[],
+    formality: Formality,
+  ) {
     for (const style of REWRITE_STYLES) {
       const label = this.make('label', 'choice');
       const box = this.make('input', '');
@@ -811,6 +885,17 @@ export class CorrectionPanel {
         this.make('small', '', this.c.style[style.id].description),
       );
       this.ui.styles.append(label);
+      if (style.id !== 'custom') continue;
+      const slider = formalitySlider(
+        this.host.ownerDocument,
+        this.c,
+        formality,
+      );
+      const sync = () => (slider.wrap.hidden = !box.checked);
+      box.addEventListener('change', sync);
+      sync();
+      this.formality = slider.value;
+      this.ui.styles.append(slider.wrap);
     }
   }
 
@@ -993,6 +1078,7 @@ export function runInPage(
   styles: readonly string[] = [],
   translation?: unknown,
   locale: Locale = 'en',
+  formality: unknown = DEFAULT_FORMALITY,
 ): void {
   // The isolated world keeps this global across injections and bundles, so an
   // in-flight request and the open panel are shared by all triggers.
@@ -1024,9 +1110,19 @@ export function runInPage(
   const defaults: RewriteStyleId[] = normalized.length
     ? normalized
     : ['professional'];
+  const level = normalizeFormality(formality);
   if (intent === 'rewrite')
-    panel.startRewrite(snapshot, defaults, (text, styleIds) =>
-      chrome.runtime.sendMessage({ type: REWRITE_TEXT, text, styleIds }),
+    panel.startRewrite(
+      snapshot,
+      defaults,
+      (text, styleIds, chosen) =>
+        chrome.runtime.sendMessage({
+          type: REWRITE_TEXT,
+          text,
+          styleIds,
+          ...formalityField(styleIds, chosen),
+        }),
+      level,
     );
   else if (intent === 'translate' || intent === 'translateRewrite')
     panel.startTranslate(
@@ -1040,6 +1136,7 @@ export function runInPage(
           text: snapshot.text,
           ...choice,
         }),
+      level,
     );
   else
     void panel.run(snapshot, (text) =>
