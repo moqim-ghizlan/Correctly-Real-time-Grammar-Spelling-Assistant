@@ -35,7 +35,7 @@ import {
 export type TranslationChoice = Omit<TranslateTextRequest, 'type' | 'text'>;
 
 /** Refusals by the V5.8 usage limits: nothing was sent. */
-const LIMIT_CODES: readonly ErrorCode[] = [
+export const LIMIT_CODES: readonly ErrorCode[] = [
   'QUOTA_EXCEEDED',
   'AI_PAUSED',
   'QUOTA_UNAVAILABLE',
@@ -65,6 +65,8 @@ export const NOTICES = {
     'The text or selection changed since the request. Copy the suggestion or correct again.',
   suspicious:
     'A number, link or email address differs from your text. Check it and copy it if it is right; Apply is disabled.',
+  noTarget:
+    'No text box selection to replace: Apply is disabled. Copy the result instead.',
 } as const;
 
 // Same exclusions as V4: credentials, payment and secrets by any label, and
@@ -180,7 +182,12 @@ export function applyBlocker(snapshot: Snapshot, composing: boolean): string {
 }
 
 /** One exact-range replacement, then an input event so frameworks see it. */
-function replaceRange(el: TextField, start: number, end: number, text: string) {
+export function replaceRange(
+  el: TextField,
+  start: number,
+  end: number,
+  text: string,
+) {
   el.setRangeText(text, start, end, 'end');
   el.dispatchEvent(
     new InputEvent('input', {

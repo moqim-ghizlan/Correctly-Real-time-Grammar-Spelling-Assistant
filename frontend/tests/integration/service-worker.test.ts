@@ -2,9 +2,10 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import {
   AI_EDIT,
   CORRECT_TEXT,
+  HANDLE_POSITION,
   OPEN_LIMITS,
-  OPEN_REWRITE,
-  OPEN_TRANSLATE,
+  OPEN_MODAL,
+  OPEN_SETTINGS,
   PAGE_CONFIG,
   REWRITE_TEXT,
   TEST_CONNECTION,
@@ -262,11 +263,11 @@ describe('toolbar button', () => {
     expect(executeScript).not.toHaveBeenCalled();
   });
 
-  it('injects the content script into the clicked tab only, without network', async () => {
+  it('V5.11 T02: opens the in-page modal in the clicked tab only, without network', async () => {
     await configure(true);
     actionClick({ id: 7 } as chrome.tabs.Tab);
     await vi.waitFor(() => expect(executeScript).toHaveBeenCalledTimes(2));
-    expectInjected([0], ['correct', []]);
+    expectInjected([0], ['open', ['professional']]);
     expect(openOptionsPage).not.toHaveBeenCalled();
     expect(fetcher).not.toHaveBeenCalled();
   });
@@ -364,6 +365,112 @@ describe('V5.3 keyboard shortcut', () => {
     await configure(true);
     onCommand('correct-selection', undefined);
     await vi.waitFor(() => expect(openOptionsPage).toHaveBeenCalledTimes(1));
+  });
+});
+
+describe('V5.11 unified modal entry points', () => {
+  it('T01: Ctrl+M (open-correctly) opens the modal like the toolbar icon, no network', async () => {
+    await configure(true);
+    onCommand('open-correctly', { id: 7 } as chrome.tabs.Tab);
+    await vi.waitFor(() => expect(executeScript).toHaveBeenCalledTimes(2));
+    expectInjected([0], ['open', ['professional']]);
+    expect(fetcher).not.toHaveBeenCalled();
+  });
+
+  it('Ctrl+M respects the keyboard setting; no tab opens the settings', async () => {
+    await configure(true, { keyboard: false });
+    onCommand('open-correctly', { id: 7 } as chrome.tabs.Tab);
+    await new Promise((resolve) => setTimeout(resolve, 20));
+    expect(executeScript).not.toHaveBeenCalled();
+    await configure(true);
+    onCommand('open-correctly', undefined);
+    await vi.waitFor(() => expect(openOptionsPage).toHaveBeenCalledTimes(1));
+  });
+
+  it('H04: the handle opens the modal in its own frame, only when enabled and from our script', async () => {
+    await configure(true);
+    await send({ type: OPEN_MODAL }, { ...contentSender, frameId: 2 });
+    await new Promise((resolve) => setTimeout(resolve, 20));
+    expect(executeScript).not.toHaveBeenCalled(); // handle setting is off
+    await configure(true, { smartButton: true });
+    const { handled } = await send(
+      { type: OPEN_MODAL },
+      { ...contentSender, frameId: 2 },
+    );
+    expect(handled).toBe(false); // no reply channel kept open
+    await vi.waitFor(() => expect(executeScript).toHaveBeenCalledTimes(2));
+    expectInjected([2], ['open', ['professional']]);
+    await send({ type: OPEN_MODAL, text: 'x' }, contentSender);
+    await send({ type: OPEN_MODAL }, { ...contentSender, id: 'other' });
+    await send({ type: OPEN_MODAL }, optionsSender);
+    await new Promise((resolve) => setTimeout(resolve, 20));
+    expect(executeScript).toHaveBeenCalledTimes(2);
+    expect(fetcher).not.toHaveBeenCalled();
+  });
+
+  it('passes "rewrite off" to the modal instead of opening a picker', async () => {
+    await saveSettings(
+      area,
+      normalizeSettings({
+        gemini: { apiKey: FAKE_KEY },
+        correction: { consent: true },
+        rewrite: { enabled: false },
+      }),
+    );
+    actionClick({ id: 7 } as chrome.tabs.Tab);
+    await vi.waitFor(() => expect(executeScript).toHaveBeenCalledTimes(2));
+    const args = (executeScript.mock.calls[1]?.[0] as { args: unknown[] }).args;
+    expect(args[0]).toBe('open');
+    expect(args[3]).toBe(false);
+  });
+
+  it('M05: the gear opens the existing options page, from our content script only', async () => {
+    expect((await send({ type: OPEN_SETTINGS }, contentSender)).handled).toBe(
+      false,
+    );
+    await vi.waitFor(() => expect(openOptionsPage).toHaveBeenCalledTimes(1));
+    await send({ type: OPEN_SETTINGS }, { ...contentSender, id: 'other' });
+    await send({ type: OPEN_SETTINGS, url: 'https://x.test' }, contentSender);
+    await new Promise((resolve) => setTimeout(resolve, 20));
+    expect(openOptionsPage).toHaveBeenCalledTimes(1);
+    expect(createTab).not.toHaveBeenCalled();
+    expect(fetcher).not.toHaveBeenCalled();
+  });
+
+  it('H09: a dragged position is stored (bounded) and returned by PAGE_CONFIG', async () => {
+    await configure(true, { smartButton: true });
+    await send({ type: HANDLE_POSITION, yRatio: 0.25 }, contentSender);
+    await vi.waitFor(() =>
+      expect(area.data.get(STORAGE_KEYS.handle)).toEqual({
+        schemaVersion: 1,
+        yRatio: 0.25,
+      }),
+    );
+    for (const [message, sender] of [
+      [{ type: HANDLE_POSITION, yRatio: 2 }, contentSender],
+      [{ type: HANDLE_POSITION, yRatio: Number.NaN }, contentSender],
+      [{ type: HANDLE_POSITION, yRatio: '0.9' }, contentSender],
+      [{ type: HANDLE_POSITION, yRatio: 0.9, x: 1 }, contentSender],
+      [
+        { type: HANDLE_POSITION, yRatio: 0.9 },
+        { ...contentSender, id: 'x' },
+      ],
+      [{ type: HANDLE_POSITION, yRatio: 0.9 }, optionsSender],
+    ] as [unknown, chrome.runtime.MessageSender][])
+      await send(message, sender);
+    await new Promise((resolve) => setTimeout(resolve, 20));
+    expect(area.data.get(STORAGE_KEYS.handle)).toEqual({
+      schemaVersion: 1,
+      yRatio: 0.25,
+    });
+    const { reply } = await send({ type: PAGE_CONFIG }, contentSender);
+    expect(reply).toMatchObject({ smartButton: true, handleY: 0.25 });
+    // A corrupt stored value falls back to the centre.
+    area.data.set(STORAGE_KEYS.handle, { yRatio: 'top' });
+    expect(
+      (await send({ type: PAGE_CONFIG }, contentSender)).reply,
+    ).toMatchObject({ handleY: 0.5 });
+    expect(fetcher).not.toHaveBeenCalled();
   });
 });
 
@@ -551,23 +658,15 @@ describe('V5.4 rewrite', () => {
     );
   });
 
-  it('smart button OPEN_REWRITE opens the picker in its own frame, only when enabled', async () => {
-    await configure(true);
-    await send({ type: OPEN_REWRITE }, { ...contentSender, frameId: 2 });
-    await new Promise((resolve) => setTimeout(resolve, 20));
-    expect(executeScript).not.toHaveBeenCalled(); // smart button is off
+  it('V5.11: the removed V5.3 smart-button messages do nothing anymore', async () => {
     await configure(true, { smartButton: true });
-    const { handled } = await send(
-      { type: OPEN_REWRITE },
-      { ...contentSender, frameId: 2 },
-    );
-    expect(handled).toBe(false); // no reply channel kept open
-    await vi.waitFor(() => expect(executeScript).toHaveBeenCalledTimes(2));
-    expectInjected([2], ['rewrite', ['professional']]);
-    await send({ type: OPEN_REWRITE, text: 'x' }, contentSender);
-    await send({ type: OPEN_REWRITE }, { ...contentSender, id: 'other' });
+    for (const type of [
+      'correctly.v5.openRewrite',
+      'correctly.v5.openTranslate',
+    ])
+      expect((await send({ type }, contentSender)).handled).toBe(false);
     await new Promise((resolve) => setTimeout(resolve, 20));
-    expect(executeScript).toHaveBeenCalledTimes(2);
+    expect(executeScript).not.toHaveBeenCalled();
     expect(fetcher).not.toHaveBeenCalled();
   });
 });
@@ -667,9 +766,9 @@ describe('V5.5 translation', () => {
     await vi.waitFor(() => expect(executeScript).toHaveBeenCalledTimes(2));
     expectInjected([0], ['translate', ['friendly'], PREFS]);
     executeScript.mockClear();
-    await send({ type: OPEN_TRANSLATE }, { ...contentSender, frameId: 3 });
+    await send({ type: OPEN_MODAL }, { ...contentSender, frameId: 3 });
     await vi.waitFor(() => expect(executeScript).toHaveBeenCalledTimes(2));
-    expectInjected([3], ['translate', ['friendly'], PREFS]);
+    expectInjected([3], ['open', ['friendly'], PREFS, true]);
     expect(fetcher).not.toHaveBeenCalled();
   });
 });
@@ -706,6 +805,7 @@ describe('V5.6 text shortcuts', () => {
     expect(handled).toBe(true);
     expect(reply).toEqual({
       smartButton: true,
+      handleY: 0.5,
       shortcuts: [{ trigger: 'bjr', replacement: 'Bonjour' }],
     });
     expect(JSON.stringify(reply)).not.toContain(FAKE_KEY);

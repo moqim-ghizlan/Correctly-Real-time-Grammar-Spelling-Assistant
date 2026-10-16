@@ -1,9 +1,11 @@
 import { CorrectlyError } from './errors';
 import { localDate } from './local-date';
 import {
+  normalizeHandle,
   normalizeSettings,
   normalizeUsage,
   type DailyUsageRecord,
+  type HandlePosition,
   type V51Settings,
 } from './settings';
 
@@ -14,6 +16,8 @@ import {
 export const STORAGE_KEYS = {
   settings: 'correctly.v5.settings',
   usage: 'correctly.v5.usage',
+  // V5.11: right-edge handle position, written only by the worker.
+  handle: 'correctly.v5.handle',
 } as const;
 
 export type StorageKey = (typeof STORAGE_KEYS)[keyof typeof STORAGE_KEYS];
@@ -71,4 +75,15 @@ export async function saveUsage(
   usage: DailyUsageRecord,
 ): Promise<void> {
   await write(area, STORAGE_KEYS.usage, usage);
+}
+
+export async function loadHandle(area: StorageArea): Promise<HandlePosition> {
+  return normalizeHandle(await read(area, STORAGE_KEYS.handle));
+}
+
+export async function saveHandle(
+  area: StorageArea,
+  handle: HandlePosition,
+): Promise<void> {
+  await write(area, STORAGE_KEYS.handle, normalizeHandle(handle));
 }

@@ -2,18 +2,24 @@
 
 Extension personnelle Chrome/Brave, **Manifest V3, TypeScript strict**, qui
 deviendra un assistant d'écriture IA à la demande (Gemini et OpenAI, clés
-personnelles de l'utilisateur). État actuel : **V5.10** (audit final, aucune fonctionnalité nouvelle ; rapport
-`docs/v5.10/V5.10_REPORT.md`, décision NO-GO en attente de la checklist
-propriétaire) = page de paramètres, service worker,
+personnelles de l'utilisateur). État actuel : **V5.11** (poignée en demi-cercle
+au bord droit `content/handle.ts` + modale unique à trois onglets
+Correction/Reformulation/Traduction `content/modal.ts`, ouverte par la
+poignée, Ctrl+M ou l'icône ; rapport `docs/v5.11/TEST_REPORT.md`, checklist
+propriétaire non faite ; V5.10 : audit `docs/v5.10/V5.10_REPORT.md`)
+= page de paramètres, service worker,
 correction, réécriture (7 styles), traduction (6 langues, arabe standard ou
 syrien) à la demande, et raccourcis de texte locaux (`shared/shortcuts.ts`,
 expansion dans `smart.js`, protection IA par marqueurs dans
 `shared/protection.ts`). Bouton de la barre d'outils,
-raccourcis et menu clic droit passent par `correctInTab()` du worker, qui
-injecte `content.js` (`activeTab` + `scripting`) puis appelle
-`correctlyRun(intent, styles)` ; le bouton intelligent optionnel (`smart.js`,
-accès à tous les sites demandé seulement à l'activation) appelle le même
-`runInPage()`. Une seule requête IA par action (`generate()` du
+raccourcis, menu clic droit et poignée (`OPEN_MODAL`) passent par
+`correctInTab()` du worker, qui injecte `content.js` (`activeTab` +
+`scripting`) puis appelle `correctlyRun(intent, styles, translation,
+rewriteEnabled)` ; `'open'` ouvre la modale (`openModal()`), les autres
+intents gardent le panneau V5.2–V5.5 (`runInPage()`). La poignée optionnelle
+(`smart.js`, réglage `triggers.smartButton`, accès à tous les sites demandé
+seulement à l'activation) remplace l'ancien bouton intelligent ; sa position
+(`correctly.v5.handle`) n'est écrite que par le worker. Une seule requête IA par action (`generate()` du
 contrôleur), aperçu, puis Apply explicite. V5.7 : plusieurs clés
 (profils) Gemini/OpenAI et une route clé + modèle par action
 (`shared/providers.ts`), résolue et figée par requête, sans jamais de

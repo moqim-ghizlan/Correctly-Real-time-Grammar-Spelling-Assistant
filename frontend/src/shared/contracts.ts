@@ -29,9 +29,15 @@ export const SMART_BUTTON_OFF = 'correctly.v5.smartButtonOff';
 export const REWRITE_TEXT = 'correctly.v5.rewriteText';
 /** Sent by the injected content script with text, languages and styles. */
 export const TRANSLATE_TEXT = 'correctly.v5.translateText';
-/** Sent by the smart button: asks the worker to open a picker in that frame. */
-export const OPEN_REWRITE = 'correctly.v5.openRewrite';
-export const OPEN_TRANSLATE = 'correctly.v5.openTranslate';
+/**
+ * V5.11: sent by the right-edge handle (no data): asks the worker to open the
+ * Correctly modal in that frame, like the toolbar icon and Ctrl+M.
+ */
+export const OPEN_MODAL = 'correctly.v5.openModal';
+/** V5.11: sent by the modal's Settings gear: opens the options page. */
+export const OPEN_SETTINGS = 'correctly.v5.openSettings';
+/** V5.11: sent by the handle after a drag: its vertical position (0–1). */
+export const HANDLE_POSITION = 'correctly.v5.handlePosition';
 /** Sent by the page script: is the smart button on, which shortcuts are active. */
 export const PAGE_CONFIG = 'correctly.v5.pageConfig';
 /** Sent by the content script ("Manage limits"): opens the usage limits. */
@@ -59,8 +65,31 @@ export function isAiEditRequest(value: unknown): value is AiEditRequest {
     (data.action === 'applied' || data.action === 'undone')
   );
 }
+export interface HandlePositionRequest {
+  type: typeof HANDLE_POSITION;
+  yRatio: number;
+}
+
+/** Strict shape check: exactly `{ type, yRatio }` with a finite 0–1 ratio. */
+export function isHandlePositionRequest(
+  value: unknown,
+): value is HandlePositionRequest {
+  if (!value || typeof value !== 'object' || Array.isArray(value)) return false;
+  const data = value as Record<string, unknown>;
+  return (
+    Object.keys(data).sort().join() === 'type,yRatio' &&
+    data.type === HANDLE_POSITION &&
+    typeof data.yRatio === 'number' &&
+    Number.isFinite(data.yRatio) &&
+    data.yRatio >= 0 &&
+    data.yRatio <= 1
+  );
+}
+
 /** Manifest command names of the keyboard shortcuts. */
 export const CORRECT_COMMAND = 'correct-selection';
+/** V5.11: Ctrl+M opens the Correctly modal. */
+export const OPEN_COMMAND = 'open-correctly';
 export const REWRITE_COMMAND = 'rewrite-selection';
 export const TRANSLATE_COMMAND = 'translate-selection';
 /** Bounds cost and latency; longer selections are refused, never truncated. */

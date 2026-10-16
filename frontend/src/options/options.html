@@ -168,13 +168,15 @@
         </label>
         <p class="hint">
           How to use: select text on a web page (up to 2,000 characters), then
-          click the Correctly toolbar button. Only the selection is sent, only
-          on that click. Nothing changes until you click <strong>Apply</strong>,
-          which is available in plain text boxes; elsewhere, copy the
-          suggestion. Password, email, phone, URL, number and search fields are
-          never read. Each correction counts as one request in the usage limits
-          below and may incur charges from your provider. Suggestions can be
-          wrong: check them.
+          open Correctly with its toolbar button, <kbd>Ctrl</kbd>+<kbd>M</kbd>
+          or the handle on the right edge of the page. The selection is copied
+          into the Correctly window; it is sent only when you click a
+          <strong>Generate</strong> button. Nothing changes until you click
+          <strong>Apply</strong>, which is available in plain text boxes;
+          elsewhere, copy the suggestion. Password, email, phone, URL, number
+          and search fields are never read. Each correction counts as one
+          request in the usage limits below and may incur charges from your
+          provider. Suggestions can be wrong: check them.
         </p>
         <p id="consent-message" class="message" aria-live="polite"></p>
       </section>
@@ -183,13 +185,15 @@
         <h2 id="triggers-title">Correction shortcuts &amp; entry points</h2>
         <p class="hint">
           AI is called only after you activate Correctly. Each call may count
-          against your provider usage. The toolbar button always works.
+          against your provider usage. The toolbar button always opens the
+          Correctly window.
         </p>
         <label class="check" for="trigger-keyboard">
           <input id="trigger-keyboard" type="checkbox" disabled />
           <span
-            >Keyboard shortcut —
-            <strong id="shortcut-label">checking…</strong></span
+            >Keyboard shortcuts — open Correctly:
+            <strong id="open-shortcut-label">checking…</strong>; correct
+            directly: <strong id="shortcut-label">checking…</strong></span
           >
         </label>
         <p class="hint">
@@ -205,8 +209,9 @@
         <label class="check" for="trigger-smart">
           <input id="trigger-smart" type="checkbox" disabled />
           <span
-            >Smart button next to the text box you are typing in (asks for
-            access to all sites; turning it off removes that access)</span
+            >Correctly handle on the right edge of every page (click to open,
+            drag up or down to move; asks for access to all sites; turning it
+            off removes that access)</span
           >
         </label>
         <p id="triggers-message" class="message" aria-live="polite"></p>
@@ -217,7 +222,7 @@
         <label class="check" for="rewrite-enabled">
           <input id="rewrite-enabled" type="checkbox" disabled />
           <span
-            >Offer “Rewrite selected text” (right-click menu, smart button,
+            >Offer “Rewrite selected text” (Reformulation tab, right-click menu,
             optional shortcut)</span
           >
         </label>
@@ -238,8 +243,8 @@
         <h2 id="translation-title">Translation</h2>
         <p class="hint">
           Defaults for <strong>Translate</strong> and
-          <strong>Translate &amp; rewrite</strong> (right-click menu, smart
-          button ⇄, optional shortcut). You can change them each time before
+          <strong>Translate &amp; rewrite</strong> (Translation tab, right-click
+          menu, optional shortcut). You can change them each time before
           translating. Translate &amp; rewrite uses the rewrite styles chosen
           above.
         </p>
@@ -275,7 +280,8 @@
           <input id="shortcuts-enabled" type="checkbox" disabled />
           <span
             >Expand my shortcuts while I type (asks for access to all sites;
-            turning it off removes that access if the smart button is off)</span
+            turning it off removes that access if the Correctly handle is
+            off)</span
           >
         </label>
         <p class="hint">
@@ -789,8 +795,10 @@
         <h2 id="notes-title">Notes</h2>
         <ul>
           <li>
-            Correctly reads a page only when you click its toolbar button, and
-            changes it only when you click Apply.
+            Correctly reads a page selection only when you open it (toolbar
+            button, Ctrl+M, right-edge handle or right-click menu), sends it
+            only when you click Generate, and changes the page only when you
+            click Apply.
           </li>
           <li>
             OpenAI requests are sent with <code>store: false</code> (not kept

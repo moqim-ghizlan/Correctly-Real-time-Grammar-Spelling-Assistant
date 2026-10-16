@@ -1,5 +1,5 @@
 // Real-browser smoke test (V5.1 checklist steps 3–6, 8, 9, 11, 15, the V5.2
-// content script, V5.3 shortcut/smart button, V5.4 rewrite, V5.5
+// content script, V5.3 shortcut, V5.11 handle and modal, V5.4 rewrite, V5.5
 // translation, V5.6 text shortcuts, V5.7 provider keys and routes, V5.8
 // usage limits on the real IndexedDB of the extension and V5.9 statistics).
 // Loads dist/ unpacked in a throwaway profile, drives the settings page over
@@ -36,8 +36,8 @@ const offline = Boolean(args.offline);
 const extensionPath = resolve('dist');
 const DUMMY_KEY = 'CORRECTLY_TEST_SENTINEL_KEY_dummy_000000';
 const DUMMY_OPENAI_KEY = 'CORRECTLY_TEST_SENTINEL_KEY_openai_dummy_0';
-const profile = await mkdtemp(join(tmpdir(), 'correctly-v510-'));
-const EVIDENCE = 'docs/v5.10/evidence';
+const profile = await mkdtemp(join(tmpdir(), 'correctly-v511-'));
+const EVIDENCE = 'docs/v5.11/evidence';
 const delay = (ms) => new Promise((done) => setTimeout(done, ms));
 
 const evidence = {
@@ -382,8 +382,8 @@ try {
   await openOptions();
   await wakeWorker(extensionId);
   const manifest = await page.evaluate('chrome.runtime.getManifest()');
-  assert.equal(manifest.version, '5.10.0');
-  assert.equal(manifest.name, 'Correctly V5.10');
+  assert.equal(manifest.version, '5.11.0');
+  assert.equal(manifest.name, 'Correctly V5.11');
   assert.deepEqual(manifest.host_permissions, [
     'https://generativelanguage.googleapis.com/*',
     'https://api.openai.com/*',
@@ -864,46 +864,145 @@ try {
     'content.js: exact selection sent, no change before Apply, Apply/Undo exact range, closed panel',
   );
 
-  // V5.3: the built smart-button script with real layout (worker stubbed).
+  // V5.11: the built handle script and the modal with real layout and real
+  // (trusted) mouse input over CDP. The worker is stubbed: OPEN_MODAL runs
+  // content.js's 'open' intent in this frame, like the real worker does.
   const smartBundle = await readFile(join(extensionPath, 'smart.js'), 'utf8');
+  const screenshot = async (name) => {
+    const image = await page.call('Page.captureScreenshot', { format: 'png' });
+    await mkdir(EVIDENCE, { recursive: true });
+    await writeFile(
+      `${EVIDENCE}/${name}-${browserName}.png`,
+      Buffer.from(image.data, 'base64'),
+    );
+  };
   await page.evaluate(`(() => {
     globalThis.correctlyPanel?.close();
-    document.activeElement?.blur();
+    const t = document.getElementById('t');
+    t.value = 'Bonjour. Je suis aller a Lyon. Fin';
+    t.focus(); t.setSelectionRange(9, 30);
+    globalThis.sentMessages = [];
     globalThis.chrome = { runtime: { id: 'test', onMessage: { addListener() {} },
-      sendMessage: async (message) => message.type === 'correctly.v5.pageConfig'
-        ? { smartButton: true, shortcuts: [{ trigger: 'bjr', replacement: 'Bonjour' }] }
-        : (globalThis.sentMessage = message, { ok: true, hasErrors: false }) } };
+      sendMessage: async (message) => {
+        globalThis.sentMessages.push(message);
+        if (message.type === 'correctly.v5.pageConfig')
+          return { smartButton: true, handleY: 0.5, shortcuts: [{ trigger: 'bjr', replacement: 'Bonjour' }] };
+        if (message.type === 'correctly.v5.openModal')
+          globalThis.correctlyRun('open', ['formal'], { source: 'auto', target: 'en', arabicVariant: 'msa' }, true);
+        if (message.type === 'correctly.v5.correctText')
+          return { ok: true, hasErrors: true, correctedText: 'Je suis allé à Lyon.', suspicious: false };
+        return undefined;
+      } } };
   })()`);
   await page.evaluate(`${smartBundle}; void 0`);
-  const buttons = `document.querySelectorAll('correctly-smart-button').length`;
-  assert.equal(await page.evaluate(buttons), 0, 'no button before focus');
-  await page.evaluate(`document.getElementById('t').focus()`);
-  await page.until(`${buttons} === 1`);
-  const inside = await page.evaluate(`(() => {
-    const b = globalThis.correctlySmartButton.button.getBoundingClientRect();
-    const t = document.getElementById('t').getBoundingClientRect();
-    return b.width > 0 && b.left >= t.left && b.right <= t.right && b.top >= t.top && b.bottom <= t.bottom;
-  })()`);
-  assert(inside, 'button must sit inside the focused field');
-  await page.evaluate(`document.getElementById('c').focus()`);
-  await page.until(`${buttons} === 0`);
-  await page.evaluate(
-    `(() => { const t = document.getElementById('t'); t.focus(); t.setSelectionRange(9, 30); globalThis.sentMessage = null; })()`,
+  await page.until(
+    `document.querySelectorAll('correctly-handle').length === 1`,
   );
-  await page.evaluate('globalThis.correctlySmartButton.correct()');
-  await page.until(`globalThis.correctlyPanel?.busy === false`);
-  assert.deepEqual(await page.evaluate('globalThis.sentMessage'), {
-    type: 'correctly.v5.correctText',
-    text: 'Je suis aller a Lyon.',
-  });
-  assert.match(
-    await page.evaluate('globalThis.correctlyPanel.root.textContent'),
-    /No corrections needed/,
+  const handleBox = `(() => { const b = globalThis.correctlyHandle.button.getBoundingClientRect(); return { right: b.right, width: b.width, height: b.height, mid: b.top + b.height / 2, vw: document.documentElement.clientWidth, vh: document.documentElement.clientHeight }; })()`;
+  const before = await page.evaluate(handleBox);
+  assert(Math.abs(before.right - before.vw) <= 1, 'handle on the right edge');
+  assert(
+    Math.abs(before.mid - before.vh / 2) <= 1,
+    'handle centred by default',
+  );
+  assert(before.height > before.width, 'a half-disk, not a full circle');
+  const mouse = (type, x, y, extra = {}) =>
+    page.call('Input.dispatchMouseEvent', {
+      type,
+      x,
+      y,
+      button: 'left',
+      clickCount: 1,
+      ...extra,
+    });
+  // Drag up by 100 px, moving sideways too: only Y changes, nothing opens.
+  await mouse('mousePressed', before.vw - 8, before.mid);
+  await mouse('mouseMoved', before.vw - 100, before.mid - 50, { buttons: 1 });
+  await mouse('mouseMoved', before.vw - 200, before.mid - 100, { buttons: 1 });
+  await mouse('mouseReleased', before.vw - 200, before.mid - 100);
+  const dragged = await page.evaluate(handleBox);
+  await screenshot('handle');
+  assert(Math.abs(dragged.mid - (before.mid - 100)) <= 2, 'dragged vertically');
+  assert(Math.abs(dragged.right - dragged.vw) <= 1, 'still on the right edge');
+  const types = `globalThis.sentMessages.map((m) => m.type)`;
+  assert(
+    !(await page.evaluate(types)).includes('correctly.v5.openModal'),
+    'a drag must not open the modal',
+  );
+  assert(
+    (await page.evaluate(types)).includes('correctly.v5.handlePosition'),
+    'the dragged position is saved',
+  );
+  step(
+    'H05',
+    'PASS',
+    'smart.js: handle on the right edge, centred; a real drag moves Y only and opens nothing',
+  );
+
+  // A real click (no drag) opens the modal with the field selection.
+  await mouse('mousePressed', dragged.vw - 8, dragged.mid);
+  await mouse('mouseReleased', dragged.vw - 8, dragged.mid);
+  await page.until(`globalThis.correctlyModal?.visible === true`);
+  const modal = 'globalThis.correctlyModal';
+  assert.equal(
+    await page.evaluate(`${modal}.sharedText`),
+    'Je suis aller a Lyon.',
+    'the selection must survive the handle click',
+  );
+  assert.equal(await page.evaluate(`${modal}.activeTab`), 'correction');
+  assert.equal(
+    await page.evaluate('globalThis.correctlyHandle.button.hidden'),
+    true,
+  );
+  assert.equal(
+    await page.evaluate(
+      `${modal}.root.querySelectorAll('header button').length`,
+    ),
+    2,
+    'header: Settings and Hide only',
+  );
+  assert.equal(await page.evaluate(`${modal}.host.shadowRoot`), null);
+  const size = `(() => { const n = ${modal}.root.querySelector('[role=dialog]'); const d = n.getBoundingClientRect(); return [n.offsetWidth, n.offsetHeight, Math.round(d.left + d.width / 2), Math.round(d.top + d.height / 2)]; })()`;
+  await delay(300); // opening animation done
+  await screenshot('modal');
+  const sizes = [];
+  for (const tab of ['correction', 'reformulation', 'translation']) {
+    await page.evaluate(`${modal}.selectTab('${tab}')`);
+    sizes.push(await page.evaluate(size));
+  }
+  assert.deepEqual(sizes[0], sizes[1], 'same modal size on every tab');
+  assert.deepEqual(sizes[0], sizes[2], 'same modal size on every tab');
+  const viewport = await page.evaluate(handleBox);
+  assert(Math.abs(sizes[0][2] - viewport.vw / 2) <= 1, 'modal centred (x)');
+  assert(Math.abs(sizes[0][3] - viewport.vh / 2) <= 1, 'modal centred (y)');
+  assert(
+    !(await page.evaluate(types)).includes('correctly.v5.correctText'),
+    'opening and switching tabs must not send',
+  );
+  await page.evaluate(`${modal}.selectTab('correction')`);
+  await page.evaluate(`${modal}.generate('correction')`);
+  await page.until(
+    `${modal}.root.textContent.includes('Suggested correction')`,
+  );
+  assert.equal(await page.evaluate(`${modal}.apply()`), true);
+  assert.equal(await page.evaluate(value), 'Bonjour. Je suis allé à Lyon. Fin');
+  assert.equal(
+    await page.evaluate(`document.querySelector('correctly-modal')`),
+    null,
+  );
+  assert.equal(
+    await page.evaluate('globalThis.correctlyHandle.button.hidden'),
+    false,
+  );
+  assert.equal(await page.evaluate('globalThis.correctlyUndo.undo()'), true);
+  assert.equal(
+    await page.evaluate(value),
+    'Bonjour. Je suis aller a Lyon. Fin',
   );
   step(
     'C02',
     'PASS',
-    'smart.js: one button on focus inside the field, hidden on blur, exact selection sent once',
+    'modal: real click opens it with the selection, handle hidden, Settings+Hide only, fixed centred size on all tabs, nothing sent before Generate, Apply hides it, Undo restores',
   );
 
   // V5.6: real typing (trusted input events over CDP) expands a shortcut

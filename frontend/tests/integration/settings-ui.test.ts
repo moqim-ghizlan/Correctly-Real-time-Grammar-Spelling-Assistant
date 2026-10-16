@@ -102,10 +102,15 @@ describe('V5.3 entry points', () => {
   }
 
   it('shows the real assigned shortcut, or "not set"', async () => {
-    await openWith({ getShortcut: () => Promise.resolve('Ctrl+Shift+C') });
+    await openWith({
+      getShortcut: () => Promise.resolve('Ctrl+Shift+C'),
+      getOpenShortcut: () => Promise.resolve('Ctrl+M'),
+    });
     await vi.waitFor(() => expect(text('shortcut-label')).toBe('Ctrl+Shift+C'));
+    await vi.waitFor(() => expect(text('open-shortcut-label')).toBe('Ctrl+M'));
     await openWith({ getShortcut: () => Promise.resolve('') });
     await vi.waitFor(() => expect(text('shortcut-label')).toContain('not set'));
+    expect(text('open-shortcut-label')).toContain('not set');
   });
 
   it('defaults: shortcut and menu on, smart button off; toggles persist', async () => {

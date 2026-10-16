@@ -1,30 +1,40 @@
-# Correctly V5.10
+# Correctly V5.11
 
 Personal Chrome/Brave extension (Manifest V3, TypeScript): an on-demand AI
 writing assistant using your own Google Gemini and/or OpenAI API keys.
 
-- **Correction on request.** Select text in a text box or editor, then use
-  any entry point: the toolbar button, the **Alt+Shift+C** shortcut, the
-  right-click menu **Correctly → Correct selected text**, or the optional smart
-  button next to the text box. **One** AI request checks and corrects it.
-  Nothing changes until you click **Apply** (plain text boxes); elsewhere you
-  copy the suggestion. Undo is available while the text is unchanged.
+- **One Correctly window (V5.11).** The toolbar button, **Ctrl+M** and the
+  optional logo handle on the right edge of every page open the same
+  centered window with three tabs: **Correction**, **Reformulation** and
+  **Translation**. Your selected text is copied into one shared, editable
+  text field (or it starts empty). Nothing is sent until you click a tab's
+  **Generate** button; each tab keeps its result until you edit the text.
+  **Apply** replaces exactly the original selection in a plain text box and
+  hides the window, with **Undo** offered for five seconds; **Copy** keeps
+  the window open. The header has only **Settings** (gear) and **Hide**.
+  Drag the handle up or down to move it. See
+  [docs/v5.11/ARCHITECTURE.md](docs/v5.11/ARCHITECTURE.md).
+- **Correction on request.** The **Alt+Shift+C** shortcut and the
+  right-click menu **Correctly → Correct selected text** still correct
+  directly. **One** AI request checks and corrects it. Nothing changes until
+  you click **Apply** (plain text boxes); elsewhere you copy the suggestion.
+  Undo is available while the text is unchanged.
 - **Frontend only.** No Java, Python, LanguageTool, local server or Windows
   installer. Node.js is only needed to build and test.
 - **Nothing is read or sent without an explicit action.** The content script
   is injected only into the tab (and frame) where you act (`activeTab`), and
   only after you allowed sending selected text in the settings. Plain page
   text, password, email, phone, URL, number and search fields are never sent.
-  The smart button is off by default; turning it on asks Chrome for access to
-  all sites, and turning it off removes that access.
-- **Rewrite (V5.4).** Right-click **Correctly → Rewrite selected text…**, the
-  smart button's ✎, or an optional shortcut (set it in
+  The right-edge handle is off by default; turning it on asks Chrome for
+  access to all sites, and turning it off removes that access.
+- **Rewrite (V5.4).** The **Reformulation** tab, right-click **Correctly →
+  Rewrite selected text…**, or an optional shortcut (set it in
   `chrome://extensions/shortcuts`). Pick one or more styles (Professional,
   Formal, Friendly, Casual, Polite, Concise, Funny), click **Generate
   rewrites**: **one** AI request returns one labeled version per style, in
   the same language. Choose one, then Apply, Copy or Cancel.
 - **Translate (V5.5).** Right-click **Correctly → Translate selected text…**
-  or **Translate & rewrite…**, the smart button's ⇄, or an optional
+  or **Translate & rewrite…**, the **Translation** tab, or an optional
   shortcut. Choose From (Auto-detect or a language), To (French, English,
   Arabic, Turkish, German, Spanish) and, for Arabic, **Modern Standard** or
   **Syrian colloquial**; optionally tick styles. **One** AI request
@@ -77,7 +87,7 @@ npm run lint
 Optional:
 
 ```powershell
-npm run package        # release/Correctly-V5.10-Extension.zip (+ .sha256)
+npm run package        # release/Correctly-V5.11-Extension.zip (+ .sha256)
 npm run test:browser   # real-browser smoke test (Brave by default)
 node scripts/verify-browser.mjs --browser=chrome
 ```
@@ -91,8 +101,8 @@ Add `--offline` to send none.
 1. `npm run build`
 2. Open `chrome://extensions` (or `brave://extensions`), enable **Developer
    mode**, click **Load unpacked** and select the **`dist`** folder.
-3. Click the Correctly toolbar button (or _Extension options_) to open the
-   settings.
+3. Open _Extension options_ (or the gear in the Correctly window) to open
+   the settings.
 4. After rebuilding, click **Reload** on the extension card.
 
 Chrome and Brave profiles are separate: each keeps its own keys, routes,
@@ -112,9 +122,11 @@ limits and usage.
 4. Under **Correction**, tick _Send the text I select to the AI provider…_.
    A V5.1–V5.6 Gemini key is moved automatically to a profile named
    _Gemini — Migrated_, used as the default route.
-5. On any page, select up to 2,000 characters in a text box and use any entry
-   point (toolbar, Alt+Shift+C, right-click menu, smart button). Change the
-   shortcut in `chrome://extensions/shortcuts`. Review the suggestion, then
+5. On any page, select up to 2,000 characters in a text box and open
+   Correctly (toolbar button, Ctrl+M, right-edge handle), choose a tab and
+   click **Generate**; or use Alt+Shift+C / the right-click menu. Change the
+   shortcuts in `chrome://extensions/shortcuts` (Ctrl+M may be taken by
+   another extension or app: check it there). Review the suggestion, then
    **Apply**, **Copy** or **Cancel**.
    Without consent or a usable route for that action (or on `chrome://`
    pages) the button opens the settings instead.
@@ -141,11 +153,12 @@ IndexedDB.
 | `frontend/tests/`            | unit and integration tests                                |
 | `frontend/manifest.json`     | the only manifest (copied to `dist/` by Vite)             |
 | `scripts/`                   | dist audit, packaging, dev watch, browser smoke test      |
-| `docs/v5.1/` … `docs/v5.10/` | architecture, security, test reports, checklists          |
+| `docs/v5.1/` … `docs/v5.11/` | architecture, security, test reports, checklists          |
 | `v5/`                        | V5.1–V5.x specifications                                  |
 | `plans/`                     | V1–V4 plans (history)                                     |
 
-See [docs/v5.10/V5.10_REPORT.md](docs/v5.10/V5.10_REPORT.md) (release audit and owner guide [docs/v5.10/USER_GUIDE.md](docs/v5.10/USER_GUIDE.md)),
+See [docs/v5.11/TEST_REPORT.md](docs/v5.11/TEST_REPORT.md) (right-edge handle and three-tab modal),
+[docs/v5.10/V5.10_REPORT.md](docs/v5.10/V5.10_REPORT.md) (release audit and owner guide [docs/v5.10/USER_GUIDE.md](docs/v5.10/USER_GUIDE.md)),
 [docs/v5.9/V5.9_REPORT.md](docs/v5.9/V5.9_REPORT.md),
 [docs/v5.8/V5.8_REPORT.md](docs/v5.8/V5.8_REPORT.md),
 [docs/v5.7/V5.7_REPORT.md](docs/v5.7/V5.7_REPORT.md),

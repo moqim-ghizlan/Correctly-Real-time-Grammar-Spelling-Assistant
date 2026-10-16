@@ -1,9 +1,9 @@
 {
   "manifest_version": 3,
-  "name": "Correctly V5.10",
-  "version": "5.10.0",
-  "version_name": "5.10.0",
-  "description": "Personal AI writing assistant (V5.10: correct, rewrite or translate selected text with your Gemini or OpenAI keys; usage limits; local statistics and estimated cost; local text shortcuts).",
+  "name": "Correctly V5.11",
+  "version": "5.11.0",
+  "version_name": "5.11.0",
+  "description": "Personal AI writing assistant (V5.11: one modal to correct, rewrite or translate text with your Gemini or OpenAI keys; usage limits; local statistics and estimated cost; local text shortcuts).",
   "minimum_chrome_version": "120",
   "permissions": ["activeTab", "contextMenus", "scripting", "storage"],
   "optional_host_permissions": ["<all_urls>"],
@@ -16,9 +16,13 @@
     "type": "module"
   },
   "action": {
-    "default_title": "Correct the selected text with Correctly"
+    "default_title": "Open Correctly (Ctrl+M)"
   },
   "commands": {
+    "open-correctly": {
+      "suggested_key": { "default": "Ctrl+M", "mac": "MacCtrl+M" },
+      "description": "Open Correctly (correction, reformulation, translation)"
+    },
     "correct-selection": {
       "suggested_key": { "default": "Alt+Shift+C", "mac": "Alt+Shift+C" },
       "description": "Correct the selected text"

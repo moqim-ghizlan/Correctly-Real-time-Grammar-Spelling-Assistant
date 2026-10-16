@@ -14,9 +14,10 @@ const CONNECT_SRC =
   "connect-src 'self' https://generativelanguage.googleapis.com https://api.openai.com";
 export const TEST_KEY_SENTINEL = 'CORRECTLY_TEST_SENTINEL_KEY';
 const PERMISSIONS = ['activeTab', 'contextMenus', 'scripting', 'storage'];
-// Requested at runtime only when the user turns the smart button on.
+// Requested at runtime only when the user turns the handle or shortcuts on.
 const OPTIONAL_HOSTS = ['<all_urls>'];
 const COMMANDS = [
+  'open-correctly',
   'correct-selection',
   'rewrite-selection',
   'translate-selection',
@@ -111,9 +112,9 @@ export function auditDist(distDir) {
 
   // B01 — manifest shape and minimal permissions.
   if (manifest.manifest_version !== 3) fail('manifest_version must be 3');
-  if (manifest.version !== '5.10.0') fail('version must be 5.10.0');
-  if (!String(manifest.name ?? '').includes('V5.10'))
-    fail('name must say V5.10');
+  if (manifest.version !== '5.11.0') fail('version must be 5.11.0');
+  if (!String(manifest.name ?? '').includes('V5.11'))
+    fail('name must say V5.11');
   // activeTab + scripting: inject content.js into the clicked tab only.
   if (!same(manifest.permissions, PERMISSIONS))
     fail(`permissions must be exactly ${JSON.stringify(PERMISSIONS)}`);
@@ -126,7 +127,7 @@ export function auditDist(distDir) {
     'web_accessible_resources',
   ])
     if (key in manifest) fail(`unexpected manifest key: ${key}`); // B04
-  if (manifest.action?.default_popup) fail('no popup is expected in V5.10');
+  if (manifest.action?.default_popup) fail('no popup is expected in V5.11');
   if (!same(manifest.optional_host_permissions ?? [], OPTIONAL_HOSTS))
     fail(
       `optional_host_permissions must be exactly ${JSON.stringify(OPTIONAL_HOSTS)}`,
@@ -137,7 +138,7 @@ export function auditDist(distDir) {
     fail('background.type must be "module"');
   needFile(manifest.background?.service_worker, 'service worker');
   needFile('content.js', 'content script');
-  needFile('smart.js', 'smart-button script');
+  needFile('smart.js', 'right-edge handle script');
   for (const path of Object.values(manifest.icons ?? {}))
     needFile(path, 'icon');
   const csp = String(manifest.content_security_policy?.extension_pages ?? '');

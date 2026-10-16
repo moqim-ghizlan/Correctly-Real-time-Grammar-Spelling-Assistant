@@ -34,6 +34,28 @@ export interface V51Settings {
   translation: TranslationPreferences;
 }
 
+/**
+ * V5.11: vertical position of the right-edge handle as a fraction of the
+ * viewport height (0.5 = centered), one global value for every site.
+ */
+export interface HandlePosition {
+  schemaVersion: 1;
+  yRatio: number;
+}
+
+export const DEFAULT_HANDLE_Y = 0.5;
+
+export function normalizeHandle(value: unknown): HandlePosition {
+  const y = record(value).yRatio;
+  return {
+    schemaVersion: 1,
+    yRatio:
+      typeof y === 'number' && Number.isFinite(y)
+        ? Math.min(1, Math.max(0, y))
+        : DEFAULT_HANDLE_Y,
+  };
+}
+
 /** Per provider, key (profile ID + revision), model and task, for one day. */
 export interface RouteUsage {
   attempts: number;

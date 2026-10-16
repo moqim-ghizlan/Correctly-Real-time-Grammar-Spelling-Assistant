@@ -21,8 +21,10 @@ export interface SettingsDeps {
   confirm: (question: string) => boolean;
   /** Actual shortcut assigned by the browser ('' when none). */
   getShortcut?: () => Promise<string>;
+  /** V5.11: shortcut that opens the Correctly modal (Ctrl+M suggested). */
+  getOpenShortcut?: () => Promise<string>;
   openShortcuts?: () => void;
-  /** Requests all-sites access and registers the smart-button script. */
+  /** Requests all-sites access and registers the right-edge handle script. */
   enableSmartButton?: () => Promise<boolean>;
   /** Unregisters it, drops the access and removes open buttons. */
   disableSmartButton?: () => Promise<void>;
@@ -241,14 +243,20 @@ export class SettingsPage {
   }
 
   async renderShortcut(): Promise<void> {
-    let shortcut = '';
-    try {
-      shortcut = (await this.deps.getShortcut?.()) ?? '';
-    } catch {
-      // Shown as "not set" below.
-    }
-    this.el('shortcut-label').textContent =
-      shortcut || 'not set (choose one with Change shortcut)';
+    const read = async (get?: () => Promise<string>) => {
+      try {
+        return (await get?.()) ?? '';
+      } catch {
+        return ''; // Shown as "not set" below.
+      }
+    };
+    const [shortcut, open] = await Promise.all([
+      read(this.deps.getShortcut),
+      read(this.deps.getOpenShortcut),
+    ]);
+    const notSet = 'not set (choose one with Change shortcut)';
+    this.el('shortcut-label').textContent = shortcut || notSet;
+    this.el('open-shortcut-label').textContent = open || notSet;
   }
 
   async saveTriggers(): Promise<void> {
@@ -329,7 +337,7 @@ export class SettingsPage {
       if (on && !(await this.deps.enableSmartButton?.())) {
         this.message(
           'triggers-message',
-          'Site access was not granted, so the smart button stays off.',
+          'Site access was not granted, so the Correctly handle stays off.',
           'error',
         );
         this.render();
@@ -344,8 +352,8 @@ export class SettingsPage {
       this.message(
         'triggers-message',
         on
-          ? 'Smart button on. Reload already open pages to see it.'
-          : 'Smart button off. Site access removed.',
+          ? 'Correctly handle on. Reload already open pages to see it.'
+          : 'Correctly handle off. Site access removed.',
         'ok',
       );
     } catch {

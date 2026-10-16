@@ -1,4 +1,5 @@
 import { PAGE_CONFIG } from '../shared/contracts';
+import { normalizeHandle } from '../shared/settings';
 import {
   MAX_REPLACEMENT,
   shortcutExpansion,
@@ -12,7 +13,10 @@ import { deepActiveElement, isEligibleField } from './correction';
 // trigger → replacement pairs.
 
 export interface PageConfig {
+  /** V5.11: show the right-edge handle (the former smart button setting). */
   smartButton: boolean;
+  /** V5.11: saved vertical position of the handle (0–1). */
+  handleY: number;
   shortcuts: { trigger: string; replacement: string }[];
 }
 
@@ -27,6 +31,7 @@ export function toPageConfig(value: unknown): PageConfig {
     : [];
   return {
     smartButton: data.smartButton === true,
+    handleY: normalizeHandle({ yRatio: data.handleY }).yRatio,
     shortcuts: list
       .map((item) => (item ?? {}) as Record<string, unknown>)
       .filter(

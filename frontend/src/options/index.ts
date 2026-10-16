@@ -1,4 +1,8 @@
-import { CORRECT_COMMAND, SMART_BUTTON_OFF } from '../shared/contracts';
+import {
+  CORRECT_COMMAND,
+  OPEN_COMMAND,
+  SMART_BUTTON_OFF,
+} from '../shared/contracts';
 import { QUOTA_CHANNEL, browserQuotaStore } from '../shared/quota-store';
 import { loadShortcuts } from '../shared/shortcuts';
 import { browserStorage, loadSettings } from '../shared/storage';
@@ -10,7 +14,7 @@ import { ShortcutsSection } from './shortcuts-ui';
 
 const area = browserStorage();
 const ALL_SITES = { origins: ['<all_urls>'] };
-/** All-sites access stays while the smart button or shortcuts need it. */
+/** All-sites access stays while the right-edge handle or shortcuts need it. */
 const releaseSiteAccess = async () => {
   const [settings, shortcuts] = await Promise.all([
     loadSettings(area),
@@ -26,6 +30,10 @@ const page = new SettingsPage(document, {
   getShortcut: async () =>
     (await chrome.commands.getAll()).find(
       (command) => command.name === CORRECT_COMMAND,
+    )?.shortcut ?? '',
+  getOpenShortcut: async () =>
+    (await chrome.commands.getAll()).find(
+      (command) => command.name === OPEN_COMMAND,
     )?.shortcut ?? '',
   openShortcuts: () =>
     void chrome.tabs.create({ url: 'chrome://extensions/shortcuts' }),

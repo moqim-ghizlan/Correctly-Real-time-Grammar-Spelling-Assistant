@@ -1,9 +1,11 @@
 import {
   CORRECT_COMMAND,
+  OPEN_COMMAND,
   OPEN_LIMITS,
+  OPEN_MODAL,
+  OPEN_SETTINGS,
   isAiEditRequest,
-  OPEN_REWRITE,
-  OPEN_TRANSLATE,
+  isHandlePositionRequest,
   PAGE_CONFIG,
   REWRITE_COMMAND,
   TRANSLATE_COMMAND,
@@ -26,7 +28,9 @@ import { SHORTCUTS_KEY, loadShortcuts } from '../shared/shortcuts';
 import { isTranslateTextRequest } from '../shared/translate';
 import {
   browserStorage,
+  loadHandle,
   loadSettings,
+  saveHandle,
   STORAGE_KEYS,
   type StorageArea,
 } from '../shared/storage';
@@ -82,7 +86,9 @@ const origin = (sender: chrome.runtime.MessageSender) => ({
 
 export type Trigger = 'toolbar' | 'keyboard' | 'contextMenu' | 'smartButton';
 type Action = 'correct' | 'rewrite' | 'translate' | 'translateRewrite';
-type Intent = Action | 'unreachable' | 'rewriteOff';
+/** V5.11: 'open' shows the three-tab modal (handle, Ctrl+M, toolbar icon). */
+type Request = Action | 'open';
+type Intent = Request | 'unreachable' | 'rewriteOff';
 
 const MENU_ACTIONS: Record<string, Action> = {
   [MENU_CORRECT]: 'correct',
@@ -95,11 +101,6 @@ const COMMAND_ACTIONS: Record<string, Action> = {
   [REWRITE_COMMAND]: 'rewrite',
   [TRANSLATE_COMMAND]: 'translate',
 };
-// Smart button: these carry no data and only open a picker in that frame.
-const OPEN_ACTIONS: Record<string, Action> = {
-  [OPEN_REWRITE]: 'rewrite',
-  [OPEN_TRANSLATE]: 'translate',
-};
 const ACTION_TASKS: Record<Action, TaskKind> = {
   correct: 'correction',
   rewrite: 'rewrite',
@@ -107,16 +108,29 @@ const ACTION_TASKS: Record<Action, TaskKind> = {
   translateRewrite: 'translateRewrite',
 };
 
-/** True when this action's saved route is usable now (no network). */
-async function routeReady(area: StorageArea, action: Action): Promise<boolean> {
+/**
+ * True when this action's saved route is usable now (no network). The modal
+ * needs at least one of its three actions.
+ */
+async function routeReady(
+  area: StorageArea,
+  action: Request,
+): Promise<boolean> {
   await migrateLegacyKey(area).catch(() => undefined);
   const { store, secrets, damaged } = await loadProviders(area);
-  return !damaged && resolveRoute(store, secrets, ACTION_TASKS[action]).ok;
+  const tasks: TaskKind[] =
+    action === 'open'
+      ? ['correction', 'rewrite', 'translation']
+      : [ACTION_TASKS[action]];
+  return (
+    !damaged && tasks.some((task) => resolveRoute(store, secrets, task).ok)
+  );
 }
 
 /**
  * Loads content.js into one frame, then runs it with the intent and the
- * picker defaults (style IDs and language preferences only, never the key).
+ * picker defaults (style IDs, language preferences and whether rewrite is
+ * on; never the key).
  */
 async function inject(
   tabId: number,
@@ -124,23 +138,30 @@ async function inject(
   intent: Intent,
   styles: string[] = [],
   translation: unknown = null,
+  rewriteEnabled = true,
 ): Promise<void> {
   const target = frameIds ? { tabId, frameIds } : { tabId };
   await chrome.scripting.executeScript({ target, files: [CONTENT_SCRIPT] });
   await chrome.scripting.executeScript({
     target,
-    func: (intent: string, styles: string[], translation: unknown) => {
+    func: (
+      intent: string,
+      styles: string[],
+      translation: unknown,
+      rewriteEnabled: boolean,
+    ) => {
       (
         globalThis as {
           correctlyRun?: (
             intent: string,
             styles: string[],
             translation: unknown,
+            rewriteEnabled: boolean,
           ) => void;
         }
-      ).correctlyRun?.(intent, styles, translation);
+      ).correctlyRun?.(intent, styles, translation, rewriteEnabled);
     },
-    args: [intent, styles, translation],
+    args: [intent, styles, translation, rewriteEnabled],
   });
 }
 
@@ -157,17 +178,19 @@ export async function correctInTab(
   area: StorageArea,
   trigger: Trigger,
   frameId = 0,
-  requested: Action = 'correct',
+  requested: Request = 'correct',
 ): Promise<void> {
   let tabId: number | undefined;
   let intent: Intent = requested;
   let styles: string[] = [];
   let translation: unknown = null;
+  let rewriteEnabled = true;
   try {
     const settings = await loadSettings(area);
     if (trigger !== 'toolbar' && !settings.triggers[trigger]) return;
     if (intent === 'rewrite' && !settings.rewrite.enabled)
       intent = 'rewriteOff';
+    rewriteEnabled = settings.rewrite.enabled;
     if (intent !== 'correct') {
       // Translate & rewrite reuses the same default styles as Rewrite.
       styles = settings.rewrite.defaultStyles;
@@ -183,7 +206,14 @@ export async function correctInTab(
   }
   if (typeof tabId !== 'number') return chrome.runtime.openOptionsPage();
   try {
-    return await inject(tabId, [frameId], intent, styles, translation);
+    return await inject(
+      tabId,
+      [frameId],
+      intent,
+      styles,
+      translation,
+      rewriteEnabled,
+    );
   } catch {
     if (frameId === 0) return chrome.runtime.openOptionsPage();
   }
@@ -196,13 +226,13 @@ export async function correctInTab(
   }
 }
 
-const openAction = (value: unknown): Action | undefined =>
-  value &&
+/** Exactly `{ type }` with this type: the data-free page requests. */
+const isBare = (value: unknown, type: string): boolean =>
+  !!value &&
   typeof value === 'object' &&
+  !Array.isArray(value) &&
   Object.keys(value).join() === 'type' &&
-  typeof (value as { type?: unknown }).type === 'string'
-    ? OPEN_ACTIONS[(value as { type: string }).type]
-    : undefined;
+  (value as { type?: unknown }).type === type;
 
 /** Idempotent: exactly one parent and its items after any install/update. */
 export async function installMenu(area: StorageArea): Promise<void> {
@@ -252,13 +282,15 @@ export async function installMenu(area: StorageArea): Promise<void> {
  * shortcuts (enabled ones only, when expansion is on). Never the settings.
  */
 export async function pageConfig(area: StorageArea) {
-  const [settings, loaded] = await Promise.all([
+  const [settings, loaded, handle] = await Promise.all([
     loadSettings(area),
     loadShortcuts(area),
+    loadHandle(area),
   ]);
   const { store } = loaded;
   return {
     smartButton: settings.triggers.smartButton,
+    handleY: handle.yRatio,
     shortcuts:
       store.enabled && !loaded.damaged
         ? store.shortcuts
@@ -338,33 +370,46 @@ export function registerServiceWorker(
       return false;
     } else if (
       isContentScriptSender(sender, chrome.runtime.id) &&
-      !!message &&
-      typeof message === 'object' &&
-      Object.keys(message).join() === 'type' &&
-      (message as { type?: unknown }).type === PAGE_CONFIG
+      isBare(message, PAGE_CONFIG)
     )
       task = pageConfig(area);
     else if (
       isContentScriptSender(sender, chrome.runtime.id) &&
-      !!message &&
-      typeof message === 'object' &&
-      Object.keys(message).join() === 'type' &&
-      (message as { type?: unknown }).type === OPEN_LIMITS
+      isBare(message, OPEN_LIMITS)
     ) {
       void chrome.tabs
         .create({ url: chrome.runtime.getURL(LIMITS_PAGE) })
         .catch(() => undefined);
       return false;
+    } else if (
+      isContentScriptSender(sender, chrome.runtime.id) &&
+      isBare(message, OPEN_SETTINGS)
+    ) {
+      // The modal's gear: the existing options page, nothing else.
+      void chrome.runtime.openOptionsPage().catch(() => undefined);
+      return false;
+    } else if (
+      isContentScriptSender(sender, chrome.runtime.id) &&
+      isHandlePositionRequest(message)
+    ) {
+      // Only a bounded number is stored; this worker is its only writer.
+      void saveHandle(area, {
+        schemaVersion: 1,
+        yRatio: message.yRatio,
+      }).catch(() => undefined);
+      return false;
     } else {
-      // Smart button → open the picker in that frame; nothing is replied.
-      const action = openAction(message);
-      if (action && isContentScriptSender(sender, chrome.runtime.id))
+      // Right-edge handle → open the modal in that frame; nothing is replied.
+      if (
+        isContentScriptSender(sender, chrome.runtime.id) &&
+        isBare(message, OPEN_MODAL)
+      )
         void correctInTab(
           sender.tab,
           area,
           'smartButton',
           sender.frameId,
-          action,
+          'open',
         ).catch(() => undefined);
       return false;
     }
@@ -379,10 +424,17 @@ export function registerServiceWorker(
     return true;
   });
 
+  // V5.11: the toolbar icon and Ctrl+M open the in-page modal (no popup).
   chrome.action.onClicked.addListener((tab) => {
-    void correctInTab(tab, area, 'toolbar').catch(() => undefined);
+    void correctInTab(tab, area, 'toolbar', 0, 'open').catch(() => undefined);
   });
   chrome.commands.onCommand.addListener((command, tab) => {
+    if (command === OPEN_COMMAND) {
+      void correctInTab(tab, area, 'keyboard', 0, 'open').catch(
+        () => undefined,
+      );
+      return;
+    }
     const action = COMMAND_ACTIONS[command];
     if (action)
       void correctInTab(tab, area, 'keyboard', 0, action).catch(
