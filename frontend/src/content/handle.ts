@@ -258,12 +258,13 @@ export function installHandle(
 ): RightEdgeHandle {
   const state = globalThis as {
     correctlyHandle?: RightEdgeHandle;
-    correctlyModal?: { visible: boolean };
+    correctlyModal?: { visible: boolean; minimized?: boolean };
   };
   if (state.correctlyHandle) return state.correctlyHandle;
   const handle = new RightEdgeHandle(doc, { send, yRatio });
   state.correctlyHandle = handle;
-  if (state.correctlyModal?.visible) handle.modalOpen(true);
+  if (state.correctlyModal?.visible && !state.correctlyModal.minimized)
+    handle.modalOpen(true);
   chrome.runtime.onMessage.addListener(
     (message: unknown, sender: chrome.runtime.MessageSender) => {
       if (

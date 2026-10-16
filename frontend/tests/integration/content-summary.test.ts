@@ -118,7 +118,7 @@ beforeEach(() => {
     correctlyUndo?: { dismiss(): void };
     correctlyPanel?: unknown;
   };
-  state.correctlyModal?.hide();
+  state.correctlyModal?.close();
   state.correctlyUndo?.dismiss();
   delete state.correctlyModal;
   delete state.correctlyUndo;
@@ -223,7 +223,11 @@ describe('Summary tab', () => {
       [...modal.root.querySelectorAll('header button')].map((node) =>
         node.getAttribute('aria-label'),
       ),
-    ).toEqual(['Open Correctly settings', 'Hide Correctly']);
+    ).toEqual([
+      'Open Correctly settings',
+      'Minimize Correctly (keeps your text and results)',
+      'Close Correctly',
+    ]);
   });
 
   it('defaults: saved target language and variant, Medium, Paragraph; options never send', () => {
@@ -423,7 +427,7 @@ describe('Summary tab', () => {
     const first = openModal(document, OPTIONS, send);
     first.selectTab('summary');
     void first.generate('summary');
-    first.hide();
+    first.close();
     replies[0]!(summary('Late.'));
     await flush();
     const second = openModal(document, OPTIONS, send);

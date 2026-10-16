@@ -49,7 +49,7 @@ import {
   replaceRange,
   type Snapshot,
 } from './correction';
-import { gearIcon, hideIcon, logo } from './icons';
+import { closeIcon, gearIcon, logo, minimizeIcon } from './icons';
 
 // V5.11: the one Correctly modal, opened by the right-edge handle, Ctrl+M or
 // the toolbar icon. Opening, switching tabs, typing or changing options never
@@ -294,8 +294,13 @@ export class CorrectlyModal {
   readonly host: HTMLElement;
   /** Closed root: page scripts cannot read or click into it. Exposed for tests. */
   readonly root: ShadowRoot;
-  /** False once hidden: this session is over and late answers are dropped. */
+  /** False once closed: this session is over and late answers are dropped. */
   visible = true;
+  /**
+   * Minimized (owner request): hidden but the session is kept (text, tab,
+   * results, a request in flight); the next opening shows it again as is.
+   */
+  minimized = false;
   activeTab: ModalTab = 'correction';
   sharedText: string;
   /** Bumped by every real change of the shared text. */
@@ -342,7 +347,8 @@ export class CorrectlyModal {
     cancel: HTMLButtonElement;
     note: HTMLElement;
     settings: HTMLButtonElement;
-    hide: HTMLButtonElement;
+    minimize: HTMLButtonElement;
+    close: HTMLButtonElement;
   };
 
   constructor(
@@ -384,7 +390,9 @@ export class CorrectlyModal {
     modal.setAttribute('aria-modal', 'true');
     modal.setAttribute('aria-labelledby', 'correctly-title');
 
-    // Header: identity, then exactly Settings and Hide (no X by design).
+    // Header: identity, then Settings, Minimize (keeps the session) and
+    // Close (ends it). Owner decision 2026-10-16: the V5.11 "no X" rule is
+    // replaced by this pair.
     const head = make('header', 'head');
     const title = make('h1', '', 'Correctly');
     title.id = 'correctly-title';
@@ -397,8 +405,12 @@ export class CorrectlyModal {
       return node;
     };
     const settings = iconButton('Open Correctly settings', gearIcon(doc));
-    const hide = iconButton('Hide Correctly', hideIcon(doc));
-    head.append(logo(doc, 22), title, settings, hide);
+    const minimize = iconButton(
+      'Minimize Correctly (keeps your text and results)',
+      minimizeIcon(doc),
+    );
+    const close = iconButton('Close Correctly', closeIcon(doc));
+    head.append(logo(doc, 22), title, settings, minimize, close);
 
     const tablist = make('div', 'tabs');
     tablist.setAttribute('role', 'tablist');
@@ -630,7 +642,8 @@ export class CorrectlyModal {
       cancel,
       note,
       settings,
-      hide,
+      minimize,
+      close,
     };
 
     textarea.addEventListener('input', () => this.setText(textarea.value));
@@ -670,7 +683,8 @@ export class CorrectlyModal {
     settings.addEventListener('click', () => {
       void this.send({ type: OPEN_SETTINGS }).catch(() => undefined);
     });
-    hide.addEventListener('click', () => this.hide());
+    minimize.addEventListener('click', () => this.minimize());
+    close.addEventListener('click', () => this.close());
     tablist.addEventListener('keydown', (event) => this.onTabKey(event));
     this.root.addEventListener('keydown', (event) =>
       this.onKey(event as KeyboardEvent),
@@ -1006,7 +1020,7 @@ export class CorrectlyModal {
     // Counted only when the field really holds the applied text.
     if (field.value.slice(start, stop) === choice.text) report('applied');
     const applied = { start, end: stop, before, value: field.value };
-    this.hide();
+    this.close();
     showUndo(this.doc, field, applied, () => report('undone'));
     return true;
   }
@@ -1039,20 +1053,47 @@ export class CorrectlyModal {
   }
 
   /** Ends the session: nothing is applied, copied or sent; the handle returns. */
-  hide(): void {
+  close(): void {
     if (!this.visible) return;
     this.visible = false;
+    this.minimized = false;
     this.watch(false);
     const field = this.target?.field;
-    const restore = this.host.isConnected && field?.isConnected;
+    const restore =
+      this.host.isConnected &&
+      this.host.style.display !== 'none' &&
+      field?.isConnected;
     this.host.remove();
     if (pageUi.correctlyModal === this) delete pageUi.correctlyModal;
     pageUi.correctlyHandle?.modalOpen(false);
     if (restore) field?.focus({ preventScroll: true });
   }
 
+  /**
+   * Hides the window but keeps the session: a request in flight still lands
+   * in its tab. The handle returns; any opening shows the same session.
+   */
+  minimize(): void {
+    if (!this.visible || this.minimized) return;
+    this.minimized = true;
+    this.host.style.setProperty('display', 'none', 'important');
+    pageUi.correctlyHandle?.modalOpen(false);
+    const field = this.target?.field;
+    if (field?.isConnected) field.focus({ preventScroll: true });
+  }
+
+  /** Shows a minimized session again, exactly as it was. */
+  restore(): void {
+    if (!this.visible || !this.minimized) return;
+    this.minimized = false;
+    this.host.style.removeProperty('display');
+    pageUi.correctlyHandle?.modalOpen(true);
+    this.render();
+  }
+
   focus(): void {
-    if (this.visible) this.ui.textarea.focus({ preventScroll: true });
+    if (this.visible && !this.minimized)
+      this.ui.textarea.focus({ preventScroll: true });
   }
 
   // --- page field and keyboard ------------------------------------------
@@ -1095,10 +1136,10 @@ export class CorrectlyModal {
   }
 
   private onKey(event: KeyboardEvent) {
-    // Escape = keyboard equivalent of Hide (there is no close button).
+    // Escape = Minimize (keeps the session; Close is the X button).
     if (event.key === 'Escape') {
       event.preventDefault();
-      this.hide();
+      this.minimize();
       return;
     }
     if (event.key !== 'Tab') return;
@@ -1332,8 +1373,9 @@ function showUndo(
 
 /**
  * The single semantic action behind the handle, Ctrl+M and the toolbar icon.
- * Already open: focus it, keep the session. Otherwise: a fresh session on
- * Correction with the verified selection (or an empty text).
+ * Already open: focus it, keep the session; minimized: show it again as it
+ * was. Otherwise: a fresh session on Correction with the verified selection
+ * (or an empty text).
  */
 export function openModal(
   doc: Document,
@@ -1342,6 +1384,7 @@ export function openModal(
 ): CorrectlyModal {
   const current = pageUi.correctlyModal;
   if (current?.visible && current.host.isConnected) {
+    current.restore();
     current.focus();
     return current;
   }

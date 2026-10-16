@@ -90,7 +90,7 @@ beforeEach(() => {
     correctlyUndo?: { dismiss(): void };
     correctlyHandle?: unknown;
   };
-  state.correctlyModal?.hide();
+  state.correctlyModal?.close();
   state.correctlyUndo?.dismiss();
   delete state.correctlyModal;
   delete state.correctlyUndo;
@@ -158,7 +158,7 @@ describe('opening and session', () => {
     expect(document.querySelectorAll('correctly-modal')).toHaveLength(1);
   });
 
-  it('S10/S11/M06: Hide discards the session; reopening starts fresh on Correction', async () => {
+  it('S10/S11/M06: Close (X) discards the session; reopening starts fresh on Correction', async () => {
     const el = field('one two', 0, 3);
     const modal = openModal(document, OPTIONS, send);
     modal.selectTab('reformulation');
@@ -169,7 +169,7 @@ describe('opening and session', () => {
       missing: [],
     });
     await flush();
-    ui(modal).button('Hide Correctly').click();
+    ui(modal).button('Close Correctly').click();
     expect(modal.visible).toBe(false);
     expect(document.querySelector('correctly-modal')).toBeNull();
     expect(el.value).toBe('one two'); // nothing applied
@@ -181,26 +181,21 @@ describe('opening and session', () => {
     expect(next.sharedText).toBe('two');
     expect(ui(next).results('reformulation')).toBe('');
     el.setSelectionRange(0, 0);
-    next.hide();
+    next.close();
     expect(openModal(document, OPTIONS, send).sharedText).toBe('');
   });
 
-  it('M04: the header has exactly Settings and Hide, no close (X) button', () => {
+  it('M04 (owner change): the header has Settings, Minimize and Close (X)', () => {
     field('x', 0, 1);
     const modal = openModal(document, OPTIONS, send);
     const header = [...modal.root.querySelectorAll('header button')];
     expect(header.map((node) => node.getAttribute('aria-label'))).toEqual([
       'Open Correctly settings',
-      'Hide Correctly',
+      'Minimize Correctly (keeps your text and results)',
+      'Close Correctly',
     ]);
-    expect(modal.root.textContent).not.toMatch(/[×✕✖]/);
-    expect(
-      [...modal.root.querySelectorAll('button')].some((node) =>
-        /close/i.test(
-          `${node.textContent} ${node.getAttribute('aria-label') ?? ''}`,
-        ),
-      ),
-    ).toBe(false);
+    // Icons only (no text); the X is an SVG, never page-provided HTML.
+    expect(header.every((node) => node.querySelector('svg'))).toBe(true);
     const dialog = modal.root.querySelector('[role="dialog"]')!;
     expect(dialog.getAttribute('aria-modal')).toBe('true');
     // V5.12: Summary is the fourth tab.
@@ -216,7 +211,7 @@ describe('opening and session', () => {
     expect(ai()).toHaveLength(0);
   });
 
-  it('Escape is the keyboard equivalent of Hide; the handle is told', () => {
+  it('Escape minimizes (session kept); the handle is told', () => {
     const handle = { modalOpen: vi.fn() };
     (globalThis as { correctlyHandle?: unknown }).correctlyHandle = handle;
     field('x', 0, 1);
@@ -229,8 +224,45 @@ describe('opening and session', () => {
         composed: true,
       }),
     );
-    expect(modal.visible).toBe(false);
+    expect(modal.visible).toBe(true);
+    expect(modal.minimized).toBe(true);
     expect(handle.modalOpen).toHaveBeenLastCalledWith(false);
+  });
+
+  it('Minimize keeps text, tab and results; any opening shows the same session', async () => {
+    const handle = { modalOpen: vi.fn() };
+    (globalThis as { correctlyHandle?: unknown }).correctlyHandle = handle;
+    const el = field('one two', 0, 3);
+    const modal = openModal(document, OPTIONS, send);
+    modal.selectTab('reformulation');
+    void modal.generate('reformulation');
+    ui(modal)
+      .button('Minimize Correctly (keeps your text and results)')
+      .click();
+    expect(modal.minimized).toBe(true);
+    expect(modal.host.style.display).toBe('none');
+    expect(document.activeElement).toBe(el);
+    // A request sent before minimizing still lands in its tab.
+    replies[0]!({
+      ok: true,
+      candidates: [{ styleId: 'formal', text: 'One.', suspicious: false }],
+      missing: [],
+    });
+    await flush();
+    el.setSelectionRange(4, 7);
+    const again = openModal(document, OPTIONS, send);
+    expect(again).toBe(modal);
+    expect(again.minimized).toBe(false);
+    expect(again.host.style.display).toBe('');
+    expect(handle.modalOpen).toHaveBeenLastCalledWith(true);
+    expect(again.activeTab).toBe('reformulation');
+    expect(again.sharedText).toBe('one');
+    expect(ui(again).results('reformulation')).toContain('One.');
+    expect(document.querySelectorAll('correctly-modal')).toHaveLength(1);
+    expect(ai()).toHaveLength(1);
+    // Close still ends it; the next opening is fresh.
+    again.close();
+    expect(openModal(document, OPTIONS, send)).not.toBe(modal);
   });
 
   it('typing in the modal does not reach page key handlers', () => {
@@ -268,7 +300,7 @@ describe('opening and session', () => {
     const el = field('abc', 0, 3);
     for (let i = 0; i < 100; i++) {
       el.focus();
-      openModal(document, OPTIONS, send).hide();
+      openModal(document, OPTIONS, send).close();
     }
     openModal(document, OPTIONS, send);
     expect(document.querySelectorAll('correctly-modal')).toHaveLength(1);
@@ -370,7 +402,7 @@ describe('shared text and per-tab results', () => {
     field('I has a cat', 0, 11);
     const modal = openModal(document, OPTIONS, send);
     void modal.generate('correction');
-    modal.hide();
+    modal.close();
     replies[0]!(corrected('I have a cat'));
     await flush();
     expect(document.querySelector('correctly-modal')).toBeNull();

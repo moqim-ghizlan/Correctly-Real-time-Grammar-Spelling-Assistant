@@ -14,7 +14,9 @@ writing assistant using your own Google Gemini and/or OpenAI API keys.
   **Generate** button; each tab keeps its result until you edit the text.
   **Apply** replaces exactly the original selection in a plain text box and
   hides the window, with **Undo** offered for five seconds; **Copy** keeps
-  the window open. The header has only **Settings** (gear) and **Hide**.
+  the window open. The header has **Settings** (gear), **Minimize** (─, keeps
+  your text and results; the handle, Ctrl+M or the icon shows it again) and
+  **Close** (✕, ends the session). Escape minimizes.
   Drag the handle up or down to move it. See
   [docs/v5.11/ARCHITECTURE.md](docs/v5.11/ARCHITECTURE.md).
 - **Correction on request.** The **Alt+Shift+C** shortcut and the

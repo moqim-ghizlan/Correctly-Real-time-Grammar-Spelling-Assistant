@@ -69,6 +69,10 @@ export const gearIcon = (doc: Document): SVGSVGElement =>
     ],
   ]);
 
-/** Hide: a chevron pointing down (minimize), never an X. */
-export const hideIcon = (doc: Document): SVGSVGElement =>
-  svg(doc, 18, [['path', { d: 'M6 9l6 6 6-6', ...STROKE }]]);
+/** Minimize: one horizontal line (the window is kept, only hidden). */
+export const minimizeIcon = (doc: Document): SVGSVGElement =>
+  svg(doc, 18, [['path', { d: 'M6 12h12', ...STROKE }]]);
+
+/** Close: an X (ends the session). */
+export const closeIcon = (doc: Document): SVGSVGElement =>
+  svg(doc, 18, [['path', { d: 'M7 7l10 10M17 7L7 17', ...STROKE }]]);

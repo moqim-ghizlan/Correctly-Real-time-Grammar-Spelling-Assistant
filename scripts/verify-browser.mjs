@@ -389,7 +389,7 @@ try {
   await openOptions();
   await wakeWorker(extensionId);
   const manifest = await page.evaluate('chrome.runtime.getManifest()');
-  assert.equal(manifest.version, '5.12.1');
+  assert.equal(manifest.version, '5.12.2');
   assert.equal(manifest.name, 'Correctly V5.12');
   assert.deepEqual(manifest.host_permissions, [
     'https://generativelanguage.googleapis.com/*',
@@ -981,8 +981,8 @@ try {
     await page.evaluate(
       `${modal}.root.querySelectorAll('header button').length`,
     ),
-    2,
-    'header: Settings and Hide only',
+    3,
+    'header: Settings, Minimize and Close',
   );
   assert.equal(await page.evaluate(`${modal}.host.shadowRoot`), null);
   const size = `(() => { const n = ${modal}.root.querySelector('[role=dialog]'); const d = n.getBoundingClientRect(); return [n.offsetWidth, n.offsetHeight, Math.round(d.left + d.width / 2), Math.round(d.top + d.height / 2)]; })()`;
@@ -1026,7 +1026,7 @@ try {
   step(
     'C02',
     'PASS',
-    'modal: real click opens it with the selection, handle hidden, Settings+Hide only, fixed centred size on all tabs, nothing sent before Generate, Apply hides it, Undo restores',
+    'modal: real click opens it with the selection, handle hidden, Settings/Minimize/Close, fixed centred size on all tabs, nothing sent before Generate, Apply hides it, Undo restores',
   );
 
   // V5.12: plain article text selected on the page survives a real click on
@@ -1080,11 +1080,38 @@ try {
     await page.evaluate(`document.getElementById('article').textContent`),
     'Le conseil municipal a voté un budget pour trois écoles.',
   );
-  await page.evaluate(`${modal}.hide()`);
+  // Minimize (─) keeps the session; a real click on the handle shows it
+  // again with the same tab and result; Close (X) ends it.
+  await page.evaluate(
+    `${modal}.root.querySelector('[aria-label^="Minimize Correctly"]').click()`,
+  );
+  assert.equal(
+    await page.evaluate('globalThis.correctlyHandle.button.hidden'),
+    false,
+    'the handle returns when minimized',
+  );
+  const back = await page.evaluate(handleBox);
+  await mouse('mousePressed', back.vw - 8, back.mid);
+  await mouse('mouseReleased', back.vw - 8, back.mid);
+  await page.until(`${modal}.minimized === false`);
+  assert.equal(await page.evaluate(`${modal}.activeTab`), 'summary');
+  assert(
+    await page.evaluate(
+      `${modal}.root.textContent.includes('Suggested summary')`,
+    ),
+    'the result survives Minimize',
+  );
+  await page.evaluate(
+    `${modal}.root.querySelector('[aria-label="Close Correctly"]').click()`,
+  );
+  assert.equal(
+    await page.evaluate(`document.querySelector('correctly-modal')`),
+    null,
+  );
   step(
     'S12',
     'PASS',
-    'V5.12: page text selection survives the handle click, Summary sends one request, Apply disabled, page unchanged',
+    'V5.12: page text selection survives the handle click, Summary sends one request, Apply disabled, page unchanged; Minimize keeps the session (real handle click restores it), Close ends it',
   );
 
   // V5.6: real typing (trusted input events over CDP) expands a shortcut

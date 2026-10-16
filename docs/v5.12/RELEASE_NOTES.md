@@ -1,6 +1,6 @@
-# Correctly 5.12.1 — Release notes
+# Correctly 5.12.2 — Release notes
 
-5.12.1 adds the Raccourcis clavier page (see below) on top of 5.12.0.
+5.12.1 adds the Raccourcis clavier page; 5.12.2 adds Minimize and Close in the modal header (see below). Both on top of 5.12.0.
 
 ## New
 
@@ -46,10 +46,19 @@
 - Page scripts left over after an extension reload no longer throw
   “Extension context invalidated” when the handle or a shortcut is used.
 
+## Modal header (owner request)
+
+- The chevron "Hide" button is replaced by **Minimize** (─): the window is
+  hidden but the session is kept (text, tab, results, a request in flight);
+  the handle, Ctrl+M or the toolbar icon shows it again as it was. Escape
+  minimizes.
+- New **Close** (✕) button: ends the session (the next opening starts fresh
+  on Correction). Replaces the V5.11 "no X" rule.
+
 ## Unchanged
 
 Right-edge handle, Ctrl+M and toolbar icon; the modal opens on Correction;
-Settings and Hide only; Apply/Undo (5 s) on plain text boxes only; no new
+Apply/Undo (5 s) on plain text boxes only; no new
 permission, host or dependency; no automatic retry or fallback.
 
 ## Upgrade notes
