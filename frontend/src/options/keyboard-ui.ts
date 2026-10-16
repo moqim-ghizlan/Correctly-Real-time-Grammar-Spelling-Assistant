@@ -14,7 +14,9 @@ import {
   type KeybindingsStore,
 } from '../shared/keybindings';
 import type { StorageArea } from '../shared/storage';
-import { COMMAND_FR, KEY_ACTION_FR, erreur } from './fr';
+import { COMMON, type CommonMessages } from '../shared/i18n';
+import type { Locale } from '../shared/locale';
+import { OPTIONS, type OptionsMessages } from './messages';
 import type { Tone } from './settings-ui';
 
 // "Raccourcis clavier": the browser's command shortcuts (read-only here:
@@ -35,6 +37,8 @@ export interface KeyboardDeps {
   hasSiteAccess: () => Promise<boolean>;
   /** Removes all-sites access when nothing needs it any more. */
   releaseSiteAccess: () => Promise<void>;
+  /** 5.13: language of this page (French when absent). */
+  locale?: Locale;
 }
 
 const MODIFIER = /^(?:Shift|Control|Alt|Meta|AltGraph|CapsLock|OS)$/;
@@ -47,10 +51,24 @@ export class KeyboardSection {
   recording: KeyAction | null = null;
   private busy = false;
 
+  private readonly m: OptionsMessages;
+  private readonly c: CommonMessages;
+
   constructor(
     private readonly doc: Document,
     private readonly deps: KeyboardDeps,
-  ) {}
+  ) {
+    this.m = OPTIONS[deps.locale ?? 'fr'];
+    this.c = COMMON[deps.locale ?? 'fr'];
+  }
+
+  private get KEY_ACTION_FR() {
+    return this.m.keyAction;
+  }
+
+  private get COMMAND_FR() {
+    return this.m.commands;
+  }
 
   private el<T extends HTMLElement>(id: string): T {
     const node = this.doc.getElementById(id);
@@ -92,7 +110,7 @@ export class KeyboardSection {
       this.access = access;
       this.el<HTMLInputElement>('keybindings-enabled').disabled = false;
     } catch {
-      this.message(erreur('STORAGE_ERROR'), 'error');
+      this.message(this.c.error('STORAGE_ERROR'), 'error');
     }
     this.render();
   }
@@ -127,7 +145,7 @@ export class KeyboardSection {
       this.message(done, 'ok');
       return true;
     } catch {
-      this.message(erreur('STORAGE_ERROR'), 'error');
+      this.message(this.c.error('STORAGE_ERROR'), 'error');
       return false;
     } finally {
       this.busy = false;
@@ -142,20 +160,17 @@ export class KeyboardSection {
       this.access = await this.deps.requestSiteAccess().catch(() => false);
       if (!this.access) {
         box.checked = false;
-        this.message(
-          'L’accès aux sites n’a pas été accordé : les raccourcis Correctly restent désactivés.',
-          'error',
-        );
+        this.message(this.m.keysNoAccess, 'error');
         return;
       }
       await this.update(
         (store) => ({ ...store, enabled: true }),
-        'Raccourcis Correctly activés. Rechargez les pages déjà ouvertes pour les utiliser.',
+        this.m.keysOn,
       );
     } else if (
       await this.update(
         (store) => ({ ...store, enabled: false }),
-        'Raccourcis Correctly désactivés.',
+        this.m.keysOff,
       )
     )
       await this.deps.releaseSiteAccess().catch(() => undefined);
@@ -165,9 +180,7 @@ export class KeyboardSection {
   record(action: KeyAction): void {
     this.recording = this.recording === action ? null : action;
     this.message(
-      this.recording
-        ? `Appuyez sur la combinaison pour « ${KEY_ACTION_FR[action]} » (Échap pour annuler).`
-        : '',
+      this.recording ? this.m.pressFor(this.KEY_ACTION_FR[action]) : '',
       'info',
     );
     this.render();
@@ -183,7 +196,7 @@ export class KeyboardSection {
       const bindings = { ...store.bindings };
       delete bindings[action];
       return { ...store, bindings };
-    }, `Raccourci de « ${KEY_ACTION_FR[action]} » effacé.`);
+    }, this.m.keyCleared(this.KEY_ACTION_FR[action]));
   }
 
   /** One key press while recording (exposed for tests). */
@@ -197,7 +210,7 @@ export class KeyboardSection {
     if (!action) return;
     if (event.key === 'Escape') {
       this.recording = null;
-      this.message('Aucun changement.');
+      this.message(this.m.noChange);
       this.render();
       return;
     }
@@ -205,12 +218,15 @@ export class KeyboardSection {
     if (MODIFIER.test(event.key)) return;
     const binding = bindingFromEvent(event);
     if (!binding) {
-      this.message('Cette touche ne peut pas être utilisée.', 'error');
+      this.message(this.m.keyUnusable, 'error');
       return;
     }
     const problem = bindingProblem(binding);
     if (problem) {
-      this.message(problem, 'error');
+      this.message(
+        this.m.bindingProblem(problem, formatBinding(binding)),
+        'error',
+      );
       return;
     }
     const other = KEY_ACTIONS.find(
@@ -221,7 +237,7 @@ export class KeyboardSection {
     );
     if (other) {
       this.message(
-        `${formatBinding(binding)} est déjà utilisé pour « ${KEY_ACTION_FR[other]} ».`,
+        this.m.keyTaken(formatBinding(binding), this.KEY_ACTION_FR[other]),
         'error',
       );
       return;
@@ -233,7 +249,7 @@ export class KeyboardSection {
         ...store,
         bindings: { ...store.bindings, [action]: binding },
       }),
-      `${text} enregistré pour « ${KEY_ACTION_FR[action]} ».${this.store.enabled ? ' Rechargez les pages déjà ouvertes.' : ' Activez les raccourcis Correctly ci-dessus pour l’utiliser.'}`,
+      this.m.bindingSaved(text, this.KEY_ACTION_FR[action], this.store.enabled),
     );
   }
 
@@ -264,7 +280,7 @@ export class KeyboardSection {
         const name = this.doc.createElement('th');
         name.scope = 'row';
         name.textContent =
-          COMMAND_FR[command.name] ?? command.description ?? command.name;
+          this.COMMAND_FR[command.name] ?? command.description ?? command.name;
         const keys = this.doc.createElement('td');
         if (command.shortcut) {
           const kbd = this.doc.createElement('kbd');
@@ -272,7 +288,7 @@ export class KeyboardSection {
           keys.append(kbd);
         } else {
           keys.className = 'hint';
-          keys.textContent = 'non défini';
+          keys.textContent = this.m.notSet;
         }
         row.append(name, keys);
         return row;
@@ -285,19 +301,19 @@ export class KeyboardSection {
     const doc = this.doc;
     const item = doc.createElement('li');
     const name = doc.createElement('strong');
-    name.textContent = KEY_ACTION_FR[action];
+    name.textContent = this.KEY_ACTION_FR[action];
     const binding = this.store.bindings[action];
     const current = doc.createElement('span');
     current.className = 'key-current';
     if (this.recording === action) {
-      current.textContent = 'Appuyez sur une combinaison…';
+      current.textContent = this.m.pressCombination;
       current.classList.add('recording');
     } else if (binding) {
       const kbd = doc.createElement('kbd');
       kbd.textContent = formatBinding(binding);
       current.append(kbd);
     } else {
-      current.textContent = 'aucun';
+      current.textContent = this.m.noneBound;
       current.classList.add('hint');
     }
     const record = doc.createElement('button');
@@ -305,19 +321,23 @@ export class KeyboardSection {
     record.className = 'ghost';
     record.id = `keybinding-record-${action}`;
     record.textContent =
-      this.recording === action ? 'Annuler' : binding ? 'Modifier' : 'Définir';
+      this.recording === action
+        ? this.m.cancelRecord
+        : binding
+          ? this.m.modify
+          : this.m.define;
     record.setAttribute(
       'aria-label',
-      `${record.textContent} le raccourci de « ${KEY_ACTION_FR[action]} »`,
+      this.m.recordLabel(record.textContent, this.KEY_ACTION_FR[action]),
     );
     record.addEventListener('click', () => this.record(action));
     const clear = doc.createElement('button');
     clear.type = 'button';
     clear.className = 'ghost';
-    clear.textContent = 'Effacer';
+    clear.textContent = this.m.clear;
     clear.setAttribute(
       'aria-label',
-      `Effacer le raccourci de « ${KEY_ACTION_FR[action]} »`,
+      this.m.clearLabel(this.KEY_ACTION_FR[action]),
     );
     clear.disabled = !binding;
     clear.addEventListener('click', () => void this.clear(action));
@@ -336,8 +356,11 @@ export class KeyboardSection {
       note.className = 'hint key-note';
       note.textContent =
         clash.name === ACTION_COMMANDS[action]
-          ? `Identique au raccourci du navigateur (${chrome}) : inutile ici.`
-          : `Attention : ${clash.shortcut} est aussi le raccourci navigateur de « ${COMMAND_FR[clash.name] ?? clash.name} ».`;
+          ? this.m.sameAsBrowser(chrome)
+          : this.m.clashWith(
+              clash.shortcut,
+              this.COMMAND_FR[clash.name] ?? clash.name,
+            );
       item.append(note);
     }
     return item;

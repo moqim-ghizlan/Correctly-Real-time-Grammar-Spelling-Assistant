@@ -7,6 +7,7 @@ import { installShortcutExpander, requestPageConfig } from './shortcuts';
 // The worker says which are on (and which shortcuts and keys are active).
 installShortcutExpander(document);
 void requestPageConfig().then((config) => {
-  if (config.smartButton) installHandle(document, config.handleY);
+  if (config.smartButton)
+    installHandle(document, config.handleY, undefined, config.locale);
   installKeyCommands(document, config.keybindings);
 });

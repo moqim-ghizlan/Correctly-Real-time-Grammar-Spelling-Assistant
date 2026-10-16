@@ -25,6 +25,7 @@ describe('settings defaults and validation', () => {
       triggers: { keyboard: true, contextMenu: true, smartButton: false },
       rewrite: { enabled: true, defaultStyles: ['professional'] },
       translation: { source: 'auto', target: 'en', arabicVariant: 'msa' },
+      ui: { language: 'auto' },
     });
   });
 
@@ -83,10 +84,10 @@ describe('settings defaults and validation', () => {
     expect(validateKey('gemini', `  ${FAKE_KEY}  `)).toBe(FAKE_KEY);
     // Provider mismatch is caught; the message never echoes the key.
     expect(() => validateKey('openai', 'AIza' + 'q'.repeat(35))).toThrow(
-      /^Cela ressemble à une clé Google : choisissez Google Gemini comme fournisseur\.$/,
+      /^looksGoogle$/,
     );
     expect(() => validateKey('gemini', 'sk-proj-' + 'q'.repeat(40))).toThrow(
-      /^Cela ressemble à une clé OpenAI : choisissez OpenAI comme fournisseur\.$/,
+      /^looksOpenai$/,
     );
   });
 

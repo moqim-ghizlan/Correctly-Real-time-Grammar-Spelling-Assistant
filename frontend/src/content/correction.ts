@@ -9,11 +9,23 @@ import {
   type CorrectionResult,
 } from '../shared/contracts';
 import type { ErrorCode } from '../shared/errors';
-import { describeNote, type QuotaNote } from '../shared/quota';
+import {
+  COMMON,
+  type CommonMessages,
+  languageName,
+  targetName,
+} from '../shared/i18n';
+import type { Locale } from '../shared/locale';
+import type { QuotaNote } from '../shared/quota';
+import {
+  CONTENT,
+  type ContentMessages,
+  type Kind,
+  type Notices,
+} from './messages';
 import {
   REWRITE_STYLES,
   normalizeStyleIds,
-  styleLabel,
   toRewriteResult,
   type Candidate,
   type RewriteStyleId,
@@ -25,7 +37,6 @@ import {
   isArabicVariant,
   isLanguageId,
   normalizeTranslation,
-  targetLabel,
   translationKeys,
   type TranslateTextRequest,
   type TranslationKey,
@@ -48,31 +59,8 @@ export const LIMIT_CODES: readonly ErrorCode[] = [
 
 type TextField = HTMLInputElement | HTMLTextAreaElement;
 
-export const NOTICES = {
-  select: 'Select the text to correct, then ask Correctly again.',
-  notEditable:
-    'Select text inside a text box or editor. Correctly does not send other page text.',
-  rewriteOff: 'Rewrite is turned off in the Correctly settings.',
-  unreachable:
-    'Correctly cannot reach this editor (embedded from another site). Copy the text into a regular text box.',
-  sensitive:
-    'Correctly never reads password, email, phone, URL, number or search fields.',
-  tooLong: `Select at most ${MAX_CORRECTION_CODE_POINTS.toLocaleString('en')} characters.`,
-  copyOnly:
-    'Apply works only in plain text boxes. Copy the suggestion instead.',
-  readOnly: 'This field cannot be edited. Copy the suggestion instead.',
-  stale:
-    'The text or selection changed since the request. Copy the suggestion or correct again.',
-  suspicious:
-    'A number, link or email address differs from your text. Check it and copy it if it is right; Apply is disabled.',
-  noTarget:
-    'No text box selection to replace: Apply is disabled. Copy the result instead.',
-  pageText:
-    'Text selected on the page: results can be copied, never applied to the page.',
-  readOnlyPage:
-    'This text was selected on the page, which Correctly never edits. Copy the result instead.',
-  multiRange: 'Select one continuous piece of text, then ask Correctly again.',
-} as const;
+/** English notices (5.13: each UI language has its own, see messages.ts). */
+export const NOTICES: Notices = CONTENT.en.notices;
 
 // Same exclusions as V4: credentials, payment and secrets by any label, and
 // code/rich editors whose hidden textareas must never be rewritten.
@@ -129,6 +117,8 @@ export interface CaptureOptions {
   readOnlyPage?: boolean;
   /** Longest accepted selection (code points). */
   max?: number;
+  /** 5.13: wording of the notices (English by default). */
+  m?: ContentMessages;
 }
 
 /** Returns a snapshot, or the notice explaining why nothing is sent. */
@@ -137,8 +127,10 @@ export function capture(
   {
     readOnlyPage = false,
     max = MAX_CORRECTION_CODE_POINTS,
+    m = CONTENT.en,
   }: CaptureOptions = {},
 ): Snapshot | string {
+  const NOTICES = m.notices;
   const active = deepActiveElement(doc);
   let snapshot: Snapshot;
   if (
@@ -196,12 +188,16 @@ export function capture(
   if ([...snapshot.text].length > max)
     return max === MAX_CORRECTION_CODE_POINTS
       ? NOTICES.tooLong
-      : `Select at most ${max.toLocaleString('en')} characters.`;
+      : m.selectAtMost(max.toLocaleString(m === CONTENT.fr ? 'fr-FR' : 'en'));
   return snapshot;
 }
 
 /** Why Apply must not run right now ('' = safe). Matching the substring alone is not enough. */
-export function applyBlocker(snapshot: Snapshot, composing: boolean): string {
+export function applyBlocker(
+  snapshot: Snapshot,
+  composing: boolean,
+  NOTICES: Notices = CONTENT.en.notices,
+): string {
   const el = snapshot.field;
   if (!el || snapshot.copyOnlyReason)
     return snapshot.copyOnlyReason || NOTICES.copyOnly;
@@ -304,8 +300,10 @@ export class CorrectionPanel {
   private operationId: string | null = null;
   private snapshot: Snapshot | null = null;
   private corrected = '';
-  /** 'Correction', 'Rewrite' or 'Translation': only wording differs. */
-  private noun = 'Correction';
+  /** Only wording differs between correction, rewrite and translation. */
+  private noun: Kind = 'correction';
+  private readonly m: ContentMessages;
+  private readonly c: CommonMessages;
   private generateReady: () => boolean = () => false;
   private translationControls: (HTMLSelectElement | HTMLInputElement)[] = [];
   private suspicious = false;
@@ -342,7 +340,10 @@ export class CorrectionPanel {
     text?: string,
   ) => HTMLElementTagNameMap[K];
 
-  constructor(doc: Document) {
+  constructor(doc: Document, locale: Locale = 'en') {
+    this.m = CONTENT[locale];
+    this.c = COMMON[locale];
+    const m = this.m;
     this.host = doc.createElement('correctly-panel');
     this.root = this.host.attachShadow({ mode: 'closed' });
     const make = <K extends keyof HTMLElementTagNameMap>(
@@ -359,7 +360,7 @@ export class CorrectionPanel {
     style.textContent = CSS;
     const panel = make('div', 'panel');
     panel.setAttribute('role', 'dialog');
-    panel.setAttribute('aria-label', 'Correctly correction');
+    panel.setAttribute('aria-label', m.panelLabel);
     const status = make('p', 'status');
     status.setAttribute('role', 'status');
     status.setAttribute('aria-live', 'polite');
@@ -367,9 +368,9 @@ export class CorrectionPanel {
     const original = make('p', 'text');
     const corrected = make('p', 'text');
     texts.append(
-      make('h2', '', 'Original'),
+      make('h2', '', m.original),
       original,
-      make('h2', '', 'Corrected'),
+      make('h2', '', m.corrected),
       corrected,
     );
     const note = make('p', 'note');
@@ -381,32 +382,28 @@ export class CorrectionPanel {
     const pickerOriginal = make('p', 'text');
     pickerOriginal.dir = 'auto';
     const styles = make('fieldset', '');
-    styles.append(make('legend', '', 'Styles'));
+    styles.append(make('legend', '', m.styles));
     picker.append(
-      make('h2', '', 'Original'),
+      make('h2', '', m.original),
       pickerOriginal,
       styles,
-      make(
-        'p',
-        'missing',
-        'All chosen styles are generated in ONE AI request, which may count against your quota.',
-      ),
+      make('p', 'missing', m.oneRequestStyles),
     );
     picker.hidden = true;
     const cards = make('div', 'cards');
     cards.setAttribute('role', 'radiogroup');
-    cards.setAttribute('aria-label', 'Rewrites');
+    cards.setAttribute('aria-label', m.rewrites);
     cards.hidden = true;
-    const generate = make('button', 'primary', 'Generate rewrites');
-    const apply = make('button', 'primary', 'Apply');
-    const copy = make('button', '', 'Copy');
-    const undo = make('button', '', 'Undo correction');
-    const close = make('button', '', 'Cancel');
-    const limits = make('button', '', 'Manage limits');
+    const generate = make('button', 'primary', m.generateRewrites);
+    const apply = make('button', 'primary', m.apply);
+    const copy = make('button', '', m.copy);
+    const undo = make('button', '', m.undoKind('correction'));
+    const close = make('button', '', m.cancel);
+    const limits = make('button', '', m.manageLimits);
     limits.hidden = true;
     const actions = make('div', 'actions');
     actions.append(generate, apply, copy, undo, limits, close);
-    const title = make('p', 'title', 'Correctly — Correction');
+    const title = make('p', 'title', m.title('correction'));
     panel.append(title, status, texts, picker, cards, note, quota, actions);
     this.root.append(style, panel);
     this.ui = {
@@ -451,7 +448,7 @@ export class CorrectionPanel {
     this.ui.status.dataset.tone = tone;
     for (const name of ['apply', 'copy', 'undo', 'generate'] as const)
       this.ui[name].hidden = !buttons.includes(name);
-    this.ui.texts.hidden = !this.corrected || this.noun === 'Rewrite';
+    this.ui.texts.hidden = !this.corrected || this.noun === 'rewrite';
   }
 
   /**
@@ -464,7 +461,7 @@ export class CorrectionPanel {
       | { ok: false; code: ErrorCode; quota?: QuotaNote; notice?: QuotaNote },
   ) {
     const note = result.ok ? result.notice : (result.quota ?? result.notice);
-    this.ui.quota.textContent = note ? describeNote(note) : '';
+    this.ui.quota.textContent = note ? this.c.note(note) : '';
     this.ui.quota.setAttribute(
       'aria-live',
       note && (note.blocked || note.level === 100) ? 'assertive' : 'polite',
@@ -476,7 +473,7 @@ export class CorrectionPanel {
   /** A refusal that sent nothing. */
   notice(text: string): void {
     this.show(text, 'info');
-    this.ui.close.textContent = 'Close';
+    this.ui.close.textContent = this.m.closeButton;
     this.ui.close.focus();
   }
 
@@ -510,8 +507,8 @@ export class CorrectionPanel {
     this.snapshot = snapshot;
     this.watch(snapshot.field, true);
     this.busy = true;
-    this.show('Checking with your AI provider…', 'info');
-    this.ui.close.textContent = 'Cancel';
+    this.show(this.m.checking, 'info');
+    this.ui.close.textContent = this.m.cancel;
     let result: CorrectionResult;
     try {
       result = toCorrectionResult(await send(snapshot.text));
@@ -525,14 +522,14 @@ export class CorrectionPanel {
     this.showQuota(result);
     this.operationId = (result.ok && result.operationId) || null;
     if (!result.ok) {
-      this.show(`${result.message} Your text was not changed.`, 'error');
-      this.ui.close.textContent = 'Close';
+      this.show(this.m.notChanged(this.c.error(result.code)), 'error');
+      this.ui.close.textContent = this.m.closeButton;
       this.ui.close.focus();
       return;
     }
     if (!result.hasErrors) {
-      this.show('No corrections needed.', 'info');
-      this.ui.close.textContent = 'Close';
+      this.show(this.m.noCorrections, 'info');
+      this.ui.close.textContent = this.m.closeButton;
       this.ui.close.focus();
       return;
     }
@@ -540,7 +537,7 @@ export class CorrectionPanel {
     this.suspicious = result.suspicious;
     this.ui.original.textContent = snapshot.text;
     this.ui.corrected.textContent = result.correctedText;
-    this.show('Suggested correction', 'info', ['apply', 'copy']);
+    this.show(this.m.suggestedCorrection, 'info', ['apply', 'copy']);
     this.refresh();
     (this.ui.apply.disabled ? this.ui.copy : this.ui.apply).focus();
   }
@@ -550,10 +547,10 @@ export class CorrectionPanel {
     const snapshot = this.snapshot;
     if (!snapshot || !this.corrected) return;
     const blocker = this.suspicious
-      ? NOTICES.suspicious
+      ? this.m.notices.suspicious
       : this.changed
-        ? NOTICES.stale
-        : applyBlocker(snapshot, this.composing);
+        ? this.m.notices.stale
+        : applyBlocker(snapshot, this.composing, this.m.notices);
     if (!this.ui.apply.hidden) {
       this.ui.apply.disabled = Boolean(blocker);
       this.ui.note.textContent = blocker;
@@ -565,14 +562,14 @@ export class CorrectionPanel {
     const snapshot = this.snapshot;
     if (!snapshot || !this.corrected || this.ui.apply.hidden) return;
     const blocker = this.suspicious
-      ? NOTICES.suspicious
+      ? this.m.notices.suspicious
       : this.changed
-        ? NOTICES.stale
-        : applyBlocker(snapshot, this.composing);
+        ? this.m.notices.stale
+        : applyBlocker(snapshot, this.composing, this.m.notices);
     const field = snapshot.field;
     if (blocker || !field) {
       this.ui.apply.disabled = true;
-      this.ui.note.textContent = blocker || NOTICES.copyOnly;
+      this.ui.note.textContent = blocker || this.m.notices.copyOnly;
       return;
     }
     this.writing = true;
@@ -595,9 +592,9 @@ export class CorrectionPanel {
       this.reportEdit(this.operationId, 'applied');
     for (const input of this.ui.cards.querySelectorAll('input'))
       input.disabled = true;
-    this.show(`${this.noun} applied.`, 'info', ['copy', 'undo']);
+    this.show(this.m.applied(this.noun), 'info', ['copy', 'undo']);
     this.ui.note.textContent = '';
-    this.ui.close.textContent = 'Close';
+    this.ui.close.textContent = this.m.closeButton;
     this.refresh();
     this.ui.undo.focus();
   }
@@ -621,8 +618,7 @@ export class CorrectionPanel {
     const applied = this.applied;
     if (!field || !applied || !this.canUndo()) {
       this.ui.undo.disabled = true;
-      this.ui.note.textContent =
-        'The text changed after the correction, so it cannot be undone safely.';
+      this.ui.note.textContent = this.m.undoRefusedPanel;
       return;
     }
     this.writing = true;
@@ -640,7 +636,7 @@ export class CorrectionPanel {
       ) === applied.before
     )
       this.reportEdit(this.operationId, 'undone');
-    this.show(`${this.noun} undone.`, 'info', ['copy']);
+    this.show(this.m.undone(this.noun), 'info', ['copy']);
     this.ui.close.focus();
   }
 
@@ -650,14 +646,12 @@ export class CorrectionPanel {
     defaults: readonly RewriteStyleId[],
     send: (text: string, styleIds: RewriteStyleId[]) => Promise<unknown>,
   ): void {
-    this.openPicker(snapshot, 'Rewrite', 'Generate rewrites');
+    this.openPicker(snapshot, 'rewrite', this.m.generateRewrites);
     this.buildStyleBoxes(defaults);
     this.generateReady = () => this.chosenStyles().length > 0;
     this.ui.generate.onclick = () => void this.generateRewrites(send);
     this.refreshGenerate();
-    this.show('Choose one or more styles, then Generate rewrites.', 'info', [
-      'generate',
-    ]);
+    this.show(this.m.chooseStyles, 'info', ['generate']);
     this.ui.styles.querySelector('input')?.focus();
   }
 
@@ -666,8 +660,11 @@ export class CorrectionPanel {
   ): Promise<void> {
     const styles = this.chosenStyles();
     if (!styles.length) return;
-    await this.generate('Generating rewrites…', styles, styleLabel, (text) =>
-      send(text, styles),
+    await this.generate(
+      this.m.generatingRewrites,
+      styles,
+      (id: RewriteStyleId) => this.c.style[id].label,
+      (text) => send(text, styles),
     );
   }
 
@@ -682,10 +679,11 @@ export class CorrectionPanel {
     withStyles: boolean,
     send: (request: TranslationChoice) => Promise<unknown>,
   ): void {
-    this.openPicker(snapshot, 'Translation', 'Translate');
+    const m = this.m;
+    this.openPicker(snapshot, 'translation', m.translate);
     this.ui.title.textContent = withStyles
-      ? 'Correctly — Translate & rewrite'
-      : 'Correctly — Translate';
+      ? m.titleTranslateRewrite
+      : m.titleTranslate;
     const select = (
       label: string,
       options: readonly { id: string; label: string }[],
@@ -704,24 +702,27 @@ export class CorrectionPanel {
     };
     const languages = LANGUAGES.map((language) => ({
       id: language.id,
-      label: `${language.label} — ${language.native}`,
+      label: languageName(this.c, language.id),
     }));
     const from = select(
-      'From',
-      [{ id: 'auto', label: 'Auto-detect' }, ...languages],
+      m.from,
+      [{ id: 'auto', label: m.autoDetect }, ...languages],
       prefs.source,
     );
-    const to = select('To', languages, prefs.target);
+    const to = select(m.to, languages, prefs.target);
     const variant = select(
-      'Arabic variant',
-      ARABIC_VARIANTS,
+      m.arabicVariant,
+      ARABIC_VARIANTS.map((item) => ({
+        id: item.id,
+        label: this.c.variant[item.id],
+      })),
       prefs.arabicVariant,
     );
     const styled = this.make('label', 'choice');
     const styledBox = this.make('input', '');
     styledBox.type = 'checkbox';
     styledBox.checked = withStyles;
-    styled.append(styledBox, this.make('span', '', 'Also rewrite in a style'));
+    styled.append(styledBox, this.make('span', '', m.alsoRewrite));
     const langs = this.make('div', 'langs');
     langs.append(from.wrap, to.wrap, variant.wrap);
     this.ui.styles.before(langs, styled);
@@ -750,9 +751,7 @@ export class CorrectionPanel {
       const { source, target } = choice();
       // Same languages: no request at all; Rewrite is the right action.
       this.ui.note.textContent =
-        source === target
-          ? 'Source and target are the same: use Rewrite instead.'
-          : '';
+        source === target ? m.sameSourceTarget('rewrite') : '';
       this.refreshGenerate();
     };
     this.generateReady = () => {
@@ -769,34 +768,30 @@ export class CorrectionPanel {
       const request = choice();
       if (!this.generateReady()) return;
       const keys = translationKeys(request.styleIds);
-      const target = targetLabel(request.target, request.variant);
+      const target = targetName(this.c, request.target, request.variant);
       const label = (key: TranslationKey) =>
         key === NEUTRAL
-          ? `Translation → ${target}`
-          : `${styleLabel(key)} → ${target}`;
+          ? m.translationLabel(target)
+          : m.styledLabel(this.c.style[key].label, target);
       void this.generate(
-        `Translating into ${target}…`,
+        m.translatingInto(target),
         keys,
         label,
         () => send(request),
-        `The text already seems to be in ${target}. Nothing to translate: use Rewrite to change its style.`,
+        m.sameLanguage(target, 'rewrite'),
       );
     };
-    this.show(
-      'Choose the languages, then Translate. Selected text is sent to your AI provider only when you click Translate.',
-      'info',
-      ['generate'],
-    );
+    this.show(m.chooseLanguages, 'info', ['generate']);
     to.node.focus();
   }
 
   /** Common picker setup: snapshot, wording and the original text. */
-  private openPicker(snapshot: Snapshot, noun: string, action: string) {
+  private openPicker(snapshot: Snapshot, noun: Kind, action: string) {
     this.snapshot = snapshot;
     this.watch(snapshot.field, true);
     this.noun = noun;
-    this.ui.title.textContent = `Correctly — ${noun}`;
-    this.ui.undo.textContent = `Undo ${noun.toLowerCase()}`;
+    this.ui.title.textContent = this.m.title(noun);
+    this.ui.undo.textContent = this.m.undoKind(noun);
     this.ui.generate.textContent = action;
     this.ui.pickerOriginal.textContent = snapshot.text;
     this.ui.picker.hidden = false;
@@ -812,8 +807,8 @@ export class CorrectionPanel {
       box.addEventListener('change', () => this.refreshGenerate());
       label.append(
         box,
-        this.make('span', '', style.label),
-        this.make('small', '', style.description),
+        this.make('span', '', this.c.style[style.id].label),
+        this.make('small', '', this.c.style[style.id].description),
       );
       this.ui.styles.append(label);
     }
@@ -854,7 +849,7 @@ export class CorrectionPanel {
     for (const control of controls) control.disabled = true;
     this.show(loading, 'info', ['generate']);
     this.ui.generate.disabled = true;
-    this.ui.close.textContent = 'Cancel';
+    this.ui.close.textContent = this.m.cancel;
     let result;
     try {
       result = toRewriteResult(await call(snapshot.text), keys);
@@ -868,9 +863,9 @@ export class CorrectionPanel {
     if (!result.ok) {
       // Retrying is always an explicit new click.
       for (const control of controls) control.disabled = false;
-      this.ui.generate.textContent = 'Try again';
+      this.ui.generate.textContent = this.m.tryAgain;
       this.refreshGenerate();
-      this.show(`${result.message} Your text was not changed.`, 'error', [
+      this.show(this.m.notChanged(this.c.error(result.code)), 'error', [
         'generate',
       ]);
       return;
@@ -878,7 +873,7 @@ export class CorrectionPanel {
     this.ui.picker.hidden = true;
     if (result.sameLanguage) {
       this.show(sameLanguage, 'info');
-      this.ui.close.textContent = 'Close';
+      this.ui.close.textContent = this.m.closeButton;
       this.ui.close.focus();
       return;
     }
@@ -891,10 +886,10 @@ export class CorrectionPanel {
     missing: K[],
     label: (key: K) => string,
   ) {
-    const noun = this.noun.toLowerCase();
+    const noun = this.noun;
     const cards = this.ui.cards;
     cards.replaceChildren(
-      this.make('h2', '', 'Original'),
+      this.make('h2', '', this.m.original),
       Object.assign(this.make('p', 'text', snapshot.text), { dir: 'auto' }),
     );
     let first: HTMLInputElement | null = null;
@@ -909,11 +904,7 @@ export class CorrectionPanel {
       card.append(radio, this.make('strong', '', label(candidate.styleId)));
       card.append(
         same
-          ? this.make(
-              'p',
-              'missing',
-              `No meaningful ${noun} was generated for this style.`,
-            )
+          ? this.make('p', 'missing', this.m.noMeaningfulForStyle(noun))
           : Object.assign(this.make('p', 'text', candidate.text), {
               dir: 'auto',
             }),
@@ -930,20 +921,17 @@ export class CorrectionPanel {
         this.make(
           'p',
           'missing',
-          `No ${noun} was returned for: ${missing.map(label).join(', ')}.`,
+          this.m.noneReturned(noun, missing.map(label).join(', ')).trim(),
         ),
       );
     cards.hidden = false;
-    this.ui.close.textContent = 'Close';
+    this.ui.close.textContent = this.m.closeButton;
     if (!first) {
-      this.show(`No meaningful ${noun} was generated.`, 'info');
+      this.show(this.m.noMeaningful(noun), 'info');
       this.ui.close.focus();
       return;
     }
-    this.show(`Choose a ${noun}, then Apply or Copy.`, 'info', [
-      'apply',
-      'copy',
-    ]);
+    this.show(this.m.chooseOne(noun), 'info', ['apply', 'copy']);
     this.refresh();
     first.focus();
   }
@@ -958,10 +946,9 @@ export class CorrectionPanel {
   async copy(): Promise<void> {
     try {
       await navigator.clipboard.writeText(this.corrected);
-      this.ui.note.textContent = 'Copied.';
+      this.ui.note.textContent = this.m.copied;
     } catch {
-      this.ui.note.textContent =
-        'Copy failed. Select the corrected text and copy it manually.';
+      this.ui.note.textContent = this.m.copyFailedPanel;
     }
   }
 
@@ -1005,6 +992,7 @@ export function runInPage(
   intent: Intent,
   styles: readonly string[] = [],
   translation?: unknown,
+  locale: Locale = 'en',
 ): void {
   // The isolated world keeps this global across injections and bundles, so an
   // in-flight request and the open panel are shared by all triggers.
@@ -1012,7 +1000,8 @@ export function runInPage(
   const previous = state.correctlyPanel;
   if (previous?.busy && previous.host.isConnected) return;
   previous?.close();
-  const panel = new CorrectionPanel(doc);
+  const panel = new CorrectionPanel(doc, locale);
+  const m = CONTENT[locale];
   panel.openLimits = () =>
     void chrome.runtime
       .sendMessage({ type: OPEN_LIMITS })
@@ -1024,10 +1013,11 @@ export function runInPage(
   state.correctlyPanel = panel;
   const snapshot =
     intent === 'unreachable' || intent === 'rewriteOff'
-      ? NOTICES[intent]
+      ? m.notices[intent]
       : // V5.12: page text can be translated (copy only), not corrected.
         capture(doc, {
           readOnlyPage: intent === 'translate' || intent === 'translateRewrite',
+          m,
         });
   if (typeof snapshot === 'string') return panel.notice(snapshot);
   const normalized = normalizeStyleIds(styles);

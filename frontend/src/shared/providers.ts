@@ -75,7 +75,37 @@ export interface SecretStore {
   secrets: Record<string, SecretRecord>;
 }
 
-export class ProviderError extends Error {}
+/** 5.13: stable codes; the settings page words them in its language. */
+export type ProviderErrorCode =
+  | 'labelRequired'
+  | 'labelTooLong'
+  | 'labelControl'
+  | 'keyRequired'
+  | 'keySpaces'
+  | 'keyChars'
+  | 'keyLength'
+  | 'looksGoogle'
+  | 'looksOpenai'
+  | 'storeDamaged'
+  | 'saveUnverified'
+  | 'changedElsewhere'
+  | 'labelExists'
+  | 'chooseProvider'
+  | 'tooManyKeys'
+  | 'chooseKey'
+  | 'keyDisabled'
+  | 'modelInvalid'
+  | 'modelMismatch';
+
+export class ProviderError extends Error {
+  constructor(
+    readonly code: ProviderErrorCode,
+    readonly params: Record<string, string | number> = {},
+  ) {
+    super(code);
+    this.name = 'ProviderError';
+  }
+}
 
 const emptyRoutes = (): Record<RouteSlot, Route | null> => ({
   default: null,
@@ -114,13 +144,10 @@ export const canonicalLabel = (label: string) =>
 
 export function validateLabel(input: unknown): string {
   const label = typeof input === 'string' ? input.trim() : '';
-  if (!label) throw new ProviderError('Donnez un nom à cette clé.');
+  if (!label) throw new ProviderError('labelRequired');
   if ([...label].length > MAX_LABEL)
-    throw new ProviderError(`Le nom fait au plus ${MAX_LABEL} caractères.`);
-  if (CONTROL.test(label))
-    throw new ProviderError(
-      'Le nom ne doit pas contenir de caractères de contrôle.',
-    );
+    throw new ProviderError('labelTooLong', { max: MAX_LABEL });
+  if (CONTROL.test(label)) throw new ProviderError('labelControl');
   return label;
 }
 
@@ -130,28 +157,16 @@ export function validateLabel(input: unknown): string {
  */
 export function validateKey(provider: ProviderId, input: unknown): string {
   const key = typeof input === 'string' ? input.trim() : '';
-  if (!key) throw new ProviderError('Collez une clé API avant d’enregistrer.');
-  if (/\s/.test(key))
-    throw new ProviderError(
-      'La clé ne doit contenir ni espaces ni retours à la ligne.',
-    );
+  if (!key) throw new ProviderError('keyRequired');
+  if (/\s/.test(key)) throw new ProviderError('keySpaces');
   // Token characters only (Google and OpenAI keys use far fewer).
-  if (!/^[A-Za-z0-9._~+/=:-]+$/.test(key))
-    throw new ProviderError(
-      'La clé contient des caractères qu’une clé API n’a jamais.',
-    );
+  if (!/^[A-Za-z0-9._~+/=:-]+$/.test(key)) throw new ProviderError('keyChars');
   if (key.length < MIN_KEY || key.length > MAX_KEY)
-    throw new ProviderError(
-      `Une clé API fait ${MIN_KEY} à ${MAX_KEY} caractères ; vérifiez ce que vous avez collé.`,
-    );
+    throw new ProviderError('keyLength', { min: MIN_KEY, max: MAX_KEY });
   if (provider === 'openai' && key.startsWith('AIza'))
-    throw new ProviderError(
-      'Cela ressemble à une clé Google : choisissez Google Gemini comme fournisseur.',
-    );
+    throw new ProviderError('looksGoogle');
   if (provider === 'gemini' && key.startsWith('sk-'))
-    throw new ProviderError(
-      'Cela ressemble à une clé OpenAI : choisissez OpenAI comme fournisseur.',
-    );
+    throw new ProviderError('looksOpenai');
   return key;
 }
 
@@ -369,10 +384,7 @@ export async function mutateProviders(
 ): Promise<Pair> {
   const run = async (): Promise<Pair> => {
     const latest = await loadProviders(area);
-    if (latest.damaged)
-      throw new ProviderError(
-        'Les réglages des fournisseurs IA enregistrés sont endommagés ; ils n’ont pas été modifiés.',
-      );
+    if (latest.damaged) throw new ProviderError('storeDamaged');
     const changed = change({ store: latest.store, secrets: latest.secrets });
     const ids = new Set(changed.store.profiles.map((p) => p.id));
     const next: Pair = {
@@ -394,9 +406,7 @@ export async function mutateProviders(
       JSON.stringify(check.store) !== JSON.stringify(next.store) ||
       JSON.stringify(check.secrets) !== JSON.stringify(next.secrets)
     )
-      throw new ProviderError(
-        'L’enregistrement n’a pas pu être vérifié. Rechargez et réessayez.',
-      );
+      throw new ProviderError('saveUnverified');
     return next;
   };
   const locks = (globalThis.navigator as Navigator | undefined)?.locks;
@@ -414,9 +424,7 @@ const newId = () => crypto.randomUUID();
 function current(store: ProviderStore, expected: ProviderProfile) {
   const found = store.profiles.find((p) => p.id === expected.id);
   if (!found || JSON.stringify(found) !== JSON.stringify(expected))
-    throw new ProviderError(
-      'Cette clé a été modifiée ou supprimée dans une autre fenêtre. La liste a été rechargée.',
-    );
+    throw new ProviderError('changedElsewhere');
   return found;
 }
 
@@ -427,7 +435,7 @@ function uniqueLabel(store: ProviderStore, label: string, except?: string) {
         p.id !== except && canonicalLabel(p.label) === canonicalLabel(label),
     )
   )
-    throw new ProviderError(`Une clé nommée « ${label} » existe déjà.`);
+    throw new ProviderError('labelExists', { label });
 }
 
 const replaceProfile = (store: ProviderStore, next: ProviderProfile) => ({
@@ -442,14 +450,12 @@ export const addProfile =
   ) =>
   ({ store, secrets }: Pair): Pair => {
     if (!isProviderId(draft.provider))
-      throw new ProviderError('Choisissez Google Gemini ou OpenAI.');
+      throw new ProviderError('chooseProvider');
     const provider = draft.provider;
     const label = validateLabel(draft.label);
     const key = validateKey(provider, draft.key);
     if (store.profiles.length >= MAX_PROFILES)
-      throw new ProviderError(
-        `Vous avez déjà ${MAX_PROFILES} clés. Supprimez-en une d’abord.`,
-      );
+      throw new ProviderError('tooManyKeys', { max: MAX_PROFILES });
     uniqueLabel(store, label);
     const at = now.toISOString();
     const profile: ProviderProfile = {
@@ -549,20 +555,16 @@ export const setRoute =
   ({ store, secrets }: Pair): Pair => {
     if (route) {
       const profile = store.profiles.find((p) => p.id === route.credentialId);
-      if (!profile) throw new ProviderError('Choisissez une clé enregistrée.');
+      if (!profile) throw new ProviderError('chooseKey');
       if (!profile.enabled)
-        throw new ProviderError(
-          `« ${profile.label} » est désactivée. Activez-la d’abord.`,
-        );
+        throw new ProviderError('keyDisabled', { label: profile.label });
       const status = modelStatus(profile.provider, route.modelId);
-      if (status === 'invalid')
-        throw new ProviderError(
-          'Saisissez un identifiant de modèle comme gemini-3.1-flash-lite (minuscules, chiffres, « . », « - », « _ »).',
-        );
+      if (status === 'invalid') throw new ProviderError('modelInvalid');
       if (status === 'mismatch')
-        throw new ProviderError(
-          `Ce modèle appartient à un autre fournisseur ; « ${profile.label} » est une clé ${profile.provider === 'gemini' ? 'Google Gemini' : 'OpenAI'}.`,
-        );
+        throw new ProviderError('modelMismatch', {
+          label: profile.label,
+          provider: profile.provider === 'gemini' ? 'Google Gemini' : 'OpenAI',
+        });
     }
     return {
       store: {

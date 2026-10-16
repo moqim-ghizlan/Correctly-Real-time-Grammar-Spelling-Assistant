@@ -4,13 +4,14 @@ import {
   LANGUAGES,
   normalizeTranslation,
 } from '../shared/translate';
+import { COMMON, languageName, type CommonMessages } from '../shared/i18n';
 import {
-  LANGUAGE_FR,
-  STYLE_FR,
-  VARIANT_FR,
-  erreur as errorMessage,
-} from './fr';
+  isLanguageSetting,
+  resolveLocale,
+  type Locale,
+} from '../shared/locale';
 import type { V51Settings } from '../shared/settings';
+import { OPTIONS, type OptionsMessages } from './messages';
 import {
   STORAGE_KEYS,
   loadSettings,
@@ -31,17 +32,26 @@ export interface SettingsDeps {
   /** Unregisters it, drops the access and removes open buttons. */
   disableSmartButton?: () => Promise<void>;
   uiTimeoutMs?: number;
+  /** 5.13: language of this page (French when absent). */
+  locale?: Locale;
+  /** 5.13: the interface language was saved (the page re-renders in it). */
+  onLanguageChanged?: (locale: Locale) => void;
 }
 
 export type Tone = 'neutral' | 'ok' | 'error' | 'info';
 
 export class SettingsPage {
   private settings: V51Settings | null = null;
+  private readonly m: OptionsMessages;
+  private readonly c: CommonMessages;
 
   constructor(
     private readonly doc: Document,
     private readonly deps: SettingsDeps,
-  ) {}
+  ) {
+    this.m = OPTIONS[deps.locale ?? 'fr'];
+    this.c = COMMON[deps.locale ?? 'fr'];
+  }
 
   private el<T extends HTMLElement>(id: string): T {
     const node = this.doc.getElementById(id);
@@ -57,7 +67,7 @@ export class SettingsPage {
       await this.reload();
       this.setControlsEnabled(true);
     } catch {
-      this.message('consent-message', errorMessage('STORAGE_ERROR'), 'error');
+      this.message('consent-message', this.c.error('STORAGE_ERROR'), 'error');
     } finally {
       this.el('app').setAttribute('aria-busy', 'false');
     }
@@ -85,10 +95,10 @@ export class SettingsPage {
       box.disabled = true;
       box.dataset.rewriteStyle = '';
       const text = this.doc.createElement('span');
-      const fr = STYLE_FR[style.id];
+      const words = this.c.style[style.id];
       const name = this.doc.createElement('strong');
-      name.textContent = fr.label;
-      text.append(name, ` — ${fr.description}`);
+      name.textContent = words.label;
+      text.append(name, ` — ${words.description}`);
       label.append(box, text);
       fieldset.append(label);
     }
@@ -109,13 +119,10 @@ export class SettingsPage {
       );
     const languages = LANGUAGES.map((language) => ({
       id: language.id,
-      label:
-        LANGUAGE_FR[language.id] === language.native
-          ? language.native
-          : `${LANGUAGE_FR[language.id]} — ${language.native}`,
+      label: languageName(this.c, language.id),
     }));
     fill('translation-source', [
-      { id: 'auto', label: 'Détection automatique' },
+      { id: 'auto', label: this.m.autoDetect },
       ...languages,
     ]);
     fill('translation-target', languages);
@@ -123,7 +130,7 @@ export class SettingsPage {
       'translation-variant',
       ARABIC_VARIANTS.map((item) => ({
         id: item.id,
-        label: VARIANT_FR[item.id],
+        label: this.c.variant[item.id],
       })),
     );
   }
@@ -174,6 +181,9 @@ export class SettingsPage {
     this.el<HTMLButtonElement>('open-shortcuts').addEventListener('click', () =>
       this.deps.openShortcuts?.(),
     );
+    this.el<HTMLSelectElement>('ui-language').addEventListener('change', () => {
+      void this.saveLanguage();
+    });
   }
 
   private setControlsEnabled(enabled: boolean) {
@@ -187,6 +197,7 @@ export class SettingsPage {
       'translation-source',
       'translation-target',
       'translation-variant',
+      'ui-language',
     ])
       this.el<HTMLInputElement>(id).disabled = !enabled;
     for (const box of this.styleBoxes) box.disabled = !enabled;
@@ -211,6 +222,7 @@ export class SettingsPage {
       settings.triggers.smartButton;
     this.el<HTMLInputElement>('rewrite-enabled').checked =
       settings.rewrite.enabled;
+    this.el<HTMLSelectElement>('ui-language').value = settings.ui.language;
     this.el<HTMLSelectElement>('translation-source').value =
       settings.translation.source;
     this.el<HTMLSelectElement>('translation-target').value =
@@ -244,13 +256,11 @@ export class SettingsPage {
       }));
       this.message(
         'consent-message',
-        consent
-          ? 'Envoi autorisé. Sélectionnez du texte sur une page, puis ouvrez Correctly.'
-          : 'Envoi désactivé. Aucun texte sélectionné ne sera envoyé.',
+        consent ? this.m.consentOn : this.m.consentOff,
         'ok',
       );
     } catch {
-      this.message('consent-message', errorMessage('STORAGE_ERROR'), 'error');
+      this.message('consent-message', this.c.error('STORAGE_ERROR'), 'error');
     }
     this.render();
   }
@@ -263,9 +273,9 @@ export class SettingsPage {
         ...settings,
         triggers: { ...settings.triggers, keyboard, contextMenu },
       }));
-      this.message('triggers-message', 'Points d’entrée enregistrés.', 'ok');
+      this.message('triggers-message', this.m.triggersSaved, 'ok');
     } catch {
-      this.message('triggers-message', errorMessage('STORAGE_ERROR'), 'error');
+      this.message('triggers-message', this.c.error('STORAGE_ERROR'), 'error');
     }
     this.render();
   }
@@ -278,25 +288,17 @@ export class SettingsPage {
       arabicVariant: value('translation-variant'),
     });
     if (translation.source === translation.target) {
-      this.message(
-        'translation-message',
-        'La langue source et la langue cible sont identiques. Le choix précédent est conservé.',
-        'error',
-      );
+      this.message('translation-message', this.m.sameLanguages, 'error');
       this.render();
       return;
     }
     try {
       await this.update((settings) => ({ ...settings, translation }));
-      this.message(
-        'translation-message',
-        'Langues par défaut enregistrées.',
-        'ok',
-      );
+      this.message('translation-message', this.m.translationSaved, 'ok');
     } catch {
       this.message(
         'translation-message',
-        errorMessage('STORAGE_ERROR'),
+        this.c.error('STORAGE_ERROR'),
         'error',
       );
     }
@@ -309,11 +311,7 @@ export class SettingsPage {
       this.styleBoxes.filter((box) => box.checked).map((box) => box.value),
     );
     if (!defaultStyles.length) {
-      this.message(
-        'rewrite-message',
-        'Gardez au moins un style par défaut. Le choix précédent est conservé.',
-        'error',
-      );
+      this.message('rewrite-message', this.m.keepOneStyle, 'error');
       this.render();
       return;
     }
@@ -322,13 +320,34 @@ export class SettingsPage {
         ...settings,
         rewrite: { enabled, defaultStyles },
       }));
+      this.message('rewrite-message', this.m.rewriteSaved, 'ok');
+    } catch {
+      this.message('rewrite-message', this.c.error('STORAGE_ERROR'), 'error');
+    }
+    this.render();
+  }
+
+  /**
+   * 5.13: saves the interface language; the page then shows itself in it.
+   * Already open web pages use it from their next opening of Correctly.
+   */
+  async saveLanguage(): Promise<void> {
+    const value = this.el<HTMLSelectElement>('ui-language').value;
+    if (!isLanguageSetting(value)) return this.render();
+    try {
+      await this.update((settings) => ({
+        ...settings,
+        ui: { language: value },
+      }));
+      const locale = resolveLocale(value);
       this.message(
-        'rewrite-message',
-        'Réglages de reformulation enregistrés.',
+        'language-message',
+        OPTIONS[locale].languageSaved(locale === 'fr' ? 'Français' : 'English'),
         'ok',
       );
+      this.deps.onLanguageChanged?.(locale);
     } catch {
-      this.message('rewrite-message', errorMessage('STORAGE_ERROR'), 'error');
+      this.message('language-message', this.c.error('STORAGE_ERROR'), 'error');
     }
     this.render();
   }
@@ -339,11 +358,7 @@ export class SettingsPage {
       // The permission prompt must come first, while the click still counts
       // as a user gesture.
       if (on && !(await this.deps.enableSmartButton?.())) {
-        this.message(
-          'triggers-message',
-          'L’accès aux sites n’a pas été accordé : la poignée Correctly reste désactivée.',
-          'error',
-        );
+        this.message('triggers-message', this.m.handleNoAccess, 'error');
         this.render();
         return;
       }
@@ -355,13 +370,11 @@ export class SettingsPage {
       if (!on) await this.deps.disableSmartButton?.();
       this.message(
         'triggers-message',
-        on
-          ? 'Poignée Correctly activée. Rechargez les pages déjà ouvertes pour la voir.'
-          : 'Poignée Correctly désactivée. Accès aux sites retiré.',
+        on ? this.m.handleOn : this.m.handleOff,
         'ok',
       );
     } catch {
-      this.message('triggers-message', errorMessage('STORAGE_ERROR'), 'error');
+      this.message('triggers-message', this.c.error('STORAGE_ERROR'), 'error');
     }
     this.render();
   }

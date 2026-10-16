@@ -387,10 +387,16 @@ try {
     source: 'window.confirm = () => true;',
   });
   await openOptions();
+  // 5.13: the settings page follows the browser language by default; the
+  // checks below read its French wording, so French is chosen first.
+  await page.evaluate(
+    `chrome.storage.local.get('correctly.v5.settings').then((d) => chrome.storage.local.set({ 'correctly.v5.settings': { ...(d['correctly.v5.settings'] ?? {}), ui: { language: 'fr' } } }))`,
+  );
+  await openOptions();
   await wakeWorker(extensionId);
   const manifest = await page.evaluate('chrome.runtime.getManifest()');
-  assert.equal(manifest.version, '5.12.2');
-  assert.equal(manifest.name, 'Correctly V5.12');
+  assert.equal(manifest.version, '5.13.0');
+  assert.equal(manifest.name, 'Correctly V5.13');
   assert.deepEqual(manifest.host_permissions, [
     'https://generativelanguage.googleapis.com/*',
     'https://api.openai.com/*',

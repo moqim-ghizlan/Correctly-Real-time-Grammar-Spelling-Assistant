@@ -3,7 +3,9 @@ import {
   OPEN_MODAL,
   SMART_BUTTON_OFF,
 } from '../shared/contracts';
+import type { Locale } from '../shared/locale';
 import { logo } from './icons';
+import { CONTENT } from './messages';
 
 // V5.11: one logo semicircle on the right edge of the viewport (replaces the
 // V5.3 three-button smart button). A click asks the worker to open the
@@ -52,6 +54,8 @@ export interface HandleDeps {
   yRatio: number;
   /** Only real gestures count; page scripts cannot click it. */
   trusted?: (event: Event) => boolean;
+  /** 5.13: interface language of the tooltip and accessible name. */
+  locale?: Locale;
 }
 
 interface Gesture {
@@ -84,8 +88,9 @@ export class RightEdgeHandle {
     button.className = 'handle';
     button.tabIndex = 0;
     button.setAttribute('role', 'button');
-    button.setAttribute('aria-label', 'Open Correctly (drag to move)');
-    button.title = 'Correctly — click to open, drag up or down to move';
+    const m = CONTENT[deps.locale ?? 'en'];
+    button.setAttribute('aria-label', m.handleLabel);
+    button.title = m.handleTitle;
     button.append(logo(doc, 18));
     root.append(style, button);
     this.button = button;
@@ -255,13 +260,14 @@ export function installHandle(
       return Promise.resolve(undefined);
     }
   },
+  locale: Locale = 'en',
 ): RightEdgeHandle {
   const state = globalThis as {
     correctlyHandle?: RightEdgeHandle;
     correctlyModal?: { visible: boolean; minimized?: boolean };
   };
   if (state.correctlyHandle) return state.correctlyHandle;
-  const handle = new RightEdgeHandle(doc, { send, yRatio });
+  const handle = new RightEdgeHandle(doc, { send, yRatio, locale });
   state.correctlyHandle = handle;
   if (state.correctlyModal?.visible && !state.correctlyModal.minimized)
     handle.modalOpen(true);

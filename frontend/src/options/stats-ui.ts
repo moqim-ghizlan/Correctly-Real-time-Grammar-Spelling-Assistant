@@ -25,7 +25,6 @@ import {
   type QuotaStore,
 } from '../shared/quota-store';
 import {
-  COST_NOTE,
   NO_FILTER,
   groupLabel,
   resolveRange,
@@ -39,11 +38,9 @@ import {
   type Totals,
 } from '../shared/stats';
 import type { StorageArea } from '../shared/storage';
-import {
-  TASK_FR as TASK_LABELS,
-  erreur as errorMessage,
-  nombre as formatCount,
-} from './fr';
+import { COMMON, type CommonMessages } from '../shared/i18n';
+import type { Locale } from '../shared/locale';
+import { OPTIONS, type OptionsMessages } from './messages';
 import type { Tone } from './settings-ui';
 
 // V5.9 "Statistics": read-only views of the local request journal. Opening,
@@ -57,6 +54,8 @@ export interface StatsDeps {
   download: (filename: string, text: string, type: string) => void;
   now?: () => number;
   newId?: () => string;
+  /** 5.13: language of this page (French when absent). */
+  locale?: Locale;
 }
 
 const DATE = /^\d{4}-\d{2}-\d{2}$/;
@@ -70,11 +69,20 @@ export class StatsSection {
   private profiles: ProviderProfile[] = [];
   private readonly now: () => number;
 
+  private readonly m: OptionsMessages;
+  private readonly c: CommonMessages;
+
   constructor(
     private readonly doc: Document,
     private readonly deps: StatsDeps,
   ) {
     this.now = deps.now ?? (() => Date.now());
+    this.m = OPTIONS[deps.locale ?? 'fr'];
+    this.c = COMMON[deps.locale ?? 'fr'];
+  }
+
+  private get TASK_LABELS() {
+    return this.c.task;
   }
 
   private el<T extends HTMLElement>(id: string): T {
@@ -151,7 +159,7 @@ export class StatsSection {
 
   /** Re-reads the local journal (another tab, the worker, a new day). */
   async refresh(): Promise<void> {
-    this.setState('Chargement…', 'info');
+    this.setState(this.m.loading, 'info');
     try {
       const loaded = await loadProfiles(this.deps.area);
       if (!loaded.damaged) this.profiles = loaded.store.profiles;
@@ -167,8 +175,12 @@ export class StatsSection {
         (await this.deps.quota.timezone()) ?? detectTimeZone() ?? 'UTC';
       const range = this.resolve(zone);
       if ('error' in range) {
-        this.message('stats-message', range.error, 'error');
-        this.setState('Choisir les dates', 'error');
+        this.message(
+          'stats-message',
+          this.m.rangeError(range.error, range.max),
+          'error',
+        );
+        this.setState(this.m.chooseDates, 'error');
         return;
       }
       // Clears only a previous error (keeps e.g. an export confirmation).
@@ -183,12 +195,8 @@ export class StatsSection {
     } catch {
       this.history = null;
       this.summary = null;
-      this.setState('Indisponible', 'error');
-      this.message(
-        'stats-message',
-        'Statistiques momentanément indisponibles : les enregistrements locaux ne peuvent pas être lus. Vos limites d’usage ne sont pas affectées.',
-        'error',
-      );
+      this.setState(this.m.state.unavailable, 'error');
+      this.message('stats-message', this.m.statsUnavailable, 'error');
       this.render();
       return;
     }
@@ -219,7 +227,7 @@ export class StatsSection {
       this.filter,
     );
     this.setState(
-      this.summary.totals.attempts ? 'À jour' : 'Aucune requête',
+      this.summary.totals.attempts ? this.m.statsReady : this.m.statsNone,
       this.summary.totals.attempts ? 'ok' : 'neutral',
     );
     this.render();
@@ -227,13 +235,13 @@ export class StatsSection {
 
   private credentialLabel = (id: string): string => {
     const profile = this.profiles.find((p) => p.id === id);
-    return profile ? profile.label : `Clé supprimée (…${id.slice(-4)})`;
+    return profile ? profile.label : this.m.deletedKeyShort(id.slice(-4));
   };
 
   // ------------------------------------------------------------ rendering
 
   private date(ms: number): string {
-    return new Intl.DateTimeFormat('fr-FR', {
+    return new Intl.DateTimeFormat(this.c.locale === 'fr' ? 'fr-FR' : 'en-GB', {
       timeZone: this.timezone,
       day: 'numeric',
       month: 'short',
@@ -257,7 +265,7 @@ export class StatsSection {
     for (const id of ['stats-csv', 'stats-json'])
       this.el<HTMLButtonElement>(id).disabled = !ready;
     this.el('stats-range').textContent = this.range
-      ? `${this.range.from} → ${this.range.to} (${this.range.timezone}). Chaque requête est comptée le jour de son envoi.`
+      ? this.m.rangeLine(this.range.from, this.range.to, this.range.timezone)
       : '';
     this.renderFilters();
     this.renderCoverage();
@@ -285,10 +293,10 @@ export class StatsSection {
     fill(
       'stats-task',
       [
-        ['all', 'Toutes les actions'],
+        ['all', this.m.allActions],
         ...QUOTA_TASKS.map((task): [string, string] => [
           task,
-          TASK_LABELS[task],
+          this.TASK_LABELS[task],
         ]),
       ],
       this.filter.task,
@@ -296,7 +304,7 @@ export class StatsSection {
     fill(
       'stats-provider',
       [
-        ['all', 'Tous les fournisseurs'],
+        ['all', this.m.allProviders],
         ...PROVIDER_IDS.map((id): [string, string] => [
           id,
           PROVIDERS[id].label,
@@ -307,7 +315,7 @@ export class StatsSection {
     fill(
       'stats-model',
       [
-        ['all', 'Tous les modèles'],
+        ['all', this.m.allModels],
         ...(summary?.seen.models ?? []).map(({ modelId }): [string, string] => [
           modelId,
           modelId,
@@ -318,7 +326,7 @@ export class StatsSection {
     fill(
       'stats-key',
       [
-        ['all', 'Toutes les clés API'],
+        ['all', this.m.allKeys],
         ...(summary?.seen.credentials ?? []).map((id): [string, string] => [
           id,
           this.credentialLabel(id),
@@ -336,21 +344,12 @@ export class StatsSection {
     const notes: string[] = [];
     const since = history.migration?.at;
     if (since !== undefined && since > range.start)
-      notes.push(
-        `Les statistiques détaillées commencent le ${this.date(since)} (Correctly V5.8). Les requêtes antérieures ne sont comptées que dans les limites d’usage, pas ici.`,
-      );
+      notes.push(this.m.coverageStart(this.date(since)));
     if (history.deletedBefore !== null && history.deletedBefore > range.start)
-      notes.push(
-        `Les statistiques antérieures au ${this.date(history.deletedBefore)} ont été supprimées à votre demande. Les limites d’usage comptent toujours ces requêtes.`,
-      );
+      notes.push(this.m.coverageDeleted(this.date(history.deletedBefore)));
     if (range.start < this.now() - OPERATION_RETENTION_MS)
-      notes.push(
-        'Les requêtes de plus de 400 jours ne sont plus conservées : cette partie de la période est incomplète.',
-      );
-    if (history.clockBack)
-      notes.push(
-        'L’horloge de votre ordinateur a reculé : les heures peuvent être fausses tant qu’elle n’est pas confirmée dans Limites d’usage.',
-      );
+      notes.push(this.m.coverageRetention);
+    if (history.clockBack) notes.push(this.m.coverageClock);
     return notes;
   }
 
@@ -369,32 +368,31 @@ export class StatsSection {
   private costText(totals: Totals): [string, string] {
     switch (totals.costState) {
       case 'none':
-        return ['$0.00', 'Aucune requête envoyée sur cette période.'];
+        return ['$0.00', this.m.costNone];
       case 'complete':
-        return [
-          `${formatUsd(totals.costPico)} (estimation)`,
-          `Les ${formatCount(totals.attempts)} requête(s) ont un prix. ${COST_NOTE}`,
-        ];
+        return this.m.costComplete(
+          formatUsd(totals.costPico),
+          this.c.number(totals.attempts),
+        );
       case 'partial':
-        return [
-          `${formatUsd(totals.costPico)} (partiel)`,
-          `Estimation partielle pour ${formatCount(totals.priced)} requête(s) sur ${formatCount(totals.attempts)} ; le coût des autres est inconnu (${this.missing(totals)}). ${COST_NOTE}`,
-        ];
+        return this.m.costPartial(
+          formatUsd(totals.costPico),
+          this.c.number(totals.priced),
+          this.c.number(totals.attempts),
+          this.missing(totals),
+        );
       case 'unknown':
-        return [
-          'Indisponible',
-          `Aucune requête de cette période n’a de prix (${this.missing(totals)}). Inconnu ne veut pas dire $0.00.`,
-        ];
+        return this.m.costUnknown(this.missing(totals));
     }
   }
 
   private missing(totals: Totals) {
     return [
       totals.missingTokens
-        ? `${formatCount(totals.missingTokens)} sans nombre de tokens`
+        ? this.m.missingTokens(this.c.number(totals.missingTokens))
         : '',
       totals.missingPrice
-        ? `${formatCount(totals.missingPrice)} sans prix de référence`
+        ? this.m.missingPrice(this.c.number(totals.missingPrice))
         : '',
     ]
       .filter(Boolean)
@@ -412,42 +410,61 @@ export class StatsSection {
         'stats-tokens',
         'stats-cost',
       ])
-        this.card(id, '—', 'Non disponible.');
+        this.card(id, '—', this.m.notAvailable);
       return;
     }
     const t = summary.totals;
     this.card(
       'stats-requests',
-      formatCount(t.attempts),
-      `Envoyées ou peut-être envoyées, comme dans les limites d’usage ; plusieurs styles dans une requête comptent une fois.${history.inProgress ? ` ${formatCount(history.inProgress)} en cours.` : ''}`,
+      this.c.number(t.attempts),
+      this.m.requestsDetail(
+        history.inProgress ? this.c.number(history.inProgress) : '',
+      ),
     );
     const tasks = QUOTA_TASKS.filter((task) => summary.byTaskSuccess[task])
       .map(
         (task) =>
-          `${TASK_LABELS[task].toLowerCase()} ${formatCount(summary.byTaskSuccess[task])}`,
+          `${this.TASK_LABELS[task].toLowerCase()} ${this.c.number(summary.byTaskSuccess[task])}`,
       )
       .join(', ');
     this.card(
       'stats-success',
-      formatCount(t.successful),
-      `Résultats valides, pas forcément appliqués${tasks ? ` (${tasks})` : ''}. Échecs : ${formatCount(t.failed)} ; réponses perdues : ${formatCount(t.unknown)}${t.pending ? ` ; en attente : ${formatCount(t.pending)}` : ''}.`,
+      this.c.number(t.successful),
+      this.m.successDetail(
+        tasks,
+        this.c.number(t.failed),
+        this.c.number(t.unknown),
+        t.pending ? this.c.number(t.pending) : '',
+      ),
     );
     this.card(
       'stats-applied',
-      formatCount(summary.applied),
-      `Modifications appliquées à votre texte par Correctly (Copier n’est pas compté). Annulations enregistrées : ${formatCount(summary.undone)}. Enregistré depuis Correctly V5.9.`,
+      this.c.number(summary.applied),
+      this.m.appliedDetail(this.c.number(summary.undone)),
     );
     this.card(
       'stats-tokens',
       // Unknown is never shown as zero.
       t.inputReported || t.outputReported
-        ? `${t.inputReported ? formatCount(t.inputTokens) : 'inconnu'} entrée / ${t.outputReported ? formatCount(t.outputTokens) : 'inconnu'} sortie`
+        ? this.m.tokensValue(
+            t.inputReported
+              ? this.c.number(t.inputTokens)
+              : this.m.unknownLower,
+            t.outputReported
+              ? this.c.number(t.outputTokens)
+              : this.m.unknownLower,
+          )
         : t.attempts
-          ? 'Non déclarés'
-          : '0 entrée / 0 sortie',
+          ? this.m.notReported
+          : this.m.zeroTokens,
       t.attempts
-        ? `Déclarés par le fournisseur pour ${formatCount(t.inputReported)} requête(s) sur ${formatCount(t.attempts)} (entrée) et ${formatCount(t.outputReported)} sur ${formatCount(t.attempts)} (sortie).${t.inputReported < t.attempts || t.outputReported < t.attempts ? ' Partiel : les autres n’ont pas de nombre de tokens.' : ''}`
-        : 'Aucune requête sur cette période.',
+        ? this.m.tokensDetail(
+            this.c.number(t.inputReported),
+            this.c.number(t.outputReported),
+            this.c.number(t.attempts),
+            t.inputReported < t.attempts || t.outputReported < t.attempts,
+          )
+        : this.m.noRequest,
     );
     const [value, detail] = this.costText(t);
     this.card('stats-cost', value, detail);
@@ -463,7 +480,7 @@ export class StatsSection {
         bar.className = 'bar';
         const fill = this.doc.createElement('span');
         fill.style.height = `${Math.round((day.attempts / max) * 100)}%`;
-        bar.title = `${day.date} : ${day.attempts} requête(s)`;
+        bar.title = this.m.dayBar(day.date, day.attempts);
         bar.append(fill);
         return bar;
       }),
@@ -472,15 +489,20 @@ export class StatsSection {
     chart.setAttribute(
       'aria-label',
       days.length
-        ? `Requêtes par jour du ${days[0]!.date} au ${days.at(-1)!.date} : ${total} au total, au plus ${max === 1 && total === 0 ? 0 : max} en un jour. Les mêmes valeurs sont dans le tableau ci-dessous.`
-        : 'Aucune donnée.',
+        ? this.m.chartLabel(
+            days[0]!.date,
+            days.at(-1)!.date,
+            total,
+            max === 1 && total === 0 ? 0 : max,
+          )
+        : this.m.noData,
     );
     this.fillTable(
       'stats-days',
       days.map((day) => [
         day.date,
-        formatCount(day.attempts),
-        formatCount(day.successful),
+        this.c.number(day.attempts),
+        this.c.number(day.successful),
       ]),
     );
   }
@@ -506,18 +528,24 @@ export class StatsSection {
   private groupCells(totals: Totals, name: string): string[] {
     return [
       name,
-      formatCount(totals.attempts),
-      formatCount(totals.successful),
+      this.c.number(totals.attempts),
+      this.c.number(totals.successful),
       totals.inputReported || totals.outputReported
-        ? `${totals.inputReported ? formatCount(totals.inputTokens) : '?'} / ${totals.outputReported ? formatCount(totals.outputTokens) : '?'}`
-        : 'Non déclarés',
-      `${formatCount(totals.inputReported)} sur ${formatCount(totals.attempts)}`,
-      totals.priced ? formatUsd(totals.costPico) : 'Inconnu',
+        ? `${totals.inputReported ? this.c.number(totals.inputTokens) : '?'} / ${totals.outputReported ? this.c.number(totals.outputTokens) : '?'}`
+        : this.m.notReported,
+      this.m.ofTotal(
+        this.c.number(totals.inputReported),
+        this.c.number(totals.attempts),
+      ),
+      totals.priced ? formatUsd(totals.costPico) : this.m.unknownCost,
       totals.costState === 'complete'
-        ? 'Complète'
+        ? this.m.coverage.complete
         : totals.costState === 'partial'
-          ? `Partielle (${formatCount(totals.priced)} sur ${formatCount(totals.attempts)})`
-          : 'Inconnue',
+          ? this.m.partialCoverage(
+              this.c.number(totals.priced),
+              this.c.number(totals.attempts),
+            )
+          : this.m.coverage.unknown,
     ];
   }
 
@@ -533,7 +561,8 @@ export class StatsSection {
         (summary?.groups[key] ?? []).map((row) => {
           const name =
             key === 'task'
-              ? (TASK_LABELS[row.key as keyof typeof TASK_LABELS] ?? row.key)
+              ? (this.TASK_LABELS[row.key as keyof CommonMessages['task']] ??
+                row.key)
               : groupLabel(key, row, this.credentialLabel);
           return this.groupCells(
             row.totals,
@@ -546,11 +575,11 @@ export class StatsSection {
     const applied = summary
       ? QUOTA_TASKS.filter((task) => summary.appliedByTask[task]).map(
           (task) =>
-            `${TASK_LABELS[task]}: ${formatCount(summary.appliedByTask[task])}`,
+            `${this.TASK_LABELS[task]}: ${this.c.number(summary.appliedByTask[task])}`,
         )
       : [];
     this.el('stats-applied-by-task').textContent = applied.length
-      ? `Modifications appliquées par action — ${applied.join(', ')}.`
+      ? this.m.appliedByTask(applied.join(', '))
       : '';
   }
 
@@ -571,9 +600,13 @@ export class StatsSection {
           : `$${entry.cachedInputPerMillion}`,
         `$${entry.outputPerMillion}`,
         entry.effectiveFrom === 0
-          ? 'Toutes les requêtes'
-          : `À partir du ${this.date(entry.effectiveFrom)}`,
-        `${entry.source === 'official' ? 'Prix officiel' : 'Votre saisie'} : ${entry.sourceLabel} (vérifié le ${new Date(entry.verifiedAt).toISOString().slice(0, 10)})`,
+          ? this.m.allRequests
+          : this.m.fromDate(this.date(entry.effectiveFrom)),
+        this.m.priceSource(
+          entry.source === 'official',
+          entry.sourceLabel,
+          new Date(entry.verifiedAt).toISOString().slice(0, 10),
+        ),
       ]),
     );
     const models = this.el('price-models');
@@ -588,7 +621,7 @@ export class StatsSection {
   // -------------------------------------------------------------- actions
 
   private coverageText(): string {
-    return this.coverageNotes().join(' ') || 'Complet pour cette période.';
+    return this.coverageNotes().join(' ') || this.m.completeCoverage;
   }
 
   export(kind: 'csv' | 'json'): void {
@@ -607,11 +640,7 @@ export class StatsSection {
         toJson(summary, this.now(), this.credentialLabel, this.coverageText()),
         'application/json',
       );
-    this.message(
-      'stats-message',
-      `${name} exporté (aucun texte, aucune clé).`,
-      'ok',
-    );
+    this.message('stats-message', this.m.exported(name), 'ok');
   }
 
   /** Adds an owner price reference (a new version; nothing is overwritten). */
@@ -624,25 +653,17 @@ export class StatsSection {
     const cached = value('price-cached');
     const output = value('price-output');
     const from = value('price-from');
-    const label = value('price-label') || 'Saisi par moi';
+    const label = value('price-label') || this.m.enteredByMe;
     const errors = [
-      isProviderId(provider) ? '' : 'Choisissez un fournisseur.',
+      isProviderId(provider) ? '' : this.m.priceErrors.provider,
       /^[a-z0-9][a-z0-9._-]{0,79}$/.test(modelId)
         ? ''
-        : 'Saisissez l’identifiant exact du modèle (par exemple gemini-3.1-flash-lite).',
-      parseRate(input) === null
-        ? 'Prix d’entrée : un montant en dollars comme 0.25 (jusqu’à 6 décimales).'
-        : '',
-      parseRate(output) === null
-        ? 'Prix de sortie : un montant en dollars comme 1.50 (jusqu’à 6 décimales).'
-        : '',
-      cached && parseRate(cached) === null
-        ? 'Prix d’entrée en cache : un montant en dollars, ou laissez vide.'
-        : '',
-      DATE.test(from)
-        ? ''
-        : 'Choisissez la date à partir de laquelle ce prix s’applique.',
-      label.length > 120 ? 'La source fait au plus 120 caractères.' : '',
+        : this.m.priceErrors.model,
+      parseRate(input) === null ? this.m.priceErrors.input : '',
+      parseRate(output) === null ? this.m.priceErrors.output : '',
+      cached && parseRate(cached) === null ? this.m.priceErrors.cached : '',
+      DATE.test(from) ? '' : this.m.priceErrors.date,
+      label.length > 120 ? this.m.priceErrors.label : '',
     ].filter(Boolean);
     if (errors.length) {
       this.message('price-message', errors.join(' '), 'error');
@@ -656,9 +677,7 @@ export class StatsSection {
     const effectiveFrom = startOfDay({ year, month, day }, this.timezone);
     if (
       effectiveFrom < this.now() &&
-      !this.deps.confirm(
-        `Appliquer ce prix aux requêtes envoyées depuis le ${from} ? Leur estimation changera (les anciens prix restent dans l’historique).`,
-      )
+      !this.deps.confirm(this.m.confirmPrice(from))
     )
       return;
     try {
@@ -677,12 +696,12 @@ export class StatsSection {
       this.message(
         'price-message',
         result === 'saved'
-          ? `Prix de référence ajouté pour ${modelId} à partir du ${from}.`
-          : 'Ce prix de référence n’est pas valide. Rien n’a été enregistré.',
+          ? this.m.priceAdded(modelId, from)
+          : this.m.priceInvalid,
         result === 'saved' ? 'ok' : 'error',
       );
     } catch {
-      this.message('price-message', errorMessage('STORAGE_ERROR'), 'error');
+      this.message('price-message', this.c.error('STORAGE_ERROR'), 'error');
     }
     await this.refresh();
   }
@@ -691,7 +710,7 @@ export class StatsSection {
   async deleteHistory(): Promise<void> {
     const before = this.el<HTMLInputElement>('stats-delete-before').value;
     if (!DATE.test(before)) {
-      this.message('stats-delete-message', 'Choisissez une date.', 'error');
+      this.message('stats-delete-message', this.m.chooseDate, 'error');
       return;
     }
     const [year, month, day] = before.split('-').map(Number) as [
@@ -703,23 +722,18 @@ export class StatsSection {
       startOfDay({ year, month, day }, this.timezone),
       this.now(),
     );
-    if (
-      !this.deps.confirm(
-        `Supprimer les statistiques locales des requêtes envoyées avant le ${before} ? Cela supprime les enregistrements de Correctly pour ces requêtes et les modifications appliquées. Cela ne supprime PAS vos clés API, vos limites d’usage ni ce qu’elles ont déjà compté (les limites restent appliquées), ni rien chez Google ou OpenAI. C’est irréversible.`,
-      )
-    )
-      return;
+    if (!this.deps.confirm(this.m.confirmDeleteStats(before))) return;
     try {
       const count = await this.deps.quota.deleteHistory(cutoff, this.now());
       this.message(
         'stats-delete-message',
-        `${formatCount(count)} enregistrement(s) de requête supprimé(s). Les limites d’usage sont inchangées.`,
+        this.m.statsDeleted(this.c.number(count)),
         'ok',
       );
     } catch {
       this.message(
         'stats-delete-message',
-        errorMessage('STORAGE_ERROR'),
+        this.c.error('STORAGE_ERROR'),
         'error',
       );
     }

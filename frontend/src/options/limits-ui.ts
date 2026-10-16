@@ -30,15 +30,9 @@ import {
   type QuotaStore,
 } from '../shared/quota-store';
 import type { StorageArea } from '../shared/storage';
-import {
-  PERIOD_FR as PERIOD_LABELS,
-  TASK_FR as TASK_LABELS,
-  dateHeure,
-  dateReset as formatReset,
-  decrireNote as describeNote,
-  erreur as errorMessage,
-  nombre as formatCount,
-} from './fr';
+import { COMMON, type CommonMessages } from '../shared/i18n';
+import type { Locale } from '../shared/locale';
+import { OPTIONS, type OptionsMessages } from './messages';
 import type { Tone } from './settings-ui';
 
 // V5.8 "Usage limits": daily/weekly/monthly caps (total, per action, and
@@ -54,6 +48,8 @@ export interface LimitsDeps {
   now?: () => number;
   /** IANA zones offered when changing the time zone. */
   timeZones?: () => string[];
+  /** 5.13: language of this page (French when absent). */
+  locale?: Locale;
 }
 
 type Row = {
@@ -64,34 +60,6 @@ type Row = {
   bar: HTMLProgressElement;
   usage: HTMLElement;
   error: HTMLElement;
-};
-
-const scopeTitle = (scope: Scope, profiles: ProviderProfile[]): string => {
-  switch (scope.kind) {
-    case 'global':
-      return 'Total (toutes actions, tous fournisseurs et toutes clés)';
-    case 'task':
-      return TASK_LABELS[scope.id as keyof typeof TASK_LABELS] ?? scope.id;
-    case 'provider':
-      return isProviderId(scope.id) ? PROVIDERS[scope.id].label : scope.id;
-    case 'credential': {
-      const profile = profiles.find((p) => p.id === scope.id);
-      return profile
-        ? `Clé « ${profile.label} » (${PROVIDERS[profile.provider].label})`
-        : 'Clé supprimée';
-    }
-  }
-};
-
-const SCOPE_HELP: Partial<Record<string, string>> = {
-  'global:all':
-    'Chaque requête IA compte ici, quels que soient l’action, le fournisseur, la clé ou le modèle. Changer de clé ou de fournisseur ne libère jamais de requêtes. Au moins une limite totale reste active.',
-  'task:rewrite':
-    'Une reformulation compte pour une requête, même si elle renvoie plusieurs styles.',
-  'task:translateRewrite':
-    'Traduire et reformuler compte une fois, dans sa propre catégorie (pas comme une traduction plus une reformulation).',
-  'task:summary':
-    'Un résumé compte une fois, dans sa propre catégorie, même écrit dans une autre langue (jamais aussi comme une traduction).',
 };
 
 /** Same limits, ignoring the save bookkeeping (revision, time). */
@@ -108,12 +76,39 @@ export class LimitsSection {
   private dirty = false;
   private busy = false;
   private readonly now: () => number;
+  private readonly m: OptionsMessages;
+  private readonly c: CommonMessages;
 
   constructor(
     private readonly doc: Document,
     private readonly deps: LimitsDeps,
   ) {
     this.now = deps.now ?? (() => Date.now());
+    this.m = OPTIONS[deps.locale ?? 'fr'];
+    this.c = COMMON[deps.locale ?? 'fr'];
+  }
+
+  private count(value: number): string {
+    return this.c.number(value);
+  }
+
+  private scopeTitle(scope: Scope, profiles: ProviderProfile[]): string {
+    switch (scope.kind) {
+      case 'global':
+        return this.m.totalScope;
+      case 'task':
+        return (
+          this.c.task[scope.id as keyof CommonMessages['task']] ?? scope.id
+        );
+      case 'provider':
+        return isProviderId(scope.id) ? PROVIDERS[scope.id].label : scope.id;
+      case 'credential': {
+        const profile = profiles.find((p) => p.id === scope.id);
+        return profile
+          ? this.m.keyScope(profile.label, PROVIDERS[profile.provider].label)
+          : this.m.deletedKey;
+      }
+    }
   }
 
   private el<T extends HTMLElement>(id: string): T {
@@ -207,23 +202,21 @@ export class LimitsSection {
     const policy = this.saved;
     const state = this.el('limits-state');
     const [label, tone] = !snapshot
-      ? ['Indisponible', 'error']
+      ? [this.m.state.unavailable, 'error']
       : snapshot.status !== 'ok'
-        ? ['À réparer', 'error']
+        ? [this.m.state.repair, 'error']
         : snapshot.clockBack
-          ? ['Vérifier l’horloge', 'error']
+          ? [this.m.state.clock, 'error']
           : policy?.pauseAll
-            ? ['IA en pause', 'info']
-            : ['Actives', 'ok'];
+            ? [this.m.state.paused, 'info']
+            : [this.m.state.active, 'ok'];
     state.replaceChildren(
       Object.assign(this.doc.createElement('span'), { className: 'dot' }),
       label,
     );
     state.dataset.tone = tone;
     const status = this.el('limits-status');
-    status.textContent = !snapshot
-      ? 'Usage momentanément indisponible : Correctly ne peut pas lire ses compteurs, donc aucune requête IA n’est envoyée. Rechargez cette page ; si cela persiste, redémarrez le navigateur.'
-      : '';
+    status.textContent = !snapshot ? this.m.usageUnavailableLong : '';
     status.dataset.tone = 'error';
     this.el('limits-repair').hidden = !snapshot || snapshot.status === 'ok';
     this.el('limits-clock').hidden = !snapshot?.clockBack;
@@ -291,13 +284,13 @@ export class LimitsSection {
 
   private group(scope: Scope): HTMLElement {
     const doc = this.doc;
-    const title = scopeTitle(scope, this.profiles);
+    const title = this.scopeTitle(scope, this.profiles);
     const fieldset = doc.createElement('fieldset');
     fieldset.className = 'route limits';
     const legend = doc.createElement('legend');
     legend.textContent = title;
     fieldset.append(legend);
-    const help = SCOPE_HELP[`${scope.kind}:${scope.id}`];
+    const help = this.m.scopeHelp[`${scope.kind}:${scope.id}`];
     if (help) {
       const note = doc.createElement('p');
       note.className = 'hint';
@@ -305,29 +298,26 @@ export class LimitsSection {
       fieldset.append(note);
     }
     for (const period of PERIODS) {
-      const name = `Limite ${PERIOD_LABELS[period].toLowerCase()} — ${title}`;
+      const name = this.m.limitName(this.c.period[period], title);
       const row = doc.createElement('div');
       row.className = 'cap-row';
       const toggle = doc.createElement('label');
       toggle.className = 'check';
       const box = doc.createElement('input');
       box.type = 'checkbox';
-      box.setAttribute('aria-label', `${name} : activée`);
+      box.setAttribute('aria-label', this.m.capOn(name));
       const text = doc.createElement('span');
-      text.textContent = PERIOD_LABELS[period];
+      text.textContent = this.c.period[period];
       toggle.append(box, text);
       const input = doc.createElement('input');
       input.type = 'text';
       input.inputMode = 'numeric';
       input.autocomplete = 'off';
       input.className = 'cap-max';
-      input.setAttribute(
-        'aria-label',
-        `${name} : nombre maximal de requêtes IA`,
-      );
+      input.setAttribute('aria-label', this.m.capMax(name));
       const unit = doc.createElement('span');
       unit.className = 'hint';
-      unit.textContent = 'requêtes IA';
+      unit.textContent = this.m.aiRequests;
       const bar = doc.createElement('progress');
       const usage = doc.createElement('p');
       usage.className = 'cap-usage hint';
@@ -352,7 +342,7 @@ export class LimitsSection {
         max: policy.global[row.period].max,
       };
       row.box.checked = cap.enabled;
-      row.input.value = formatCount(cap.max);
+      row.input.value = this.count(cap.max);
     }
     // A limit that is on is never hidden in a folded section.
     if (
@@ -391,37 +381,57 @@ export class LimitsSection {
     row.box.disabled = disabled;
     row.input.disabled = disabled;
     if (!policy || !windows) {
-      row.usage.textContent = 'Usage momentanément indisponible.';
+      row.usage.textContent = this.m.usageUnavailable;
       row.bar.hidden = true;
       return;
     }
     const { counted, reserved } = this.cell(row);
     const cap = capFor(policy, row.scope, row.period);
-    const progress = reserved ? `, ${formatCount(reserved)} en cours` : '';
-    const reset = `Remise à zéro : ${formatReset(windows[row.period].end, policy.timezone)}.`;
+    const progress = reserved ? this.m.inProgress(this.count(reserved)) : '';
+    const reset = this.m.resets(
+      this.c.reset(windows[row.period].end, policy.timezone),
+    );
     if (!cap?.enabled) {
       row.bar.hidden = true;
-      row.usage.textContent = `Désactivée (usage toujours compté) : ${formatCount(counted)} utilisée(s)${progress}. ${reset}`;
+      row.usage.textContent = this.m.offTracking(
+        this.count(counted),
+        progress,
+        reset,
+      );
       return;
     }
     const remaining = Math.max(0, cap.max - counted - reserved);
     const state =
       counted > cap.max
-        ? 'Limite dépassée'
+        ? this.m.capState.over
         : counted + reserved >= cap.max
-          ? 'Limite atteinte'
+          ? this.m.capState.reached
           : reached(counted, cap.max, 80)
-            ? 'Limite proche'
-            : 'Disponible';
+            ? this.m.capState.near
+            : this.m.capState.available;
     const percent = Math.floor((counted * 100) / cap.max);
     row.bar.hidden = false;
     row.bar.max = cap.max;
     row.bar.value = Math.min(counted, cap.max);
     row.bar.setAttribute(
       'aria-label',
-      `Usage ${PERIOD_LABELS[row.period].toLowerCase()} — ${scopeTitle(row.scope, this.profiles)} : ${percent} pour cent, ${formatCount(counted)} sur ${formatCount(cap.max)}`,
+      this.m.barLabel(
+        this.c.period[row.period],
+        this.scopeTitle(row.scope, this.profiles),
+        percent,
+        this.count(counted),
+        this.count(cap.max),
+      ),
     );
-    row.usage.textContent = `${state} — ${formatCount(counted)} / ${formatCount(cap.max)} utilisée(s)${counted > cap.max ? ' (dépassement)' : ''}, ${formatCount(remaining)} restante(s)${progress}. ${reset}`;
+    row.usage.textContent = this.m.usageLine(
+      state,
+      this.count(counted),
+      this.count(cap.max),
+      counted > cap.max,
+      this.count(remaining),
+      progress,
+      reset,
+    );
   }
 
   private alertNote(alert: AlertRecord): QuotaNote {
@@ -450,15 +460,18 @@ export class LimitsSection {
         item.className = 'warning';
         const text = this.doc.createElement('span');
         const profile = this.profiles.find((p) => p.id === alert.scopeId);
-        text.textContent = describeNote(
+        text.textContent = this.c.note(
           this.alertNote(alert),
-          profile ? `la clé « ${profile.label} »` : 'une clé supprimée',
+          profile ? this.m.theKey(profile.label) : this.m.aDeletedKey,
         );
         const dismiss = this.doc.createElement('button');
         dismiss.type = 'button';
         dismiss.className = 'ghost';
-        dismiss.textContent = 'Masquer';
-        dismiss.setAttribute('aria-label', `Masquer : ${text.textContent}`);
+        dismiss.textContent = this.m.dismiss;
+        dismiss.setAttribute(
+          'aria-label',
+          this.m.dismissLabel(text.textContent ?? ''),
+        );
         dismiss.addEventListener('click', () => {
           void this.deps.quota
             .dismissAlert(alert.id)
@@ -477,19 +490,26 @@ export class LimitsSection {
       const profile = this.profiles.find((p) => p.id === row.credentialId);
       const who = profile
         ? `${profile.label} (${PROVIDERS[row.provider].label})`
-        : 'clé supprimée';
+        : this.m.deletedKeyLower;
       const action =
-        row.task === 'test' ? 'Test' : (TASK_LABELS[row.task] ?? row.task);
-      return `${action} → ${who} • ${row.modelId} : ${row.attempts} requête(s), ${row.completed} réussie(s), ${row.failed} en échec, ${row.unknown} inconnue(s) · tokens ${row.inputTokens} en entrée / ${row.outputTokens} en sortie`;
+        row.task === 'test' ? 'Test' : (this.c.task[row.task] ?? row.task);
+      return this.m.todayRow({
+        action,
+        who,
+        model: row.modelId,
+        attempts: row.attempts,
+        completed: row.completed,
+        failed: row.failed,
+        unknown: row.unknown,
+        input: row.inputTokens,
+        output: row.outputTokens,
+      });
     });
     const unknown = (this.snapshot?.today ?? []).reduce(
       (sum, row) => sum + row.unknown,
       0,
     );
-    if (unknown)
-      rows.push(
-        `${unknown} requête(s) envoyée(s) dont la réponse a été perdue : elles peuvent être facturées.`,
-      );
+    if (unknown) rows.push(this.m.lostAnswers(unknown));
     this.el('usage-routes').replaceChildren(
       ...rows.map((text) =>
         Object.assign(this.doc.createElement('li'), { textContent: text }),
@@ -505,24 +525,23 @@ export class LimitsSection {
       node.textContent = '';
       return;
     }
-    const since = new Intl.DateTimeFormat('fr-FR', {
-      timeZone: policy.timezone,
-      day: 'numeric',
-      month: 'long',
-      year: 'numeric',
-    }).format(new Date(migration.trackingSince));
+    const since = new Intl.DateTimeFormat(
+      this.c.locale === 'fr' ? 'fr-FR' : 'en-GB',
+      {
+        timeZone: policy.timezone,
+        day: 'numeric',
+        month: 'long',
+        year: 'numeric',
+      },
+    ).format(new Date(migration.trackingSince));
     const notes: string[] = [];
     if (migration.trackingSince > this.snapshot.windows.monthly.start)
-      notes.push(
-        `L’usage est compté depuis le ${since} : les jours précédents de cette semaine et de ce mois sont inconnus (les versions précédentes ne gardaient qu’un jour).`,
-      );
+      notes.push(this.m.trackingSince(since));
     if (
       migration.unattributed > 0 &&
       migration.trackingSince === this.snapshot.windows.daily.start
     )
-      notes.push(
-        `${migration.unattributed} requête(s) faite(s) aujourd’hui avant la V5.7 compte(nt) seulement dans le total (action et clé inconnues).`,
-      );
+      notes.push(this.m.unattributed(migration.unattributed));
     node.textContent = notes.join(' ');
   }
 
@@ -540,7 +559,7 @@ export class LimitsSection {
       const previous = capFor(saved, row.scope, row.period);
       let error = '';
       if (typed === null && (row.box.checked || row.input.value.trim()))
-        error = `Saisissez un nombre entier de 1 à ${formatCount(CAP_MAX)} (par exemple 5 000).`;
+        error = this.m.wholeNumber(this.count(CAP_MAX));
       if (error && row.box.checked) valid = false;
       const cap: Cap = {
         enabled: row.box.checked,
@@ -549,7 +568,7 @@ export class LimitsSection {
       };
       const used = this.cell(row).counted;
       if (!error && cap.enabled && used >= cap.max && !previous?.enabled)
-        error = `Déjà ${formatCount(used)} utilisée(s) sur cette période : les nouvelles requêtes concernées seront bloquées après l’enregistrement.`;
+        error = this.m.alreadyUsed(this.count(used));
       else if (
         !error &&
         cap.enabled &&
@@ -557,7 +576,7 @@ export class LimitsSection {
         previous &&
         cap.max < previous.max
       )
-        error = `En dessous de ce qui est déjà utilisé (${formatCount(used)}) : les nouvelles requêtes concernées seront bloquées après l’enregistrement.`;
+        error = this.m.belowUsed(this.count(used));
       row.error.textContent = error;
       row.input.setAttribute(
         'aria-invalid',
@@ -596,15 +615,11 @@ export class LimitsSection {
       'limits-timezone-input',
     ).value.trim();
     const zoneError = this.el('limits-timezone-error');
-    zoneError.textContent = isTimeZone(zone)
-      ? ''
-      : 'Fuseau horaire inconnu. Utilisez un nom IANA comme Europe/Paris.';
+    zoneError.textContent = isTimeZone(zone) ? '' : this.m.unknownZone;
     if (isTimeZone(zone)) draft.timezone = zone;
     else valid = false;
     const globalError = this.el('limits-global-error');
-    globalError.textContent = hasGlobalCap(draft)
-      ? ''
-      : 'Gardez au moins une limite totale active (jour, semaine ou mois). Pour arrêter toutes les requêtes IA, utilisez plutôt la pause.';
+    globalError.textContent = hasGlobalCap(draft) ? '' : this.m.keepTotal;
     if (!hasGlobalCap(draft)) valid = false;
     return valid ? draft : null;
   }
@@ -624,9 +639,7 @@ export class LimitsSection {
     if (!saved || !draft || this.busy) return;
     if (
       draft.timezone !== saved.timezone &&
-      !this.deps.confirm(
-        `Utiliser le fuseau horaire ${draft.timezone} pour les jours, semaines et mois ? Les compteurs du jour, de la semaine et du mois sont conservés : rien n’est remis à zéro.`,
-      )
+      !this.deps.confirm(this.m.confirmZone(draft.timezone))
     )
       return;
     this.busy = true;
@@ -639,24 +652,14 @@ export class LimitsSection {
       );
       if (result === 'saved') {
         this.dirty = false;
-        this.message(
-          'Limites enregistrées. Elles s’appliquent dès la prochaine requête.',
-          'ok',
-        );
+        this.message(this.m.limitsSaved, 'ok');
       } else if (result === 'conflict') {
-        this.message(
-          'Les limites ont été modifiées dans un autre onglet ou une autre fenêtre : rien n’a été enregistré. Utilisez « Recharger les limites enregistrées » pour les revoir (vos modifications ici seront alors perdues).',
-          'error',
-        );
+        this.message(this.m.limitsConflict, 'error');
         this.el('limits-reload').hidden = false;
-      } else
-        this.message(
-          'Ces limites ne sont pas valides. Rien n’a été enregistré.',
-          'error',
-        );
+      } else this.message(this.m.limitsInvalid, 'error');
     } catch {
       // The form keeps the edits.
-      this.message(errorMessage('STORAGE_ERROR'), 'error');
+      this.message(this.c.error('STORAGE_ERROR'), 'error');
     }
     this.busy = false;
     if (!this.dirty) this.el('limits-reload').hidden = true;
@@ -677,13 +680,13 @@ export class LimitsSection {
       this.message(
         result === 'saved'
           ? pause
-            ? 'Toutes les requêtes IA sont en pause. Les raccourcis texte continuent de fonctionner.'
-            : 'Les requêtes IA sont de nouveau autorisées (dans vos limites).'
-          : 'Les limites ont été modifiées dans un autre onglet ou une autre fenêtre. Rien n’a été enregistré ; la page a été rechargée.',
+            ? this.m.paused
+            : this.m.resumed
+          : this.m.pauseConflict,
         result === 'saved' ? 'ok' : 'error',
       );
     } catch {
-      this.message(errorMessage('STORAGE_ERROR'), 'error');
+      this.message(this.c.error('STORAGE_ERROR'), 'error');
     }
     this.busy = false;
     await this.refresh();
@@ -691,12 +694,7 @@ export class LimitsSection {
 
   /** Damaged or missing limits: safe defaults again. Usage is NOT reset. */
   async repair(): Promise<void> {
-    if (
-      !this.deps.confirm(
-        'Restaurer les limites sûres par défaut ? Votre usage enregistré est conservé ; seuls les réglages des limites sont remplacés.',
-      )
-    )
-      return;
+    if (!this.deps.confirm(this.m.confirmRepair)) return;
     try {
       const seed = await legacySeed(this.deps.area);
       await this.deps.quota.savePolicy(
@@ -704,12 +702,9 @@ export class LimitsSection {
         null,
         this.now(),
       );
-      this.message(
-        'Limites sûres par défaut restaurées. L’usage a été conservé.',
-        'ok',
-      );
+      this.message(this.m.repaired, 'ok');
     } catch {
-      this.message(errorMessage('STORAGE_ERROR'), 'error');
+      this.message(this.c.error('STORAGE_ERROR'), 'error');
     }
     this.dirty = false;
     await this.refresh();
@@ -718,18 +713,15 @@ export class LimitsSection {
   async confirmClock(): Promise<void> {
     if (
       !this.deps.confirm(
-        `La date et l’heure de votre ordinateur sont-elles correctes maintenant (${dateHeure(new Date(this.now()))}) ? Les requêtes IA reprennent. L’usage déjà enregistré est conservé.`,
+        this.m.confirmClock(this.c.dateTime(new Date(this.now()))),
       )
     )
       return;
     try {
       await this.deps.quota.confirmClock(this.now());
-      this.message(
-        'Horloge confirmée. Les requêtes IA peuvent reprendre.',
-        'ok',
-      );
+      this.message(this.m.clockConfirmed, 'ok');
     } catch {
-      this.message(errorMessage('STORAGE_ERROR'), 'error');
+      this.message(this.c.error('STORAGE_ERROR'), 'error');
     }
     await this.refresh();
   }

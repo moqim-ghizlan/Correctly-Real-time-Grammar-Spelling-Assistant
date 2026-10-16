@@ -632,6 +632,40 @@ describe('Correctly keyboard shortcuts (in pages)', () => {
   });
 });
 
+describe('5.13 interface language', () => {
+  it('passes the chosen language to the page and titles the menu in it', async () => {
+    await saveSettings(
+      area,
+      normalizeSettings({
+        gemini: { apiKey: FAKE_KEY },
+        correction: { consent: true },
+        ui: { language: 'fr' },
+      }),
+    );
+    onCommand('open-correctly', { id: 7 } as chrome.tabs.Tab);
+    await vi.waitFor(() => expect(executeScript).toHaveBeenCalledTimes(2));
+    const call = executeScript.mock.calls[1]![0] as { args: unknown[] };
+    expect(call.args[0]).toBe('open');
+    expect(call.args[4]).toBe('fr');
+    onStorageChanged({ [STORAGE_KEYS.settings]: {} }, 'local');
+    await vi.waitFor(() =>
+      expect(menus.update).toHaveBeenCalledWith('correctly-correct-selection', {
+        title: 'Corriger le texte sélectionné',
+      }),
+    );
+    const config = await send({ type: PAGE_CONFIG }, contentSender);
+    expect(config.reply).toMatchObject({ locale: 'fr' });
+  });
+
+  it('"auto" follows the browser language (English here)', async () => {
+    await configure(true);
+    onCommand('open-correctly', { id: 7 } as chrome.tabs.Tab);
+    await vi.waitFor(() => expect(executeScript).toHaveBeenCalledTimes(2));
+    const call = executeScript.mock.calls[1]![0] as { args: unknown[] };
+    expect(call.args[4]).toBe('en');
+  });
+});
+
 describe('V5.4 rewrite', () => {
   const rewriteReply = (candidates: { styleId: string; text: string }[]) =>
     jsonResponse(200, geminiOk(JSON.stringify({ candidates })));
@@ -727,9 +761,10 @@ describe('V5.4 rewrite', () => {
     expectInjected([0], ['rewriteOff', ['professional']]);
     onStorageChanged({ [STORAGE_KEYS.settings]: {} }, 'local');
     await vi.waitFor(() =>
-      expect(menus.update).toHaveBeenCalledWith('correctly-rewrite-selection', {
-        visible: false,
-      }),
+      expect(menus.update).toHaveBeenCalledWith(
+        'correctly-rewrite-selection',
+        expect.objectContaining({ visible: false }),
+      ),
     );
   });
 
@@ -960,6 +995,7 @@ describe('V5.6 text shortcuts', () => {
     const { handled, reply } = await send({ type: PAGE_CONFIG }, contentSender);
     expect(handled).toBe(true);
     expect(reply).toEqual({
+      locale: 'en',
       smartButton: true,
       handleY: 0.5,
       keybindings: {},

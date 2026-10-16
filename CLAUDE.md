@@ -2,7 +2,7 @@
 
 Extension personnelle Chrome/Brave, **Manifest V3, TypeScript strict**, qui
 deviendra un assistant d'écriture IA à la demande (Gemini et OpenAI, clés
-personnelles de l'utilisateur). État actuel : **V5.12** (4ᵉ onglet Résumé
+personnelles de l'utilisateur). État actuel : **V5.13** (interface anglais/français au choix, voir plus bas) ; V5.12 (4ᵉ onglet Résumé
 `shared/summary.ts` + `background/summary.ts`, tâche `summary` distincte
 (route, limites, stats), résumé écrit directement dans la langue cible en
 une requête ; texte de page sélectionné accepté en lecture seule, copie
@@ -102,13 +102,17 @@ npm run format:check
   destructive (`reset --hard`, `clean`, suppression de `release/`) sans
   demande explicite. `dist/` et `release/` sont ignorés par Git.
 - Shell : Windows 10 ; PowerShell par défaut, Git Bash disponible.
-- Le code, les commentaires et les messages UI sont en **anglais** ; les
-  échanges avec l'utilisateur en **français**. Exception (décision du
-  propriétaire, 2026-10-16) : la **page de paramètres** est en français
-  (`options/options.html`, `options/*.ts`, libellés et erreurs via
-  `options/fr.ts` ; messages de validation de `shared/providers.ts`,
-  `shared/shortcuts.ts`, `shared/stats.ts` affichés seulement là). La modale
-  et le panneau dans les pages restent en anglais. Mise en page : menu
+- Le code et les commentaires sont en **anglais** ; les échanges avec
+  l'utilisateur en **français**. Interface **bilingue anglais/français**
+  (5.13, réglage `ui.language` = `auto` | `fr` | `en`, `shared/locale.ts`) :
+  catalogues `shared/i18n.ts` (commun), `content/messages.ts` (fenêtre,
+  panneau, poignée), `options/messages.ts` (page de paramètres) ; le texte
+  fixe de la page est généré par `node scripts/i18n-options.mjs`
+  (`options.html` + `options/messages-html.ts`, ne pas les éditer à la main,
+  puis `npm run format`). Toute nouvelle chaîne visible doit exister dans les
+  deux langues ; le code partagé renvoie des **codes** (`ProviderError`,
+  `ShortcutError`, `RangeError`, `BindingProblem`), jamais du texte. Les
+  instructions envoyées à l'IA restent en anglais. Mise en page : menu
   latéral, une page à la fois selon l'ancre (`options/nav.ts`).
 - Raccourcis clavier : Chrome ne permet pas de modifier les `commands` par
   code (lecture seule via `chrome.commands.getAll`, modification dans

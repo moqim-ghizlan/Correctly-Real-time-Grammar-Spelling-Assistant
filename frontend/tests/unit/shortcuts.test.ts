@@ -112,7 +112,7 @@ describe('A: schema, validation and migration', () => {
       shortcuts: 'oops',
     });
     expect(await loadShortcuts(area)).toMatchObject({ damaged: true });
-    await expect(add('bjr', 'Bonjour')).rejects.toThrow(/endommagés/);
+    await expect(add('bjr', 'Bonjour')).rejects.toThrow(/damaged/);
     expect(area.data.get(SHORTCUTS_KEY)).toEqual({
       schemaVersion: 2,
       enabled: true,
@@ -122,11 +122,11 @@ describe('A: schema, validation and migration', () => {
 
   it('A06/A07/A08: duplicates (any case), empty, spaced or punctuated triggers are rejected', async () => {
     await add('bjr', 'Bonjour');
-    await expect(add('BJR', 'x')).rejects.toThrow(/existe déjà/);
+    await expect(add('BJR', 'x')).rejects.toThrow(/exists/);
     for (const trigger of ['', '  ', 'a b', 'a.b', 'x'.repeat(33), 'bad\nline'])
       await expect(add(trigger, 'x')).rejects.toThrow(ShortcutError);
-    await expect(add('ok', '')).rejects.toThrow(/Remplacement/);
-    await expect(add('ok2', 'bell\u0007')).rejects.toThrow(/Remplacement/);
+    await expect(add('ok', '')).rejects.toThrow(/replacementLength/);
+    await expect(add('ok2', 'bell\u0007')).rejects.toThrow(/replacementLength/);
     expect((await loadShortcuts(area)).store.shortcuts).toHaveLength(1);
   });
 
@@ -146,7 +146,7 @@ describe('A: schema, validation and migration', () => {
         ...draft(`t${i}`, `r${i}`),
       })),
     }));
-    await expect(add('extra', 'x')).rejects.toThrow(/500/);
+    await expect(add('extra', 'x')).rejects.toThrow(/full/);
     expect((await loadShortcuts(area)).store.shortcuts).toHaveLength(500);
   });
 });
@@ -176,9 +176,9 @@ describe('writes and concurrency (9.5)', () => {
     );
     await expect(
       mutateShortcuts(area, updateShortcut(shown, { replacement: 'second' })),
-    ).rejects.toThrow(/autre fenêtre/);
+    ).rejects.toThrow(/changedElsewhere/);
     await expect(mutateShortcuts(area, removeShortcut(shown))).rejects.toThrow(
-      /autre fenêtre/,
+      /changedElsewhere/,
     );
     expect((await loadShortcuts(area)).store.shortcuts[0]?.replacement).toBe(
       'first',
@@ -290,7 +290,7 @@ describe('JSON backup', () => {
     const plan = planImport((await loadShortcuts(area)).store, [], 'skip');
     await add('bb', 'B');
     await expect(mutateShortcuts(area, applyImport(plan))).rejects.toThrow(
-      /Choisissez à nouveau le fichier/,
+      /previewStale/,
     );
   });
 
@@ -305,7 +305,7 @@ describe('JSON backup', () => {
         [{ id: 'n', ...draft('new', 'x') }],
         'skip',
       ),
-    ).toThrow(/dépasserait 500/);
+    ).toThrow(/importExceeds/);
   });
 });
 

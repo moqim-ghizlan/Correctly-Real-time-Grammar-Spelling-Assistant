@@ -77,7 +77,7 @@ function keyLabel(code: string, key: string): string {
   if (/^Key[A-Z]$/.test(code)) return code.slice(3);
   if (/^Digit[0-9]$/.test(code)) return code.slice(5);
   if (isFunctionKey(code)) return code;
-  if (code === 'Space') return 'Espace';
+  if (code === 'Space') return 'Space';
   return key.length === 1 ? key.toUpperCase() : code;
 }
 
@@ -134,21 +134,22 @@ const reservedId = (b: KeyBinding) =>
     .filter(Boolean)
     .join('+');
 
-/** Why this combination cannot be used ('' = it can). French copy (settings page only). */
-export function bindingProblem(binding: KeyBinding): string {
-  if (!CODE.test(binding.code))
-    return 'Cette touche ne peut pas être utilisée.';
+/** 5.13: why a combination is refused; the settings page words it. */
+export type BindingProblem = '' | 'key' | 'modifier' | 'altSpace' | 'reserved';
+
+/** Why this combination cannot be used ('' = it can). */
+export function bindingProblem(binding: KeyBinding): BindingProblem {
+  if (!CODE.test(binding.code)) return 'key';
   if (
     !binding.ctrl &&
     !binding.alt &&
     !binding.meta &&
     !isFunctionKey(binding.code)
   )
-    return 'Ajoutez Ctrl, Alt ou Meta (sauf pour les touches F1 à F12) : sinon la touche ne pourrait plus être tapée.';
+    return 'modifier';
   if (binding.alt && !binding.ctrl && binding.code === 'Space')
-    return 'Alt+Espace est réservé au système.';
-  if (RESERVED.has(reservedId(binding)))
-    return `${formatBinding(binding)} est utilisé par le navigateur ou l’édition de texte : choisissez une autre combinaison.`;
+    return 'altSpace';
+  if (RESERVED.has(reservedId(binding))) return 'reserved';
   return '';
 }
 

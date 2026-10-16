@@ -30,6 +30,7 @@ import {
   isKeyCommandRequest,
   loadKeybindings,
 } from '../shared/keybindings';
+import { resolveLocale, type Locale } from '../shared/locale';
 import { isSummarizeTextRequest } from '../shared/summary';
 import { isTranslateTextRequest } from '../shared/translate';
 import {
@@ -55,6 +56,25 @@ export const MENU_REWRITE = 'correctly-rewrite-selection';
 export const MENU_TRANSLATE = 'correctly-translate-selection';
 export const MENU_TRANSLATE_REWRITE = 'correctly-translate-rewrite-selection';
 const ALL_SITES = ['<all_urls>'];
+/** 5.13: context menu titles in the interface language. */
+const MENU_TITLES: Record<
+  Locale,
+  Record<'correct' | 'rewrite' | 'translate' | 'translateRewrite', string>
+> = {
+  en: {
+    correct: 'Correct selected text',
+    rewrite: 'Rewrite selected text…',
+    translate: 'Translate selected text…',
+    translateRewrite: 'Translate & rewrite…',
+  },
+  fr: {
+    correct: 'Corriger le texte sélectionné',
+    rewrite: 'Reformuler le texte sélectionné…',
+    translate: 'Traduire le texte sélectionné…',
+    translateRewrite: 'Traduire et reformuler…',
+  },
+};
+
 /** "Manage limits" opens this fixed extension page, nothing else. */
 export const LIMITS_PAGE = 'src/options/options.html#usage-limits';
 
@@ -145,6 +165,7 @@ async function inject(
   styles: string[] = [],
   translation: unknown = null,
   rewriteEnabled = true,
+  locale: Locale = 'en',
 ): Promise<void> {
   const target = frameIds ? { tabId, frameIds } : { tabId };
   await chrome.scripting.executeScript({ target, files: [CONTENT_SCRIPT] });
@@ -155,6 +176,7 @@ async function inject(
       styles: string[],
       translation: unknown,
       rewriteEnabled: boolean,
+      locale: string,
     ) => {
       (
         globalThis as {
@@ -163,11 +185,12 @@ async function inject(
             styles: string[],
             translation: unknown,
             rewriteEnabled: boolean,
+            locale: string,
           ) => void;
         }
-      ).correctlyRun?.(intent, styles, translation, rewriteEnabled);
+      ).correctlyRun?.(intent, styles, translation, rewriteEnabled, locale);
     },
-    args: [intent, styles, translation, rewriteEnabled],
+    args: [intent, styles, translation, rewriteEnabled, locale],
   });
 }
 
@@ -191,8 +214,10 @@ export async function correctInTab(
   let styles: string[] = [];
   let translation: unknown = null;
   let rewriteEnabled = true;
+  let locale: Locale = resolveLocale('auto');
   try {
     const settings = await loadSettings(area);
+    locale = resolveLocale(settings.ui.language);
     if (trigger !== 'toolbar' && !settings.triggers[trigger]) return;
     if (intent === 'rewrite' && !settings.rewrite.enabled)
       intent = 'rewriteOff';
@@ -219,6 +244,7 @@ export async function correctInTab(
       styles,
       translation,
       rewriteEnabled,
+      locale,
     );
   } catch {
     if (frameId === 0) return chrome.runtime.openOptionsPage();
@@ -226,7 +252,7 @@ export async function correctInTab(
   // A frame embedded from another site is outside activeTab: say so in the
   // top frame instead of correcting anything there.
   try {
-    await inject(tabId, undefined, 'unreachable');
+    await inject(tabId, undefined, 'unreachable', [], null, true, locale);
   } catch {
     await chrome.runtime.openOptionsPage();
   }
@@ -243,6 +269,7 @@ const isBare = (value: unknown, type: string): boolean =>
 /** Idempotent: exactly one parent and its items after any install/update. */
 export async function installMenu(area: StorageArea): Promise<void> {
   const settings = await loadSettings(area);
+  const titles = MENU_TITLES[resolveLocale(settings.ui.language)];
   await chrome.contextMenus.removeAll();
   const ignore = () => void chrome.runtime.lastError;
   chrome.contextMenus.create(
@@ -258,7 +285,7 @@ export async function installMenu(area: StorageArea): Promise<void> {
     {
       id: MENU_CORRECT,
       parentId: MENU_PARENT,
-      title: 'Correct selected text',
+      title: titles.correct,
       contexts: ['editable'],
     },
     ignore,
@@ -267,15 +294,15 @@ export async function installMenu(area: StorageArea): Promise<void> {
     {
       id: MENU_REWRITE,
       parentId: MENU_PARENT,
-      title: 'Rewrite selected text…',
+      title: titles.rewrite,
       contexts: ['editable'],
       visible: settings.rewrite.enabled,
     },
     ignore,
   );
   for (const [id, title] of [
-    [MENU_TRANSLATE, 'Translate selected text…'],
-    [MENU_TRANSLATE_REWRITE, 'Translate & rewrite…'],
+    [MENU_TRANSLATE, titles.translate],
+    [MENU_TRANSLATE_REWRITE, titles.translateRewrite],
   ] as const)
     chrome.contextMenus.create(
       { id, parentId: MENU_PARENT, title, contexts: ['editable'] },
@@ -296,6 +323,8 @@ export async function pageConfig(area: StorageArea) {
   ]);
   const { store } = loaded;
   return {
+    // 5.13: the handle's labels follow the interface language.
+    locale: resolveLocale(settings.ui.language),
     smartButton: settings.triggers.smartButton,
     handleY: handle.yRatio,
     // Correctly's own keyboard shortcuts: only when on (and keyboard allowed).
@@ -516,16 +545,26 @@ export function registerServiceWorker(
     )
       return;
     void loadSettings(area)
-      .then((settings) =>
-        Promise.all([
+      .then((settings) => {
+        // 5.13: titles follow the interface language too.
+        const titles = MENU_TITLES[resolveLocale(settings.ui.language)];
+        return Promise.all([
           chrome.contextMenus.update(MENU_PARENT, {
             visible: settings.triggers.contextMenu,
           }),
+          chrome.contextMenus.update(MENU_CORRECT, { title: titles.correct }),
           chrome.contextMenus.update(MENU_REWRITE, {
             visible: settings.rewrite.enabled,
+            title: titles.rewrite,
           }),
-        ]),
-      )
+          chrome.contextMenus.update(MENU_TRANSLATE, {
+            title: titles.translate,
+          }),
+          chrome.contextMenus.update(MENU_TRANSLATE_REWRITE, {
+            title: titles.translateRewrite,
+          }),
+        ]);
+      })
       .catch(() => undefined);
     void syncSmartScript(area).catch(() => undefined);
   });

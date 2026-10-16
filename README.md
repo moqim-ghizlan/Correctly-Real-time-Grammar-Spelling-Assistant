@@ -1,7 +1,9 @@
-# Correctly V5.12
+# Correctly V5.13
 
 Personal Chrome/Brave extension (Manifest V3, TypeScript): an on-demand AI
 writing assistant using your own Google Gemini and/or OpenAI API keys.
+Interface in English or French (V5.13: Settings → Getting started →
+Interface language; "Automatic" follows the browser).
 
 - **One Correctly window (V5.11–V5.12).** The toolbar button, **Ctrl+M** and
   the optional logo handle on the right edge of every page open the same
@@ -92,7 +94,7 @@ npm run lint
 Optional:
 
 ```powershell
-npm run package        # release/Correctly-V5.12-Extension.zip (+ .sha256)
+npm run package        # release/Correctly-V5.13-Extension.zip (+ .sha256)
 npm run test:browser   # real-browser smoke test (Brave by default)
 node scripts/verify-browser.mjs --browser=chrome
 ```

@@ -6,6 +6,7 @@ import {
   type RewriteStyleId,
 } from './rewrite';
 import { normalizeTranslation, type TranslationPreferences } from './translate';
+import { isLanguageSetting, type LanguageSetting } from './locale';
 
 export const DAILY_LIMIT_DEFAULT = 20;
 export const DAILY_LIMIT_MIN = 1;
@@ -32,6 +33,8 @@ export interface V51Settings {
   rewrite: { enabled: boolean; defaultStyles: RewriteStyleId[] };
   // V5.5: picker defaults; Translate & rewrite reuses rewrite.defaultStyles.
   translation: TranslationPreferences;
+  // 5.13: interface language ('auto' follows the browser's language).
+  ui: { language: LanguageSetting };
 }
 
 /**
@@ -98,6 +101,7 @@ export const defaultSettings = (): V51Settings => ({
   triggers: { keyboard: true, contextMenu: true, smartButton: false },
   rewrite: { enabled: true, defaultStyles: [...DEFAULT_REWRITE_STYLES] },
   translation: normalizeTranslation(undefined),
+  ui: { language: 'auto' },
 });
 
 export const emptyUsage = (date: string): DailyUsageRecord => ({
@@ -186,6 +190,11 @@ export function normalizeSettings(value: unknown): V51Settings {
         : [...DEFAULT_REWRITE_STYLES],
     },
     translation: normalizeTranslation(data.translation),
+    ui: {
+      language: isLanguageSetting(record(data.ui).language)
+        ? (record(data.ui).language as LanguageSetting)
+        : 'auto',
+    },
   };
 }
 

@@ -11,11 +11,17 @@ import {
   toCorrectionResult,
 } from '../shared/contracts';
 import type { ErrorCode } from '../shared/errors';
-import { describeNote, type QuotaNote } from '../shared/quota';
+import {
+  COMMON,
+  languageName,
+  targetName,
+  type CommonMessages,
+} from '../shared/i18n';
+import type { Locale } from '../shared/locale';
+import type { QuotaNote } from '../shared/quota';
 import {
   REWRITE_STYLES,
   normalizeStyleIds,
-  styleLabel,
   toRewriteResult,
   type RewriteStyleId,
 } from '../shared/rewrite';
@@ -36,20 +42,19 @@ import {
   isArabicVariant,
   isLanguageId,
   normalizeTranslation,
-  targetLabel,
   translationKeys,
   type TranslateTextRequest,
   type TranslationKey,
 } from '../shared/translate';
 import {
   LIMIT_CODES,
-  NOTICES,
   applyBlocker,
   capture,
   replaceRange,
   type Snapshot,
 } from './correction';
 import { closeIcon, gearIcon, logo, minimizeIcon } from './icons';
+import { CONTENT, type ContentMessages } from './messages';
 
 // V5.11: the one Correctly modal, opened by the right-edge handle, Ctrl+M or
 // the toolbar icon. Opening, switching tabs, typing or changing options never
@@ -98,6 +103,8 @@ export interface ModalOptions {
   styles: readonly string[];
   translation: unknown;
   rewriteEnabled: boolean;
+  /** 5.13: interface language (English when absent). */
+  locale?: Locale;
 }
 
 /** chrome.runtime.sendMessage, injectable for tests. */
@@ -313,6 +320,8 @@ export class CorrectlyModal {
   private nextToken = 0;
   private composing = false;
   private copied = '';
+  private readonly m: ContentMessages;
+  private readonly c: CommonMessages;
   private readonly make: <K extends keyof HTMLElementTagNameMap>(
     tag: K,
     className?: string,
@@ -357,15 +366,18 @@ export class CorrectlyModal {
     options: ModalOptions,
     private readonly send: Send,
   ) {
+    this.m = CONTENT[options.locale ?? 'en'];
+    this.c = COMMON[options.locale ?? 'en'];
+    const m = this.m;
     this.target = typeof captured === 'string' ? null : captured;
     this.sharedText = this.target?.text ?? '';
     this.captureNotice =
       typeof captured === 'string'
-        ? captured !== NOTICES.select
+        ? captured !== m.notices.select
           ? captured
           : ''
         : captured.source === 'read_only_page'
-          ? NOTICES.pageText
+          ? m.notices.pageText
           : '';
     this.rewriteEnabled = options.rewriteEnabled;
     this.host = doc.createElement('correctly-modal');
@@ -404,26 +416,23 @@ export class CorrectlyModal {
       node.append(glyph);
       return node;
     };
-    const settings = iconButton('Open Correctly settings', gearIcon(doc));
-    const minimize = iconButton(
-      'Minimize Correctly (keeps your text and results)',
-      minimizeIcon(doc),
-    );
-    const close = iconButton('Close Correctly', closeIcon(doc));
+    const settings = iconButton(m.openSettings, gearIcon(doc));
+    const minimize = iconButton(m.minimize, minimizeIcon(doc));
+    const close = iconButton(m.close, closeIcon(doc));
     head.append(logo(doc, 22), title, settings, minimize, close);
 
     const tablist = make('div', 'tabs');
     tablist.setAttribute('role', 'tablist');
-    tablist.setAttribute('aria-label', 'Correctly actions');
+    tablist.setAttribute('aria-label', m.tablist);
     const body = make('div', 'body');
-    const label = make('label', 'label', 'Text');
+    const label = make('label', 'label', m.textLabel);
     label.htmlFor = 'correctly-text';
     const textarea = make('textarea');
     textarea.id = 'correctly-text';
     textarea.dir = 'auto';
     textarea.spellcheck = true;
     textarea.value = this.sharedText;
-    textarea.placeholder = 'Type or paste text here.';
+    textarea.placeholder = m.placeholder;
     const textNote = make('p', 'hint');
     textNote.setAttribute('aria-live', 'polite');
     body.append(label, textarea, textNote);
@@ -436,7 +445,7 @@ export class CorrectlyModal {
     const limits = {} as Record<ModalTab, HTMLButtonElement>;
     const results = {} as Record<ModalTab, HTMLElement>;
     for (const item of MODAL_TABS) {
-      const button = make('button', '', item.label);
+      const button = make('button', '', m.tabs[item.id].label);
       button.type = 'button';
       button.id = `correctly-tab-${item.id}`;
       button.setAttribute('role', 'tab');
@@ -449,7 +458,7 @@ export class CorrectlyModal {
       section.setAttribute('aria-labelledby', button.id);
       panel[item.id] = section;
       generate[item.id] = Object.assign(
-        make('button', 'primary', item.action),
+        make('button', 'primary', m.tabs[item.id].action),
         { type: 'button' },
       );
       status[item.id] = make('p', 'status');
@@ -457,7 +466,7 @@ export class CorrectlyModal {
       status[item.id].setAttribute('aria-live', 'polite');
       quota[item.id] = make('p', 'quota');
       quota[item.id].setAttribute('aria-live', 'polite');
-      limits[item.id] = Object.assign(make('button', '', 'Manage limits'), {
+      limits[item.id] = Object.assign(make('button', '', m.manageLimits), {
         type: 'button',
       });
       results[item.id] = make('div', 'results');
@@ -465,18 +474,12 @@ export class CorrectlyModal {
     }
 
     // Correction: no options.
-    panel.correction.append(
-      make(
-        'p',
-        'hint',
-        'Fixes spelling and grammar. The text is sent to your AI provider only when you click Generate correction.',
-      ),
-    );
+    panel.correction.append(make('p', 'hint', m.correctionHint));
 
     // Reformulation: the V5.4 styles; all chosen styles in ONE request.
     const styleBoxes = (defaults: readonly RewriteStyleId[]) => {
       const fieldset = make('fieldset');
-      fieldset.append(make('legend', '', 'Styles'));
+      fieldset.append(make('legend', '', m.styles));
       const boxes = REWRITE_STYLES.map((item) => {
         const row = make('label', 'choice');
         const box = make('input');
@@ -485,8 +488,8 @@ export class CorrectlyModal {
         box.checked = defaults.includes(item.id);
         row.append(
           box,
-          make('span', '', item.label),
-          make('small', '', item.description),
+          make('span', '', this.c.style[item.id].label),
+          make('small', '', this.c.style[item.id].description),
         );
         fieldset.append(row);
         return box;
@@ -500,15 +503,8 @@ export class CorrectlyModal {
     const rewrite = styleBoxes(defaults);
     panel.reformulation.append(
       ...(options.rewriteEnabled
-        ? [
-            rewrite.fieldset,
-            make(
-              'p',
-              'hint',
-              'All chosen styles are generated in ONE AI request, which may count against your quota.',
-            ),
-          ]
-        : [make('p', 'hint', NOTICES.rewriteOff)]),
+        ? [rewrite.fieldset, make('p', 'hint', m.oneRequestStyles)]
+        : [make('p', 'hint', m.notices.rewriteOff)]),
     );
 
     // Translation: the V5.5 languages, Arabic variant and optional styles.
@@ -531,45 +527,51 @@ export class CorrectlyModal {
     };
     const languages = LANGUAGES.map((language) => ({
       id: language.id,
-      label: `${language.label} — ${language.native}`,
+      label: languageName(this.c, language.id),
+    }));
+    const variants = ARABIC_VARIANTS.map((item) => ({
+      id: item.id,
+      label: this.c.variant[item.id],
     }));
     const from = select(
-      'From',
-      [{ id: 'auto', label: 'Auto-detect' }, ...languages],
+      m.from,
+      [{ id: 'auto', label: m.autoDetect }, ...languages],
       prefs.source,
     );
-    const to = select('To', languages, prefs.target);
-    const variant = select(
-      'Arabic variant',
-      ARABIC_VARIANTS,
-      prefs.arabicVariant,
-    );
+    const to = select(m.to, languages, prefs.target);
+    const variant = select(m.arabicVariant, variants, prefs.arabicVariant);
     const langs = make('div', 'langs');
     langs.append(from.wrap, to.wrap, variant.wrap);
     const also = make('label', 'choice');
     const alsoRewrite = make('input');
     alsoRewrite.type = 'checkbox';
-    also.append(alsoRewrite, make('span', '', 'Also rewrite in a style'));
+    also.append(alsoRewrite, make('span', '', m.alsoRewrite));
     const translate = styleBoxes(defaults);
     const sameNote = make('p', 'hint');
     sameNote.setAttribute('aria-live', 'polite');
     panel.translation.append(langs, also, translate.fieldset, sameNote);
 
     // Summary (V5.12): written directly in the chosen language, ONE request.
-    const summaryTo = select('Summary language', languages, prefs.target);
+    const summaryTo = select(m.summaryLanguage, languages, prefs.target);
     const summaryVariant = select(
-      'Arabic variant',
-      ARABIC_VARIANTS,
+      m.arabicVariant,
+      variants,
       prefs.arabicVariant,
     );
     const summaryLength = select(
-      'Length',
-      SUMMARY_LENGTHS,
+      m.length,
+      SUMMARY_LENGTHS.map((item) => ({
+        id: item.id,
+        label: this.c.summaryLength[item.id],
+      })),
       DEFAULT_SUMMARY_LENGTH,
     );
     const summaryFormat = select(
-      'Format',
-      SUMMARY_FORMATS,
+      m.format,
+      SUMMARY_FORMATS.map((item) => ({
+        id: item.id,
+        label: this.c.summaryFormat[item.id],
+      })),
       DEFAULT_SUMMARY_FORMAT,
     );
     const summaryOptions = make('div', 'langs');
@@ -579,14 +581,7 @@ export class CorrectlyModal {
       summaryLength.wrap,
       summaryFormat.wrap,
     );
-    panel.summary.append(
-      summaryOptions,
-      make(
-        'p',
-        'hint',
-        'The summary is written directly in the chosen language in ONE AI request. Only the text above is sent, when you click Generate summary.',
-      ),
-    );
+    panel.summary.append(summaryOptions, make('p', 'hint', m.summaryHint));
 
     for (const item of MODAL_TABS) {
       const row = make('div', 'row');
@@ -602,11 +597,11 @@ export class CorrectlyModal {
     const foot = make('footer', 'foot');
     const note = make('p', 'note');
     note.setAttribute('aria-live', 'polite');
-    const apply = Object.assign(make('button', 'primary', 'Apply'), {
+    const apply = Object.assign(make('button', 'primary', m.apply), {
       type: 'button',
     });
-    const copy = Object.assign(make('button', '', 'Copy'), { type: 'button' });
-    const cancel = Object.assign(make('button', '', 'Cancel'), {
+    const copy = Object.assign(make('button', '', m.copy), { type: 'button' });
+    const cancel = Object.assign(make('button', '', m.cancel), {
       type: 'button',
     });
     foot.append(note, apply, copy, cancel);
@@ -736,9 +731,11 @@ export class CorrectlyModal {
     const max = TEXT_LIMITS[tab];
     if ([...this.sharedText].length <= max) return '';
     // Never cut automatically: the user shortens the text or switches tab.
+    const number = (value: number) =>
+      value.toLocaleString(this.c.locale === 'fr' ? 'fr-FR' : 'en');
     return max === MAX_SUMMARY_CODE_POINTS
-      ? `Summary accepts at most ${max.toLocaleString('en')} characters; nothing is cut automatically.`
-      : `${NOTICES.tooLong} Summary accepts up to ${MAX_SUMMARY_CODE_POINTS.toLocaleString('en')}.`;
+      ? this.m.summaryTooLong(number(max))
+      : this.m.tooLongForTab(number(MAX_SUMMARY_CODE_POINTS));
   }
 
   private summaryChoice(): SummaryOptions {
@@ -812,7 +809,7 @@ export class CorrectlyModal {
     const token = ++this.nextToken;
     const revision = this.revision;
     const text = this.sharedText;
-    const loading = MODAL_TABS.find((item) => item.id === tab)?.loading ?? '';
+    const loading = this.m.tabs[tab].loading;
     this.tabs[tab] = { ...emptyTab(), pending: token, status: loading };
     this.copied = '';
     this.renderResults(tab);
@@ -827,18 +824,24 @@ export class CorrectlyModal {
       const styles = this.chosenStyles(this.ui.rewriteStyles);
       message = { type: REWRITE_TEXT, text, styleIds: styles };
       parse = (reply) =>
-        this.parseCandidates(reply, styles, styleLabel, text, 'reformulation');
+        this.parseCandidates(
+          reply,
+          styles,
+          (id: RewriteStyleId) => this.c.style[id].label,
+          text,
+          'reformulation',
+        );
     } else if (tab === 'summary') {
       // Options are frozen with the request (the controls stay locked while
       // it runs), so the label always matches what was asked.
       const choice = this.summaryChoice();
-      const target = targetLabel(choice.target, choice.variant);
+      const target = targetName(this.c, choice.target, choice.variant);
       message = { type: SUMMARIZE_TEXT, text, ...choice };
       parse = (reply) =>
-        this.parseSummary(reply, `Summary → ${target}`, choice.target);
+        this.parseSummary(reply, this.m.summaryLabel(target), choice.target);
     } else {
       const choice = this.translationChoice();
-      const target = targetLabel(choice.target, choice.variant);
+      const target = targetName(this.c, choice.target, choice.variant);
       message = { type: TRANSLATE_TEXT, text, ...choice };
       parse = (reply) =>
         this.parseCandidates(
@@ -846,11 +849,11 @@ export class CorrectlyModal {
           translationKeys(choice.styleIds),
           (key: TranslationKey) =>
             key === NEUTRAL
-              ? `Translation → ${target}`
-              : `${styleLabel(key)} → ${target}`,
+              ? this.m.translationLabel(target)
+              : this.m.styledLabel(this.c.style[key].label, target),
           text,
           'translation',
-          `The text already seems to be in ${target}. Nothing to translate: use Reformulation to change its style.`,
+          this.m.sameLanguage(target, 'reformulation'),
         );
     }
     let reply: unknown;
@@ -880,7 +883,7 @@ export class CorrectlyModal {
     const note = result.ok ? result.notice : (result.quota ?? result.notice);
     return {
       ...state,
-      quota: note ? describeNote(note) : '',
+      quota: note ? this.c.note(note) : '',
       urgent: !!note && (note.blocked || note.level === 100),
       limits: !!note || (!result.ok && LIMIT_CODES.includes(result.code)),
     };
@@ -892,18 +895,17 @@ export class CorrectlyModal {
     if (!result.ok)
       return {
         ...state,
-        status: `${result.message} Your text was not changed.`,
+        status: this.m.notChanged(this.c.error(result.code)),
         tone: 'error',
       };
-    if (!result.hasErrors)
-      return { ...state, status: 'No corrections needed.' };
+    if (!result.hasErrors) return { ...state, status: this.m.noCorrections };
     return {
       ...state,
-      status: 'Suggested correction',
+      status: this.m.suggestedCorrection,
       operationId: result.operationId ?? null,
       choices: [
         {
-          label: 'Corrected',
+          label: this.m.corrected,
           text: result.correctedText,
           suspicious: result.suspicious,
         },
@@ -918,18 +920,17 @@ export class CorrectlyModal {
     if (!result.ok)
       return {
         ...state,
-        status: `${result.message} Your text was not changed.`,
+        status: this.m.notChanged(this.c.error(result.code)),
         tone: 'error',
       };
     if (result.unsummarizable)
       return {
         ...state,
-        status:
-          'This text cannot be summarized faithfully (too short, unclear or incomplete). Nothing was invented.',
+        status: this.m.unsummarizable,
       };
     return {
       ...state,
-      status: 'Suggested summary.',
+      status: this.m.suggestedSummary,
       operationId: result.operationId ?? null,
       choices: [
         { label, text: result.text, suspicious: result.suspicious, lang },
@@ -951,7 +952,7 @@ export class CorrectlyModal {
     if (!result.ok)
       return {
         ...state,
-        status: `${result.message} Your text was not changed.`,
+        status: this.m.notChanged(this.c.error(result.code)),
         tone: 'error',
       };
     if (result.sameLanguage) return { ...state, status: sameLanguage };
@@ -961,18 +962,17 @@ export class CorrectlyModal {
     const missing = keys.filter(
       (key) => !useful.some((candidate) => candidate.styleId === key),
     );
-    const noun = tab === 'translation' ? 'translation' : 'reformulation';
+    const noun = tab;
     const lacking = missing.length
-      ? ` No ${noun} was returned for: ${missing.map(label).join(', ')}.`
+      ? this.m.noneReturned(noun, missing.map(label).join(', '))
       : '';
-    if (!useful.length)
-      return { ...state, status: `No meaningful ${noun} was generated.` };
+    if (!useful.length) return { ...state, status: this.m.noMeaningful(noun) };
     return {
       ...state,
       status:
         (useful.length > 1
-          ? `Choose a ${noun}, then Apply or Copy.`
-          : `Suggested ${noun}.`) + lacking,
+          ? this.m.chooseOne(noun)
+          : this.m.suggestedOne(noun)) + lacking,
       operationId: result.operationId ?? null,
       choices: useful.map((candidate) => ({
         label: label(candidate.styleId),
@@ -990,9 +990,9 @@ export class CorrectlyModal {
 
   /** Why Apply must not run now ('' = safe): the V5.2 guard, unchanged. */
   private blocker(choice: Choice): string {
-    if (!this.target) return NOTICES.noTarget;
-    if (choice.suspicious) return NOTICES.suspicious;
-    return applyBlocker(this.target, this.composing);
+    if (!this.target) return this.m.notices.noTarget;
+    if (choice.suspicious) return this.m.notices.suspicious;
+    return applyBlocker(this.target, this.composing, this.m.notices);
   }
 
   /**
@@ -1021,7 +1021,7 @@ export class CorrectlyModal {
     if (field.value.slice(start, stop) === choice.text) report('applied');
     const applied = { start, end: stop, before, value: field.value };
     this.close();
-    showUndo(this.doc, field, applied, () => report('undone'));
+    showUndo(this.doc, field, applied, () => report('undone'), this.m);
     return true;
   }
 
@@ -1030,9 +1030,9 @@ export class CorrectlyModal {
     if (!this.visible || !choice) return;
     try {
       await navigator.clipboard.writeText(choice.text);
-      this.copied = 'Copied.';
+      this.copied = this.m.copied;
     } catch {
-      this.copied = 'Copy failed. Select the result and copy it manually.';
+      this.copied = this.m.copyFailed;
     }
     if (this.visible) this.renderFooter();
   }
@@ -1043,9 +1043,7 @@ export class CorrectlyModal {
     const pending = this.tabs[this.activeTab].pending;
     this.tabs[this.activeTab] = {
       ...emptyTab(),
-      status: pending
-        ? 'Cancelled. A request already sent may still count in your usage.'
-        : '',
+      status: pending ? this.m.cancelled : '',
     };
     this.copied = '';
     this.renderResults(this.activeTab);
@@ -1176,7 +1174,7 @@ export class CorrectlyModal {
     }
     const group = this.make('div');
     group.setAttribute('role', 'radiogroup');
-    group.setAttribute('aria-label', 'Results');
+    group.setAttribute('aria-label', this.m.results);
     state.choices.forEach((choice, index) => {
       const card = this.make('label', 'card');
       const radio = this.make('input');
@@ -1249,7 +1247,7 @@ export class CorrectlyModal {
     const choice = this.translationChoice();
     ui.sameNote.textContent =
       choice.source === choice.target
-        ? 'Source and target are the same: use Reformulation instead.'
+        ? this.m.sameSourceTarget('reformulation')
         : '';
     this.renderFooter();
   }
@@ -1263,7 +1261,7 @@ export class CorrectlyModal {
     this.ui.copy.disabled = !choice;
     this.ui.cancel.disabled = !state.pending && !choice && !state.status;
     this.ui.note.textContent = this.copied || blocker;
-    this.ui.note.dataset.tone = this.copied === 'Copied.' ? 'ok' : 'warn';
+    this.ui.note.dataset.tone = this.copied === this.m.copied ? 'ok' : 'warn';
   }
 }
 
@@ -1290,6 +1288,7 @@ export class UndoToast {
     private readonly applied: Applied,
     private readonly onUndone: () => void,
     ms = UNDO_MS,
+    private readonly m: ContentMessages = CONTENT.en,
   ) {
     this.host = doc.createElement('correctly-undo');
     this.root = this.host.attachShadow({ mode: 'closed' });
@@ -1299,10 +1298,10 @@ export class UndoToast {
     toast.className = 'toast';
     toast.setAttribute('role', 'status');
     this.message = doc.createElement('span');
-    this.message.textContent = 'Text replaced.';
+    this.message.textContent = m.textReplaced;
     this.button = doc.createElement('button');
     this.button.type = 'button';
-    this.button.textContent = 'Undo';
+    this.button.textContent = m.undo;
     this.button.addEventListener('mousedown', (event) =>
       event.preventDefault(),
     );
@@ -1336,8 +1335,7 @@ export class UndoToast {
   undo(): boolean {
     if (!this.canUndo()) {
       this.button.disabled = true;
-      this.message.textContent =
-        'The text changed after Apply, so it cannot be undone safely.';
+      this.message.textContent = this.m.undoRefused;
       return false;
     }
     const { start, end, before } = this.applied;
@@ -1364,9 +1362,10 @@ function showUndo(
   field: TextField,
   applied: Applied,
   onUndone: () => void,
+  m: ContentMessages,
 ): UndoToast {
   pageUi.correctlyUndo?.dismiss();
-  const toast = new UndoToast(doc, field, applied, onUndone);
+  const toast = new UndoToast(doc, field, applied, onUndone, UNDO_MS, m);
   pageUi.correctlyUndo = toast;
   return toast;
 }
@@ -1393,6 +1392,7 @@ export function openModal(
   const captured = capture(doc, {
     readOnlyPage: true,
     max: MAX_SUMMARY_CODE_POINTS,
+    m: CONTENT[options.locale ?? 'en'],
   });
   const panel = pageUi.correctlyPanel;
   if (panel && !panel.busy) panel.close();

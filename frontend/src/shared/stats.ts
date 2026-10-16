@@ -73,7 +73,7 @@ export function resolveRange(
   timezone: string,
   from = '',
   to = '',
-): StatsRange | { error: string } {
+): StatsRange | { error: RangeError; max?: number } {
   if (preset !== 'custom') {
     const window = windowsAt(now, timezone)[
       preset === 'today' ? 'daily' : preset === 'week' ? 'weekly' : 'monthly'
@@ -90,12 +90,10 @@ export function resolveRange(
   }
   const first = parseDate(from);
   const lastDay = parseDate(to);
-  if (!first || !lastDay)
-    return { error: 'Choisissez une date de début et une date de fin.' };
+  if (!first || !lastDay) return { error: 'missing' };
   const days = dayIndex(lastDay) - dayIndex(first) + 1;
-  if (days < 1) return { error: 'La date de fin est avant la date de début.' };
-  if (days > MAX_RANGE_DAYS)
-    return { error: `Choisissez au plus ${MAX_RANGE_DAYS} jours.` };
+  if (days < 1) return { error: 'order' };
+  if (days > MAX_RANGE_DAYS) return { error: 'tooLong', max: MAX_RANGE_DAYS };
   return {
     preset,
     timezone,
@@ -441,8 +439,12 @@ export function csvCell(value: string | number): string {
 const costCell = (totals: Totals) =>
   totals.priced ? usdString(totals.costPico) : '';
 
+/** In the JSON export (data, English); the page shows its own wording. */
 export const COST_NOTE =
-  'Estimation locale à partir des tokens déclarés par le fournisseur et des prix de référence affichés dans Correctly ; ce n’est pas une facture.';
+  'Local estimate from provider-reported tokens and the price references shown in Correctly; not an invoice.';
+
+/** 5.13: why a custom range is refused (worded by the settings page). */
+export type RangeError = 'missing' | 'order' | 'tooLong';
 
 export function toCsv(
   summary: Summary,

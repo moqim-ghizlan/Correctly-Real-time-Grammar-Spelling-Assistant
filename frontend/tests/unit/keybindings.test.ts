@@ -56,10 +56,8 @@ describe('combinations', () => {
   });
 
   it('refuses keys that would break typing or the browser', () => {
-    expect(bindingProblem(binding('KeyK'))).toMatch(
-      /Ajoutez Ctrl, Alt ou Meta/,
-    );
-    expect(bindingProblem(binding('KeyK', { shift: true }))).toMatch(/Ajoutez/);
+    expect(bindingProblem(binding('KeyK'))).toBe('modifier');
+    expect(bindingProblem(binding('KeyK', { shift: true }))).toBe('modifier');
     for (const reserved of [
       binding('KeyC', { ctrl: true }),
       binding('KeyV', { ctrl: true }),
@@ -70,7 +68,7 @@ describe('combinations', () => {
       binding('F12'),
       binding('F4', { alt: true }),
     ])
-      expect(bindingProblem(reserved)).toMatch(/utilisé par le navigateur/);
+      expect(bindingProblem(reserved)).toBe('reserved');
     for (const ok of [
       binding('KeyM', { ctrl: true }),
       binding('KeyK', { ctrl: true, shift: true }),

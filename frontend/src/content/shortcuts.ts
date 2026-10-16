@@ -1,4 +1,5 @@
 import { PAGE_CONFIG } from '../shared/contracts';
+import { isLocale, type Locale } from '../shared/locale';
 import {
   normalizeKeybindings,
   type KeybindingsStore,
@@ -17,6 +18,8 @@ import { deepActiveElement, isEligibleField } from './correction';
 // trigger → replacement pairs.
 
 export interface PageConfig {
+  /** 5.13: interface language for the handle's labels. */
+  locale: Locale;
   /** V5.11: show the right-edge handle (the former smart button setting). */
   smartButton: boolean;
   /** V5.11: saved vertical position of the handle (0–1). */
@@ -36,6 +39,7 @@ export function toPageConfig(value: unknown): PageConfig {
     ? (data.shortcuts as unknown[])
     : [];
   return {
+    locale: isLocale(data.locale) ? data.locale : 'en',
     smartButton: data.smartButton === true,
     handleY: normalizeHandle({ yRatio: data.handleY }).yRatio,
     shortcuts: list

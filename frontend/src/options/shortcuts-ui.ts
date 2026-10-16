@@ -21,7 +21,9 @@ import {
   type ShortcutStore,
 } from '../shared/shortcuts';
 import type { StorageArea } from '../shared/storage';
-import { erreur as errorMessage } from './fr';
+import { COMMON, type CommonMessages } from '../shared/i18n';
+import type { Locale } from '../shared/locale';
+import { OPTIONS, type OptionsMessages } from './messages';
 import type { Tone } from './settings-ui';
 
 // V5.6 "Text shortcuts" settings: local CRUD, search, JSON backup/restore.
@@ -37,6 +39,8 @@ export interface ShortcutsDeps {
   releaseSiteAccess: () => Promise<void>;
   download: (filename: string, text: string) => void;
   now?: () => Date;
+  /** 5.13: language of this page (French when absent). */
+  locale?: Locale;
 }
 
 export class ShortcutsSection {
@@ -47,10 +51,16 @@ export class ShortcutsSection {
   private plan: ImportPlan | null = null;
   private busy = false;
 
+  private readonly m: OptionsMessages;
+  private readonly c: CommonMessages;
+
   constructor(
     private readonly doc: Document,
     private readonly deps: ShortcutsDeps,
-  ) {}
+  ) {
+    this.m = OPTIONS[deps.locale ?? 'fr'];
+    this.c = COMMON[deps.locale ?? 'fr'];
+  }
 
   private el<T extends HTMLElement>(id: string): T {
     const node = this.doc.getElementById(id);
@@ -78,20 +88,16 @@ export class ShortcutsSection {
       this.store = loaded.store;
       this.access = access;
       if (loaded.damaged)
-        this.message(
-          'shortcuts-status',
-          'Les raccourcis enregistrés sont endommagés. Ils n’ont pas été modifiés ; rien ne peut être changé tant qu’ils ne sont pas réparés.',
-          'error',
-        );
+        this.message('shortcuts-status', this.m.shortcutsDamaged, 'error');
       else if (loaded.origin === 'v4')
         this.message(
           'shortcuts-status',
-          `Vos ${loaded.store.shortcuts.length} raccourci(s) V4 ont été retrouvé(s) et sont affichés ci-dessous. Ils seront enregistrés au nouveau format à votre prochaine modification ; l’ancienne copie est conservée.`,
+          this.m.v4Found(loaded.store.shortcuts.length),
           'info',
         );
       this.setEnabled(!loaded.damaged);
     } catch {
-      this.message('shortcuts-status', errorMessage('STORAGE_ERROR'), 'error');
+      this.message('shortcuts-status', this.c.error('STORAGE_ERROR'), 'error');
       this.setEnabled(false);
     }
     this.render();
@@ -170,8 +176,8 @@ export class ShortcutsSection {
       this.message(
         messageId,
         error instanceof ShortcutError
-          ? error.message
-          : errorMessage('STORAGE_ERROR'),
+          ? this.m.shortcutError(error.code, error.params)
+          : this.c.error('STORAGE_ERROR'),
         'error',
       );
       // Show what is really stored now (e.g. after a conflict).
@@ -190,22 +196,18 @@ export class ShortcutsSection {
       this.access = await this.deps.requestSiteAccess().catch(() => false);
       if (!this.access) {
         box.checked = false;
-        this.message(
-          'shortcuts-status',
-          'L’accès aux sites n’a pas été accordé : les raccourcis ne sont pas développés.',
-          'error',
-        );
+        this.message('shortcuts-status', this.m.shortcutsNoAccess, 'error');
         return;
       }
       await this.run(
         setExpansion(true),
-        'Raccourcis activés. Rechargez les pages déjà ouvertes pour les utiliser.',
+        this.m.shortcutsOn,
         'shortcuts-status',
       );
     } else if (
       await this.run(
         setExpansion(false),
-        'Raccourcis désactivés. La saisie n’est jamais modifiée.',
+        this.m.shortcutsOff,
         'shortcuts-status',
       )
     )
@@ -231,8 +233,8 @@ export class ShortcutsSection {
     const ok = await this.run(
       editing ? updateShortcut(editing, draft) : addShortcut(draft),
       editing
-        ? 'Raccourci mis à jour.'
-        : `Raccourci « ${draft.trigger.trim()} » enregistré.`,
+        ? this.m.shortcutUpdated
+        : this.m.shortcutSaved(draft.trigger.trim()),
     );
     // On error the form keeps what the user typed.
     if (ok) this.resetForm();
@@ -248,7 +250,7 @@ export class ShortcutsSection {
       entry.protectTriggerInAi;
     this.el<HTMLInputElement>('shortcut-protect-replacement').checked =
       entry.protectReplacementInAi;
-    this.el('shortcut-save').textContent = 'Enregistrer les modifications';
+    this.el('shortcut-save').textContent = this.m.saveChanges;
     this.el('shortcut-cancel').hidden = false;
     this.el('shortcut-trigger').focus();
   }
@@ -256,22 +258,24 @@ export class ShortcutsSection {
   private resetForm() {
     this.editing = null;
     this.el<HTMLFormElement>('shortcut-form').reset();
-    this.el('shortcut-save').textContent = 'Ajouter le raccourci';
+    this.el('shortcut-save').textContent = this.m.addShortcut;
     this.el('shortcut-cancel').hidden = true;
   }
 
   async toggle(entry: ShortcutRecord): Promise<void> {
     await this.run(
       updateShortcut(entry, { enabled: !entry.enabled }),
-      `« ${entry.trigger} » ${entry.enabled ? 'désactivé' : 'activé'}.`,
+      this.m.shortcutToggled(entry.trigger, !entry.enabled),
     );
   }
 
   async remove(entry: ShortcutRecord): Promise<void> {
-    if (!this.deps.confirm(`Supprimer le raccourci « ${entry.trigger} » ?`))
-      return;
+    if (!this.deps.confirm(this.m.confirmDeleteShortcut(entry.trigger))) return;
     if (this.editing?.id === entry.id) this.resetForm();
-    await this.run(removeShortcut(entry), `« ${entry.trigger} » supprimé.`);
+    await this.run(
+      removeShortcut(entry),
+      this.m.shortcutDeleted(entry.trigger),
+    );
   }
 
   export(): void {
@@ -280,21 +284,14 @@ export class ShortcutsSection {
       `correctly-shortcuts-${date}.json`,
       exportBackup(this.store, this.deps.now?.()),
     );
-    this.message(
-      'import-message',
-      'Sauvegarde téléchargée. Elle contient vos textes de remplacement (parfois privés) mais jamais votre clé API.',
-      'ok',
-    );
+    this.message('import-message', this.m.backupDone, 'ok');
   }
 
   /** Validates the file in memory and shows a preview; writes nothing. */
   async importFile(file: File): Promise<void> {
     this.closeImport();
     try {
-      if (file.size > MAX_BACKUP_BYTES)
-        throw new ShortcutError(
-          'Ce fichier est trop gros pour être une sauvegarde de raccourcis.',
-        );
+      if (file.size > MAX_BACKUP_BYTES) throw new ShortcutError('fileTooLarge');
       // FileReader works everywhere (incl. older engines without Blob.text).
       const content = await new Promise<string>((resolve, reject) => {
         const reader = new FileReader();
@@ -309,7 +306,7 @@ export class ShortcutsSection {
     } catch (error) {
       this.message(
         'import-message',
-        `${error instanceof ShortcutError ? error.message : 'Le fichier n’a pas pu être lu.'} Rien n’a été modifié.`,
+        `${error instanceof ShortcutError ? this.m.shortcutError(error.code, error.params) : this.m.fileUnreadable} ${this.m.nothingModified}`,
         'error',
       );
     }
@@ -327,19 +324,21 @@ export class ShortcutsSection {
     try {
       this.plan = planImport(this.store, this.incoming, this.policy());
       const { added, identical, conflicts, removed, policy } = this.plan;
-      this.el('import-summary').textContent =
-        `${this.incoming.length} raccourci(s) dans le fichier : ${added} nouveau(x), ${identical} identique(s), ${conflicts} différent(s) des vôtres` +
-        (policy === 'skip' && conflicts ? ' (conservés tels quels)' : '') +
-        (policy === 'overwrite' && conflicts
-          ? ' (remplacés par le fichier)'
-          : '') +
-        (removed ? ` ; ${removed} des vôtres seront SUPPRIMÉS` : '') +
-        '.';
+      this.el('import-summary').textContent = this.m.importSummary({
+        total: this.incoming.length,
+        added,
+        identical,
+        conflicts,
+        policy,
+        removed,
+      });
       this.el<HTMLButtonElement>('import-confirm').disabled = false;
     } catch (error) {
       this.plan = null;
       this.el('import-summary').textContent =
-        error instanceof ShortcutError ? error.message : 'Import invalide.';
+        error instanceof ShortcutError
+          ? this.m.shortcutError(error.code, error.params)
+          : this.m.invalidImport;
       this.el<HTMLButtonElement>('import-confirm').disabled = true;
     }
   }
@@ -350,17 +349,18 @@ export class ShortcutsSection {
     if (
       plan.policy === 'replaceAll' &&
       !this.deps.confirm(
-        `Remplacer TOUS vos raccourcis par les ${plan.next.length} du fichier ? ${plan.removed} raccourci(s) actuel(s) seront supprimé(s). Exportez d’abord une sauvegarde en cas de doute.`,
+        this.m.confirmReplaceAll(plan.next.length, plan.removed),
       )
     )
       return;
     if (
       await this.run(
         applyImport(plan),
-        `Import terminé : ${plan.added} ajouté(s)` +
-          (plan.policy === 'skip' ? '' : `, ${plan.conflicts} remplacé(s)`) +
-          (plan.removed ? `, ${plan.removed} supprimé(s)` : '') +
-          '.',
+        this.m.importDone(
+          plan.added,
+          plan.policy === 'skip' ? null : plan.conflicts,
+          plan.removed,
+        ),
         'import-message',
       )
     )
@@ -405,9 +405,9 @@ export class ShortcutsSection {
         const tags = this.doc.createElement('span');
         tags.className = 'hint';
         tags.textContent = [
-          entry.enabled ? '' : 'désactivé',
-          entry.protectTriggerInAi ? 'protégé de l’IA' : '',
-          entry.protectReplacementInAi ? 'remplacement protégé' : '',
+          entry.enabled ? '' : this.m.tags.off,
+          entry.protectTriggerInAi ? this.m.tags.protected : '',
+          entry.protectReplacementInAi ? this.m.tags.replacementProtected : '',
         ]
           .filter(Boolean)
           .join(' · ');
@@ -424,17 +424,17 @@ export class ShortcutsSection {
           trigger,
           preview,
           tags,
-          button('Modifier', `Modifier ${entry.trigger}`, () =>
+          button(this.m.edit, `${this.m.edit} ${entry.trigger}`, () =>
             this.edit(entry),
           ),
           button(
-            entry.enabled ? 'Désactiver' : 'Activer',
-            `${entry.enabled ? 'Désactiver' : 'Activer'} ${entry.trigger}`,
+            entry.enabled ? this.m.disable : this.m.enable,
+            `${entry.enabled ? this.m.disable : this.m.enable} ${entry.trigger}`,
             () => void this.toggle(entry),
           ),
           button(
-            'Supprimer',
-            `Supprimer ${entry.trigger}`,
+            this.m.remove,
+            `${this.m.remove} ${entry.trigger}`,
             () => void this.remove(entry),
           ),
         );

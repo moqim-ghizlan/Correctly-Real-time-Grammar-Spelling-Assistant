@@ -1,7 +1,7 @@
 {
   "browser": "chrome",
   "browserVersion": "Chrome/155.0.8059.82",
-  "date": "2026-10-16T11:36:33.783Z",
+  "date": "2026-10-16T14:55:04.594Z",
   "offline": true,
   "steps": [
     {
@@ -57,7 +57,7 @@
     {
       "id": "L2",
       "result": "PASS",
-      "detail": "Pause all AI: 30 requests refused locally (AI_PAUSED), zero network; message + admission round trip p50 35 ms, p95 76 ms"
+      "detail": "Pause all AI: 30 requests refused locally (AI_PAUSED), zero network; message + admission round trip p50 24 ms, p95 28 ms"
     },
     {
       "id": "L3",
@@ -131,6 +131,36 @@
       "method": "GET",
       "url": "chrome-extension://eehjeahbmglpngbafjmmhpbpfkmehmhp/chunks/quota-store.js",
       "headerNames": ["User-Agent", "Origin", "Referer"]
+    },
+    {
+      "source": "options-page",
+      "method": "GET",
+      "url": "chrome-extension://eehjeahbmglpngbafjmmhpbpfkmehmhp/src/options/options.html",
+      "headerNames": ["sec-ch-ua", "sec-ch-ua-mobile", "sec-ch-ua-platform"]
+    },
+    {
+      "source": "options-page",
+      "method": "GET",
+      "url": "chrome-extension://eehjeahbmglpngbafjmmhpbpfkmehmhp/options.js",
+      "headerNames": ["User-Agent", "Origin", "Referer"]
+    },
+    {
+      "source": "options-page",
+      "method": "GET",
+      "url": "chrome-extension://eehjeahbmglpngbafjmmhpbpfkmehmhp/chunks/quota-store.js",
+      "headerNames": ["User-Agent", "Origin", "Referer"]
+    },
+    {
+      "source": "options-page",
+      "method": "GET",
+      "url": "chrome-extension://eehjeahbmglpngbafjmmhpbpfkmehmhp/assets/options-CLjfLJGW.css",
+      "headerNames": ["User-Agent", "Origin", "Referer"]
+    },
+    {
+      "source": "options-page",
+      "method": "GET",
+      "url": "chrome-extension://eehjeahbmglpngbafjmmhpbpfkmehmhp/icons/icon-48.png",
+      "headerNames": ["User-Agent", "Referer"]
     },
     {
       "source": "options-page",
@@ -292,7 +322,7 @@
   "consoleMessages": [],
   "admissionLatencyMs": {
     "samples": 30,
-    "p50": 35,
-    "p95": 76
+    "p50": 24,
+    "p95": 28
   }
 }
