@@ -10,6 +10,8 @@ export default tseslint.config(
       'artifacts/**',
       // Static showcase site: its own package and checks (website/README.md).
       'website/**',
+      // Presentation video sources (own tooling, see video-brag/SETUP.md).
+      'video-brag/**',
     ],
   },
   js.configs.recommended,

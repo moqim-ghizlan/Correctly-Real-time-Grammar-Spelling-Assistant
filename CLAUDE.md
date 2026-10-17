@@ -70,6 +70,13 @@ Les documents `plans/` et l'historique V4 sont du contexte, pas l'état du code.
   `helpers/fake-storage.ts`, `helpers/setup.ts` : IndexedDB `fake-indexeddb`
   neuve à chaque test).
 - `scripts/` — audit de `dist/`, packaging ZIP, watch, smoke test navigateur.
+- `website/` — site vitrine statique, séparé de l'extension (son propre
+  `package.json` ; `website/site/` = site publié sur GitHub Pages, à
+  régénérer par `npm run build`). Voir `website/README.md`.
+- `video-brag/` — sources de la vidéo de présentation. **Toute modification
+  de la vidéo doit être reportée dans `website/` dans la même tâche** :
+  suivre `video-brag/SETUP.md` (réencodage, durée, chapitres, contrôles).
+  Images, musique et rendus sont régénérés et jamais versionnés.
 - `docs/v5.1/` — architecture, sécurité, rapport de tests, checklist manuelle.
 - `v5/` — spécifications des jalons V5 (`*_done.md` = livrés ; les autres
   sont des plans, pas des preuves).

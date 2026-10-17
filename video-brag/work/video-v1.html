@@ -1,0 +1,394 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Correctly brag</title>
+<style>
+@font-face { font-family: 'Mona Sans'; src: url(fonts/mona-sans-latin-wght-normal.woff2) format('woff2'); font-weight: 200 900; }
+@font-face { font-family: 'Noto Sans Arabic'; src: url(fonts/noto-sans-arabic-arabic-wght-normal.woff2) format('woff2'); font-weight: 100 900; }
+html, body { margin: 0; width: 1920px; height: 1080px; overflow: hidden; background: #0b0e15; }
+#stage { position: absolute; inset: 0; overflow: hidden;
+  background: radial-gradient(1200px 700px at 50% 0%, #1b2547 0%, #0b0e15 60%); }
+#glow { position: absolute; width: 1400px; height: 900px; left: 260px; top: 300px; border-radius: 50%;
+  background: radial-gradient(closest-side, rgba(43,92,230,.35), transparent); filter: blur(40px); }
+
+/* captions */
+.cap { position: absolute; left: 0; right: 0; top: 62px; text-align: center; color: #eef1f6;
+  font: 700 66px/1.1 'Mona Sans', sans-serif; letter-spacing: -0.02em; opacity: 0; }
+.cap em { font-style: normal; color: #8fb0ff; }
+
+/* browser */
+#browser { position: absolute; left: 210px; top: 205px; width: 1500px; height: 830px; border-radius: 18px;
+  overflow: hidden; background: #f3f5fa; box-shadow: 0 40px 120px rgba(0,0,0,.55), 0 0 0 1px rgba(255,255,255,.08);
+  transform-origin: 50% 53%; }
+#chrome { height: 56px; background: #e3e7ef; display: flex; align-items: center; gap: 10px; padding: 0 20px; }
+.dot { width: 13px; height: 13px; border-radius: 50%; }
+#url { margin-left: 24px; flex: 1; height: 32px; border-radius: 16px; background: #fff; display: flex; align-items: center;
+  padding: 0 16px; font: 15px system-ui, 'Segoe UI', sans-serif; color: #5d6573; }
+#ext { width: 30px; height: 30px; border-radius: 8px; display: grid; place-items: center; }
+#page { position: absolute; top: 56px; left: 0; right: 0; bottom: 0; }
+
+/* mail draft */
+#mail { position: absolute; left: 190px; top: 60px; width: 1120px; background: #fff; border-radius: 14px;
+  box-shadow: 0 10px 40px rgba(20,30,60,.12); font: 30px/1.6 system-ui, 'Segoe UI', sans-serif; color: #15181e; overflow: hidden; }
+#mail .bar { background: #2b3445; color: #fff; padding: 14px 28px; font-size: 22px; font-weight: 600; }
+#mail .row { padding: 12px 28px; border-bottom: 1px solid #e6e9ef; font-size: 22px; color: #5d6573; }
+#mail .row b { color: #15181e; font-weight: 500; }
+#body { padding: 28px 28px 220px; min-height: 120px; }
+.err { text-decoration: underline wavy #e5484d; text-decoration-thickness: 2px; text-underline-offset: 7px; }
+.sel { background: #b9cdff; }
+.fixed { border-radius: 4px; }
+.caret { display: inline-block; width: 3px; height: 36px; background: #2357d9; vertical-align: -6px; margin-left: 1px; }
+
+/* handle (content/handle.ts) */
+#handle { position: absolute; right: 0; top: 300px; width: 46px; height: 72px; padding-left: 6px; box-sizing: border-box;
+  border-radius: 36px 0 0 36px; background: #181b22; display: grid; place-items: center; box-shadow: 0 6px 20px rgba(0,0,0,.3); }
+
+#scrim { position: absolute; inset: 56px 0 0 0; background: rgba(8,10,14,.3); opacity: 0; }
+
+/* modal — CSS from frontend/src/content/modal.ts */
+#modalWrap { position: absolute; left: 50%; top: calc(56px + 50%); width: 0; height: 0; }
+.modal {
+  --solid: #181b22; --glass: rgba(24, 27, 34, 0.9); --surface: rgba(255, 255, 255, 0.06);
+  --text: #eef1f6; --muted: #a5adbb; --border: rgba(255, 255, 255, 0.13);
+  --accent: #6d95ff; --accent-text: #0b1020; --warn: #f2c66d; --error: #ff8a80; --ok: #7ad69b;
+  position: absolute; left: -320px; top: -260px; box-sizing: border-box; width: 640px; height: 520px;
+  display: flex; flex-direction: column; overflow: hidden;
+  border: 1px solid var(--border); border-radius: 16px;
+  background: var(--glass); backdrop-filter: blur(18px) saturate(140%); color: var(--text);
+  box-shadow: 0 24px 64px rgba(0, 0, 0, 0.42);
+  font: 14px/1.5 system-ui, -apple-system, 'Segoe UI', sans-serif;
+}
+.head { flex: none; display: flex; align-items: center; gap: 10px; padding: 12px 12px 8px 16px; }
+.head h1 { flex: 1; margin: 0; font-size: 15px; font-weight: 650; }
+.icon { width: 34px; height: 34px; display: inline-grid; place-items: center; border-radius: 8px; color: var(--muted); }
+.tabs { flex: none; display: flex; gap: 4px; padding: 0 12px; border-bottom: 1px solid var(--border); position: relative; }
+.tab { padding: 8px 10px; color: var(--muted); white-space: nowrap; }
+.tab.on { color: var(--text); font-weight: 600; }
+#ink { position: absolute; bottom: -1px; height: 2px; background: var(--accent); }
+.body { flex: 1 1 auto; min-height: 0; overflow: hidden; padding: 12px 16px; position: relative; }
+.panel { position: absolute; left: 16px; right: 16px; top: 12px; }
+.label { display: block; margin: 0 0 4px; font-size: 12px; color: var(--muted); }
+.ta { box-sizing: border-box; width: 100%; padding: 8px 10px; color: var(--text); background: var(--surface);
+  border: 1px solid var(--border); border-radius: 10px; }
+.hint { margin: 6px 0 0; color: var(--muted); font-size: 13px; }
+.status { margin: 10px 0 0; font-weight: 600; display: flex; align-items: center; gap: 8px; }
+.spin { width: 14px; height: 14px; border-radius: 50%; border: 2px solid rgba(255,255,255,.2); border-top-color: var(--accent); }
+h2 { margin: 12px 0 2px; font-size: 12px; text-transform: uppercase; letter-spacing: 0.02em; color: var(--muted); }
+.text { margin: 0; white-space: pre-wrap; }
+.btn { display: inline-flex; align-items: center; min-height: 34px; box-sizing: border-box; padding: 4px 14px;
+  border: 1px solid var(--border); border-radius: 8px; color: var(--text); }
+.btn.primary { background: var(--accent); border-color: var(--accent); color: var(--accent-text); font-weight: 600; }
+.row2 { display: flex; gap: 8px; align-items: center; margin-top: 10px; }
+.card { display: block; margin-top: 8px; padding: 8px 10px; border: 1px solid var(--border); border-radius: 10px; }
+.card.pick { border-color: var(--accent); }
+.card strong { margin-left: 6px; }
+.card .text { margin-top: 4px; }
+.radio { display: inline-block; width: 12px; height: 12px; border-radius: 50%; border: 1.5px solid var(--muted); vertical-align: -1px; box-sizing: border-box; }
+.card.pick .radio { border: 4px solid var(--accent); }
+.langs { display: flex; gap: 8px; margin-top: 4px; }
+.field { display: flex; flex-direction: column; gap: 2px; font-size: 12px; color: var(--muted); }
+.select { font-size: 14px; color: var(--text); background: var(--solid); border: 1px solid var(--border); border-radius: 6px;
+  padding: 4px 26px 4px 8px; min-height: 32px; box-sizing: border-box; display: flex; align-items: center; position: relative; min-width: 120px; }
+.select::after { content: '▾'; position: absolute; right: 8px; color: var(--muted); }
+.foot { flex: none; display: flex; gap: 8px; align-items: center; padding: 10px 16px 14px; border-top: 1px solid var(--border); }
+.hl { background: rgba(122,214,155,.18); color: #9fe6b8; border-radius: 4px; padding: 0 2px; }
+.ar { font-family: 'Noto Sans Arabic', sans-serif; direction: rtl; text-align: right; font-size: 15px; }
+
+/* toast (TOAST_CSS) */
+#toast { position: absolute; left: 50%; bottom: 40px; display: flex; gap: 14px; align-items: center; padding: 10px 10px 10px 18px;
+  border: 1px solid rgba(255,255,255,.14); border-radius: 12px; background: #181b22; color: #eef1f6;
+  box-shadow: 0 12px 32px rgba(0,0,0,.35); font: 20px/1.4 system-ui, 'Segoe UI', sans-serif; opacity: 0; white-space: nowrap; }
+#toast span.b { border: 1px solid currentColor; border-radius: 8px; padding: 4px 14px; font-weight: 600; }
+
+/* keycap */
+#keys { position: absolute; left: 50%; top: 560px; display: flex; gap: 18px; align-items: center; opacity: 0;
+  font: 700 46px 'Mona Sans', sans-serif; color: #eef1f6; }
+.key { padding: 18px 30px; border-radius: 18px; background: linear-gradient(#2a3040, #1a1e28); border: 1px solid rgba(255,255,255,.18);
+  box-shadow: 0 8px 0 #0c0e14, 0 20px 40px rgba(0,0,0,.5); }
+
+#cursor { position: absolute; left: 0; top: 0; width: 34px; height: 44px; opacity: 0; filter: drop-shadow(0 4px 8px rgba(0,0,0,.4)); }
+#ripple { position: absolute; width: 60px; height: 60px; margin: -30px 0 0 -30px; border-radius: 50%; border: 3px solid #6d95ff; opacity: 0; }
+
+/* outro */
+#outro { position: absolute; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; opacity: 0; }
+#logoBig { width: 170px; height: 170px; }
+#name { margin-top: 30px; font: 800 132px/1 'Mona Sans', sans-serif; color: #fff; letter-spacing: -0.035em; }
+#tag { margin-top: 22px; font: 500 52px/1.2 'Mona Sans', sans-serif; color: #b9c8ec; letter-spacing: -0.01em; }
+#chips { margin-top: 54px; display: flex; gap: 18px; }
+.chip { font: 600 26px 'Mona Sans', sans-serif; color: #dfe6f7; padding: 14px 26px; border-radius: 999px;
+  background: rgba(255,255,255,.06); border: 1px solid rgba(255,255,255,.14); }
+.chip i { font-style: normal; color: #8fb0ff; margin-right: 10px; }
+</style>
+</head>
+<body>
+<div id="stage">
+  <div id="glow"></div>
+  <div class="cap" id="c1">Typos. <em>Again.</em></div>
+  <div class="cap" id="c2">One window. <em>Four actions.</em></div>
+  <div class="cap" id="c3">Nothing changes until you <em>Apply.</em></div>
+  <div class="cap" id="c4">Seven styles. <em>One request.</em></div>
+  <div class="cap" id="c5">Six languages. <em>Even Syrian Arabic.</em></div>
+
+  <div id="browser">
+    <div id="chrome">
+      <div class="dot" style="background:#ff5f57"></div><div class="dot" style="background:#febc2e"></div><div class="dot" style="background:#28c840"></div>
+      <div id="url">mail.example.com/compose</div>
+      <div id="ext"></div>
+    </div>
+    <div id="page">
+      <div id="mail">
+        <div class="bar">New message</div>
+        <div class="row">To: <b>Claire</b></div>
+        <div class="row">Subject: <b>Yesterday’s meeting</b></div>
+        <div id="body"></div>
+      </div>
+      <div id="handle"></div>
+      <div id="toast"><span>Correction applied.</span><span class="b">Undo</span></div>
+    </div>
+    <div id="scrim"></div>
+    <div id="modalWrap">
+      <div class="modal" id="modal">
+        <div class="head"><span id="mlogo"></span><h1 id="mtitle">Correctly</h1>
+          <span class="icon" id="gear"></span><span class="icon" id="min"></span><span class="icon" id="close"></span></div>
+        <div class="tabs" id="tabs">
+          <span class="tab" data-i="0">Correction</span><span class="tab" data-i="1">Reformulation</span>
+          <span class="tab" data-i="2">Translation</span><span class="tab" data-i="3">Summary</span>
+          <div id="ink"></div>
+        </div>
+        <div class="body">
+          <!-- Correction -->
+          <div class="panel" id="pCorr">
+            <span class="label">Text</span>
+            <div class="ta" style="min-height:96px">Hi Claire, I goed to the meeting yesterday bu I forgott the file.</div>
+            <p class="hint">Fixes spelling and grammar. The text is sent to your AI provider only when you click Generate correction.</p>
+            <div class="row2"><span class="btn primary" id="gen">Generate correction</span></div>
+            <p class="status" id="status"><span class="spin" id="spin"></span><span>Checking with your AI provider…</span></p>
+            <div id="result"><h2>Results</h2>
+              <p class="text">Hi Claire, I <span class="hl">went</span> to the meeting yesterday<span class="hl">, but</span> I <span class="hl">forgot</span> the file.</p></div>
+          </div>
+          <!-- Reformulation -->
+          <div class="panel" id="pRew">
+            <span class="label">Text</span>
+            <div class="ta">Hi Claire, I went to the meeting yesterday, but I forgot the file.</div>
+            <h2>Results</h2>
+            <div class="card pick" id="r0"><span class="radio"></span><strong id="r0s">Professional</strong>
+              <p class="text">Hi Claire, I attended yesterday’s meeting, but I forgot to bring the file.</p></div>
+            <div class="card" id="r1"><span class="radio"></span><strong>Friendly</strong>
+              <p class="text">Hey Claire! I made it to the meeting yesterday, but I totally forgot the file.</p></div>
+            <div class="card" id="r2"><span class="radio"></span><strong>Funny</strong>
+              <p class="text">Hi Claire, I made it to the meeting yesterday. The file, sadly, did not.</p></div>
+          </div>
+          <!-- Translation -->
+          <div class="panel" id="pTr">
+            <span class="label">Text</span>
+            <div class="ta">Hi Claire, I went to the meeting yesterday, but I forgot the file.</div>
+            <div class="langs" style="margin-top:10px">
+              <label class="field">From<span class="select">Auto-detect</span></label>
+              <label class="field">To<span class="select" id="toSel">French</span></label>
+              <label class="field" id="varField">Arabic variant<span class="select">Syrian colloquial</span></label>
+            </div>
+            <h2 id="trH">Results</h2>
+            <div class="card pick" id="trFr"><span class="radio"></span><strong>Translation → French</strong>
+              <p class="text">Salut Claire, je suis allé à la réunion hier, mais j’ai oublié le fichier.</p></div>
+            <div class="card pick" id="trAr"><span class="radio"></span><strong>Translation → Arabic (Syrian)</strong>
+              <p class="text ar">مرحبا كلير، رحت عالاجتماع مبارح بس نسيت الملف.</p></div>
+          </div>
+        </div>
+        <div class="foot" id="foot"><span class="btn primary" id="apply">Apply</span><span class="btn">Copy</span><span class="btn">Cancel</span></div>
+      </div>
+    </div>
+  </div>
+
+  <div id="keys"><span class="key">Ctrl</span><span>+</span><span class="key">M</span></div>
+  <div id="ripple"></div>
+  <svg id="cursor" viewBox="0 0 24 31"><path d="M2 2 L2 25 L8 19.5 L12.2 29 L16 27.4 L11.9 18 L20 18 Z" fill="#fff" stroke="#111" stroke-width="1.6" stroke-linejoin="round"/></svg>
+
+  <div id="outro">
+    <div id="logoBig"></div>
+    <div id="name">Correctly</div>
+    <div id="tag">Write what you mean.</div>
+    <div id="chips">
+      <span class="chip" id="k0"><i>●</i>Chrome &amp; Brave</span>
+      <span class="chip" id="k1"><i>●</i>Your Gemini or OpenAI key</span>
+      <span class="chip" id="k2"><i>●</i>Nothing sent until you click</span>
+    </div>
+  </div>
+</div>
+
+<script>
+// Real logo and header icons from frontend/src/content/icons.ts.
+const LOGO = s => `<svg viewBox="0 0 24 24" width="${s}" height="${s}"><rect width="24" height="24" rx="6" fill="#2b5ce6"/><path d="M15.4 7.9A5.6 5.6 0 1 0 13.6 17.2" fill="none" stroke="#fff" stroke-width="2.6" stroke-linecap="round"/><path d="M13.6 15.4l2 2 4.2-4.6" fill="none" stroke="#fff" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/></svg>`;
+const ST = 'fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"';
+const $ = id => document.getElementById(id);
+$('mlogo').innerHTML = LOGO(22); $('ext').innerHTML = LOGO(26); $('handle').innerHTML = LOGO(26); $('logoBig').innerHTML = LOGO(170);
+$('gear').innerHTML = `<svg viewBox="0 0 24 24" width="18" height="18"><circle cx="12" cy="12" r="3" ${ST}/><path ${ST} d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>`;
+$('min').innerHTML = `<svg viewBox="0 0 24 24" width="18" height="18"><path d="M6 12h12" ${ST}/></svg>`;
+$('close').innerHTML = `<svg viewBox="0 0 24 24" width="18" height="18"><path d="M7 7l10 10M17 7L7 17" ${ST}/></svg>`;
+
+const clamp = (x, a = 0, b = 1) => Math.min(b, Math.max(a, x));
+const r = (t, a, b) => clamp((t - a) / (b - a));
+const eo = x => 1 - Math.pow(1 - x, 3);
+const eio = x => x < .5 ? 4 * x * x * x : 1 - Math.pow(-2 * x + 2, 3) / 2;
+const back = x => { const c = 1.5; return 1 + (c + 1) * Math.pow(x - 1, 3) + c * Math.pow(x - 1, 2); };
+const lerp = (a, b, k) => a + (b - a) * k;
+// fade window: in over [a, a+i], out over [b-o, b]
+const win = (t, a, b, i = .3, o = .25) => Math.min(eo(r(t, a, a + i)), 1 - r(t, b - o, b));
+
+// Mail body: segments [text, typo?, fix]
+const SEG = [['Hi Claire, I ', 0], ['goed', 1, 'went'], [' to the meeting yesterday ', 0], ['bu', 1, ', but'], [' I ', 0], ['forgott', 1, 'forgot'], [' the file.', 0]];
+const TOTAL = SEG.reduce((n, s) => n + s[0].length, 0);
+function mailHTML(nTyped, nSel, fixedK, caret) {
+  if (fixedK > 0) {
+    const g = `background:rgba(122,214,155,${.45 * (1 - fixedK)})`;
+    return `Hi Claire, I <span class="fixed" style="${g}">went</span> to the meeting yesterday<span class="fixed" style="${g}">, but</span> I <span class="fixed" style="${g}">forgot</span> the file.`;
+  }
+  let out = "", i = 0;
+  for (const [s, e] of SEG) {
+    const start = i; let chunk = "";
+    for (const ch of s) { if (i >= nTyped) break; chunk += i < nSel ? `<span class="sel">${ch}</span>` : ch; i++; }
+    out += e && i >= start + s.length && nTyped >= start + s.length + 2 ? `<span class="err">${chunk}</span>` : chunk;
+    if (i < start + s.length) break;
+  }
+  return out + (caret ? "<span class=\"caret\"></span>" : "");
+}
+
+function at(el) { const b = $(el).getBoundingClientRect(); return [b.left + b.width / 2, b.top + b.height / 2]; }
+const TABX = [];
+
+window.renderAt = function (t) {
+  // captions: [id, start, end]
+  for (const [id, a, b] of [['c1', .25, 2.95], ['c2', 3.35, 5.95], ['c3', 6.15, 10.4], ['c4', 10.75, 13.4], ['c5', 13.75, 16.3]]) {
+    const k = win(t, a, b, .35, .3), e = $(id);
+    e.style.opacity = k; e.style.transform = `translateY(${(1 - eo(r(t, a, a + .35))) * 18 - r(t, b - .3, b) * 10}px)`;
+  }
+
+  // camera on browser
+  const outK = eio(r(t, 16.35, 16.85));
+  const drift = 1 + .012 * Math.sin(t * .35);
+  const zoom = .08 * (t < 10 ? eio(r(t, 3.45, 4.1)) * (1 - eio(r(t, 8.95, 9.45))) : eio(r(t, 10.45, 11.05)) * (1 - eio(r(t, 16.35, 16.85))));
+  $('browser').style.transform = `scale(${drift * (1 + zoom) * (1 - .12 * outK)}) translateY(${outK * 60 - zoom * 150}px)`;
+  $('browser').style.opacity = 1 - outK;
+  $('glow').style.opacity = .8 + .2 * Math.sin(t * .8);
+
+  // scene 1: typing + squiggles + selection
+  const typed = Math.round(TOTAL * r(t, .2, 1.75));
+  const sel = Math.round(TOTAL * eio(r(t, 2.0, 2.55)));
+  const fixedK = t >= 9.0 ? r(t, 9.0, 10.4) || 1e-6 : 0;
+  const caret = t < 2.0 && (t < 1.75 || Math.floor(t * 3) % 2 === 0);
+  $('body').innerHTML = mailHTML(typed, t >= 8.95 ? 0 : sel, t >= 9.0 ? Math.max(fixedK, 1e-6) : 0, caret);
+
+  // handle peeks in
+  const hk = eo(r(t, 2.2, 2.6));
+  $('handle').style.transform = `translateX(${(1 - hk) * 50}px)`;
+
+  // keycap
+  const kk = win(t, 2.85, 3.62, .25, .25), press = r(t, 3.08, 3.16) - r(t, 3.24, 3.36);
+  $('keys').style.opacity = kk;
+  $('keys').style.transform = `translate(-50%, ${(1 - eo(r(t, 2.85, 3.1))) * 30}px)`;
+  for (const k of document.querySelectorAll('.key')) k.style.transform = `translateY(${press * 7}px)`, k.style.boxShadow = `0 ${8 - press * 7}px 0 #0c0e14, 0 20px 40px rgba(0,0,0,.5)`;
+
+  // modal visibility: open #1 3.35–9.0, open #2 10.4–16.45
+  let mv = 0, mScaleIn = 0;
+  if (t < 9.6) { mv = eo(r(t, 3.35, 3.75)) * (1 - eio(r(t, 8.95, 9.2))); mScaleIn = r(t, 3.35, 3.75); }
+  else { mv = eo(r(t, 10.55, 10.7)); mScaleIn = r(t, 10.55, 10.85); }
+  $('modal').style.opacity = mv;
+  $('modal').style.transform = `scale(${1.32 * (0.96 + .04 * eo(mScaleIn))})`;
+  $('scrim').style.opacity = t < 9.6 ? mv : eo(r(t, 10.35, 10.6));
+
+  // tabs + ink
+  let tab = 0, sweep = null;
+  if (t >= 4.3 && t < 5.7) sweep = 3 * eio(r(t, 4.3, 5.2)) * (1 - eio(r(t, 5.25, 5.7)));
+  if (t >= 10) tab = 1; if (t >= 13.45) tab = 2;
+  const tabs = [...document.querySelectorAll('.tab')];
+  const pos = tabs.map(e => [e.offsetLeft, e.offsetWidth]);
+  let f = sweep ?? (t >= 13.45 ? 1 + eio(r(t, 13.45, 13.75)) : tab);
+  const i0 = Math.floor(f), fr = f - i0, A = pos[Math.min(i0, 3)], B = pos[Math.min(i0 + 1, 3)];
+  $('ink').style.left = lerp(A[0], B[0], fr) + 'px'; $('ink').style.width = lerp(A[1], B[1], fr) + 'px';
+  const on = Math.round(f);
+  tabs.forEach((e, i) => e.classList.toggle('on', i === on));
+
+  // panels
+  const pc = t < 10, pr = t >= 10 && t < 13.6, ptr = t >= 13.6;
+  $('pCorr').style.visibility = pc ? 'visible' : 'hidden';
+  $('pRew').style.visibility = pr ? 'visible' : 'hidden';
+  $('pTr').style.visibility = ptr ? 'visible' : 'hidden';
+  $('pRew').style.opacity = 1 - r(t, 13.45, 13.6);
+  $('pTr').style.opacity = eo(r(t, 13.6, 13.85));
+  $('mtitle').textContent = 'Correctly';
+
+  // correction flow
+  const genPress = r(t, 6.62, 6.7) - r(t, 6.75, 6.85);
+  $('gen').style.transform = `scale(${1 - .05 * genPress})`;
+  $('status').style.display = t >= 6.75 && t < 7.65 ? 'flex' : 'none';
+  $('spin').style.transform = `rotate(${t * 720}deg)`;
+  $('result').style.display = t >= 7.65 ? 'block' : 'none';
+  $('result').style.opacity = eo(r(t, 7.65, 7.95));
+  $('result').style.transform = `translateY(${(1 - eo(r(t, 7.65, 7.95))) * 8}px)`;
+  const footOn = (t >= 7.65 && t < 10) || t >= 10.9;
+  $('foot').style.visibility = footOn ? 'visible' : 'hidden';
+  const apPress = r(t, 8.72, 8.8) - r(t, 8.85, 8.95);
+  $('apply').style.transform = `scale(${1 - .06 * apPress})`;
+
+  // toast
+  const tk = win(t, 9.15, 10.35, .3, .3);
+  $('toast').style.opacity = tk;
+  $('toast').style.transform = `translate(-50%, ${(1 - eo(r(t, 9.15, 9.45))) * 24}px)`;
+
+  // reformulation cards
+  ['r0', 'r1', 'r2'].forEach((id, i) => {
+    const a = 11.0 + i * .4, k = eo(r(t, a, a + .3));
+    $(id).style.opacity = k; $(id).style.transform = `translateY(${(1 - k) * 12}px)`;
+  });
+
+  // translation: French first, then Arabic (Syrian)
+  const arK = r(t, 15.0, 15.01);
+  $('toSel').textContent = arK ? 'Arabic' : 'French';
+  $('varField').style.display = arK ? 'flex' : 'none';
+  const frK = eo(r(t, 14.05, 14.35)) * (1 - r(t, 14.85, 15.0));
+  $('trFr').style.display = t < 15.0 ? 'block' : 'none';
+  $('trFr').style.opacity = frK; $('trFr').style.transform = `translateY(${(1 - eo(r(t, 14.05, 14.35))) * 12}px)`;
+  const ak = eo(r(t, 15.15, 15.45));
+  $('trAr').style.display = t >= 15.0 ? 'block' : 'none';
+  $('trAr').style.opacity = ak; $('trAr').style.transform = `translateY(${(1 - ak) * 12}px)`;
+
+  // cursor path: keyframes [time, target]
+  const P = {
+    gen: at('gen'), apply: at('apply'), r0: at('r0s'), toSel: at('toSel'),
+  };
+  const path = [
+    [5.9, [1500, 1000]], [6.55, P.gen], [7.9, P.gen], [8.65, P.apply], [9.2, P.apply],
+    [11.9, [1500, 950]], [12.5, P.r0], [13.3, P.r0], [14.5, [1380, 900]], [14.85, P.toSel], [15.6, P.toSel], [16.4, [1600, 1000]],
+  ];
+  let cx = path[0][1][0], cy = path[0][1][1];
+  for (let i = 0; i < path.length - 1; i++) {
+    const [ta, pa] = path[i], [tb, pb] = path[i + 1];
+    if (t >= ta) { const k = eio(r(t, ta, tb)); cx = lerp(pa[0], pb[0], k); cy = lerp(pa[1], pb[1], k); }
+  }
+  const cv = win(t, 5.9, 9.3, .3, .3) + win(t, 11.9, 16.4, .3, .3);
+  $('cursor').style.opacity = clamp(cv);
+  const clicks = [6.66, 8.76, 12.6, 14.9];
+  let rk = 0, rx = 0, ry = 0;
+  for (const c of clicks) if (t >= c && t < c + .45) { rk = r(t, c, c + .45); rx = cx; ry = cy; }
+  $('cursor').style.transform = `translate(${cx - 4}px, ${cy - 3}px) scale(${1 - .12 * Math.sin(Math.PI * clamp(rk * 3))})`;
+  $('ripple').style.opacity = rk ? (1 - rk) * .9 : 0;
+  $('ripple').style.left = rx + 'px'; $('ripple').style.top = ry + 'px';
+  $('ripple').style.transform = `scale(${.4 + rk * 1.1})`;
+  $('r0').classList.toggle('pick', t >= 12.62);
+
+  // outro
+  const ok = eo(r(t, 16.8, 17.1));
+  $('outro').style.opacity = ok;
+  const lk = back(r(t, 16.8, 17.35));
+  $('logoBig').style.transform = `scale(${.6 + .4 * lk}) rotate(${(1 - eo(r(t, 16.8, 17.45))) * -12}deg)`;
+  $('name').style.opacity = eo(r(t, 17.0, 17.4)); $('name').style.transform = `translateY(${(1 - eo(r(t, 17.0, 17.4))) * 26}px)`;
+  $('tag').style.opacity = eo(r(t, 17.35, 17.75)); $('tag').style.transform = `translateY(${(1 - eo(r(t, 17.35, 17.75))) * 20}px)`;
+  ['k0', 'k1', 'k2'].forEach((id, i) => {
+    const a = 18.0 + i * .25, k = eo(r(t, a, a + .35));
+    $(id).style.opacity = k; $(id).style.transform = `translateY(${(1 - k) * 16}px)`;
+  });
+};
+window.ready = document.fonts.ready.then(() => Promise.all([...document.fonts].map(f => f.load()))).then(() => true);
+</script>
+</body>
+</html>
