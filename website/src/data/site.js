@@ -1,0 +1,11 @@
+// Outbound links and the downloadable build, used by scripts/build.mjs
+// ({{DOWNLOAD}} and {{RELEASES}} in index.html).
+// The zip is the packaged extension (scripts/package.mjs at the repo root),
+// stored in website/assets/download/.
+
+export const SITE = {
+  version: '5.13.3',
+  download: 'assets/download/Correctly-5.13.3.zip',
+  releases:
+    'https://github.com/moqim-ghizlan/Correctly-Real-time-Grammar-Spelling-Assistant/releases',
+};

@@ -1,0 +1,22 @@
+{
+  "name": "correctly-website",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "description": "Static showcase website for the Correctly browser extension.",
+  "scripts": {
+    "build": "node scripts/build.mjs",
+    "dev": "node scripts/build.mjs --watch",
+    "check": "node scripts/check-i18n.mjs",
+    "verify": "node scripts/verify.mjs"
+  },
+  "devDependencies": {
+    "@fontsource-variable/mona-sans": "5.3.0",
+    "@fontsource-variable/noto-sans-arabic": "5.3.0",
+    "@tailwindcss/cli": "4.3.3",
+    "tailwindcss": "4.3.3"
+  },
+  "engines": {
+    "node": "^22.13.0 || >=24.0.0"
+  }
+}

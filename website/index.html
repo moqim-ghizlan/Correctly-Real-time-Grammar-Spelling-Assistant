@@ -1,0 +1,1646 @@
+<!doctype html>
+<!--
+  Source page. Elements carry `data-i18n` keys and stay empty here: the
+  build (scripts/build.mjs) fills them with the French dictionary, fills
+  `data-i18n-attr` attributes and expands {{DOWNLOAD}} / {{RELEASES}}
+  (src/data/site.js). Do not type copy here.
+-->
+<html lang="fr">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title data-i18n="meta.title"></title>
+    <meta name="description" data-i18n-attr="content:meta.description" />
+    <meta name="color-scheme" content="light dark" />
+    <meta
+      name="theme-color"
+      content="#f4f6fb"
+      media="(prefers-color-scheme: light)"
+    />
+    <meta
+      name="theme-color"
+      content="#0e1424"
+      media="(prefers-color-scheme: dark)"
+    />
+    <meta property="og:type" content="website" />
+    <meta property="og:site_name" content="Correctly" />
+    <meta property="og:title" data-i18n-attr="content:meta.title" />
+    <meta property="og:description" data-i18n-attr="content:meta.description" />
+    <meta property="og:locale" data-i18n-attr="content:meta.ogLocale" />
+    <meta property="og:image" content="assets/og.png" />
+    <meta property="og:image:width" content="1200" />
+    <meta property="og:image:height" content="630" />
+    <meta property="og:image:alt" data-i18n-attr="content:meta.ogAlt" />
+    <meta name="twitter:card" content="summary_large_image" />
+    <link rel="icon" href="assets/icons/favicon.svg" type="image/svg+xml" />
+    <link
+      rel="icon"
+      href="assets/icons/icon-48.png"
+      sizes="48x48"
+      type="image/png"
+    />
+    <link rel="apple-touch-icon" href="assets/icons/icon-128.png" />
+    <link rel="stylesheet" href="css/site.css" />
+    <script src="js/boot.js"></script>
+    <script defer src="data/fr.js"></script>
+    <script defer src="data/en.js"></script>
+    <script defer src="data/demo.js"></script>
+    <script defer src="js/i18n.js"></script>
+    <script defer src="js/theme.js"></script>
+    <script defer src="js/nav.js"></script>
+    <script defer src="js/copy.js"></script>
+    <script defer src="js/page.js"></script>
+    <script defer src="js/demo.js"></script>
+    <script defer src="js/film.js"></script>
+    <script defer src="js/motion.js"></script>
+    <script defer src="js/main.js"></script>
+  </head>
+  <body>
+    <svg class="sprite" aria-hidden="true" focusable="false">
+      <symbol id="i-logo" viewBox="0 0 24 24">
+        <rect width="24" height="24" rx="6" fill="#2b5ce6" />
+        <path
+          d="M15.4 7.9A5.6 5.6 0 1 0 13.6 17.2"
+          fill="none"
+          stroke="#fff"
+          stroke-width="2.6"
+          stroke-linecap="round"
+        />
+        <path
+          d="M13.6 15.4l2 2 4.2-4.6"
+          fill="none"
+          stroke="#fff"
+          stroke-width="2.4"
+          stroke-linecap="round"
+          stroke-linejoin="round"
+        />
+      </symbol>
+      <symbol id="i-click" viewBox="0 0 24 24">
+        <path d="M9 9l10.5 4-4.5 1.5-1.5 4.5zM4 4l2 2M12 2v3M2 12h3M4 20l2-2" />
+      </symbol>
+      <symbol id="i-eye" viewBox="0 0 24 24">
+        <path d="M2 12s3.6-7 10-7 10 7 10 7-3.6 7-10 7S2 12 2 12z" />
+        <circle cx="12" cy="12" r="3" />
+      </symbol>
+      <symbol id="i-key" viewBox="0 0 24 24">
+        <circle cx="7.5" cy="15.5" r="4.5" />
+        <path d="M10.7 12.3L21 2M16 7l3 3M18 5l2 2" />
+      </symbol>
+      <symbol id="i-keyboard" viewBox="0 0 24 24">
+        <rect x="2" y="6" width="20" height="12" rx="2" />
+        <path d="M6 10h.01M10 10h.01M14 10h.01M18 10h.01M7 14h10" />
+      </symbol>
+      <symbol id="i-check" viewBox="0 0 24 24">
+        <path d="M5 12.5l4.5 4.5L19 7.5" />
+      </symbol>
+      <symbol id="i-copy" viewBox="0 0 24 24">
+        <rect x="9" y="9" width="12" height="12" rx="2" />
+        <path d="M5 15H4a1 1 0 0 1-1-1V4a1 1 0 0 1 1-1h10a1 1 0 0 1 1 1v1" />
+      </symbol>
+      <symbol id="i-external" viewBox="0 0 24 24">
+        <path
+          d="M14 4h6v6M20 4l-9 9M18 14v5a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1V7a1 1 0 0 1 1-1h5"
+        />
+      </symbol>
+      <symbol id="i-download" viewBox="0 0 24 24">
+        <path d="M12 3v12M7 10l5 5 5-5M5 21h14" />
+      </symbol>
+      <symbol id="i-play" viewBox="0 0 24 24">
+        <path
+          d="M8 5.5v13a1 1 0 0 0 1.5.86l10.6-6.5a1 1 0 0 0 0-1.72L9.5 4.64A1 1 0 0 0 8 5.5z"
+        />
+      </symbol>
+      <symbol id="i-pause" viewBox="0 0 24 24">
+        <rect x="6" y="5" width="4" height="14" rx="1.2" />
+        <rect x="14" y="5" width="4" height="14" rx="1.2" />
+      </symbol>
+      <symbol id="i-sound" viewBox="0 0 24 24">
+        <path
+          d="M4 9.5v5h3.5L12 19V5L7.5 9.5zM15.5 8.5a5 5 0 0 1 0 7M18.5 5.5a9 9 0 0 1 0 13"
+        />
+      </symbol>
+      <symbol id="i-muted" viewBox="0 0 24 24">
+        <path d="M4 9.5v5h3.5L12 19V5L7.5 9.5zM16 9.5l5 5M21 9.5l-5 5" />
+      </symbol>
+      <symbol id="i-full" viewBox="0 0 24 24">
+        <path d="M4 9V4h5M20 9V4h-5M4 15v5h5M20 15v5h-5" />
+      </symbol>
+      <symbol id="i-sun" viewBox="0 0 24 24">
+        <circle cx="12" cy="12" r="4" />
+        <path
+          d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"
+        />
+      </symbol>
+      <symbol id="i-moon" viewBox="0 0 24 24">
+        <path d="M20 14.5A8 8 0 0 1 9.5 4a8 8 0 1 0 10.5 10.5z" />
+      </symbol>
+      <symbol id="i-system" viewBox="0 0 24 24">
+        <rect x="3" y="4" width="18" height="12" rx="2" />
+        <path d="M8 20h8M12 16v4" />
+      </symbol>
+      <symbol id="i-menu" viewBox="0 0 24 24">
+        <path d="M4 7h16M4 12h16M4 17h16" />
+      </symbol>
+      <symbol id="i-close" viewBox="0 0 24 24">
+        <path d="M7 7l10 10M17 7L7 17" />
+      </symbol>
+      <symbol id="i-gear" viewBox="0 0 24 24">
+        <circle cx="12" cy="12" r="3" />
+        <path
+          d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"
+        />
+      </symbol>
+      <symbol id="i-minus" viewBox="0 0 24 24"><path d="M6 12h12" /></symbol>
+      <symbol id="i-chevron" viewBox="0 0 24 24">
+        <path d="M6 9l6 6 6-6" />
+      </symbol>
+      <symbol id="i-info" viewBox="0 0 24 24">
+        <circle cx="12" cy="12" r="9" />
+        <path d="M12 11v5M12 8h.01" />
+      </symbol>
+    </svg>
+
+    <a class="skip-link" href="#main" data-i18n="a11y.skip"></a>
+
+    <header class="site-header" id="top">
+      <div class="wrap header-row">
+        <a class="brand" href="#top" data-i18n-attr="aria-label:nav.home">
+          <svg class="brand-logo" aria-hidden="true">
+            <use href="#i-logo" />
+          </svg>
+          <span class="brand-name">Correctly</span>
+        </a>
+
+        <nav class="nav-desktop" data-i18n-attr="aria-label:nav.primary">
+          <ul class="nav-list">
+            <li><a href="#actions" data-nav data-i18n="nav.actions"></a></li>
+            <li><a href="#demo" data-nav data-i18n="nav.demo"></a></li>
+            <li><a href="#privacy" data-nav data-i18n="nav.privacy"></a></li>
+            <li><a href="#faq" data-nav data-i18n="nav.faq"></a></li>
+          </ul>
+        </nav>
+
+        <div class="header-tools">
+          <div
+            class="seg"
+            data-js-only
+            role="group"
+            data-i18n-attr="aria-label:lang.group"
+          >
+            <button
+              type="button"
+              class="seg-btn"
+              data-lang="fr"
+              lang="fr"
+              aria-pressed="true"
+              data-i18n-attr="title:lang.fr"
+            >
+              FR
+            </button>
+            <button
+              type="button"
+              class="seg-btn"
+              data-lang="en"
+              lang="en"
+              aria-pressed="false"
+              data-i18n-attr="title:lang.en"
+            >
+              EN
+            </button>
+          </div>
+          <button
+            type="button"
+            class="icon-btn"
+            data-js-only
+            data-theme-toggle
+            data-i18n-attr="aria-label:theme.system;title:theme.system"
+          >
+            <svg class="icon theme-icon theme-icon-system" aria-hidden="true">
+              <use href="#i-system" />
+            </svg>
+            <svg class="icon theme-icon theme-icon-light" aria-hidden="true">
+              <use href="#i-sun" />
+            </svg>
+            <svg class="icon theme-icon theme-icon-dark" aria-hidden="true">
+              <use href="#i-moon" />
+            </svg>
+          </button>
+          <a class="btn btn-primary btn-sm header-cta" href="#download">
+            <svg class="icon icon-sm" aria-hidden="true">
+              <use href="#i-download" />
+            </svg>
+            <span data-i18n="nav.download"></span>
+          </a>
+          <button
+            type="button"
+            class="icon-btn menu-btn"
+            data-js-only
+            aria-expanded="false"
+            aria-controls="mobile-menu"
+            data-i18n-attr="aria-label:nav.menuOpen"
+          >
+            <svg class="icon menu-icon-open" aria-hidden="true">
+              <use href="#i-menu" />
+            </svg>
+            <svg class="icon menu-icon-close" aria-hidden="true">
+              <use href="#i-close" />
+            </svg>
+          </button>
+        </div>
+      </div>
+
+      <nav
+        class="mobile-menu"
+        id="mobile-menu"
+        data-i18n-attr="aria-label:nav.primary"
+      >
+        <ul class="wrap mobile-list">
+          <li><a href="#actions" data-i18n="nav.actions"></a></li>
+          <li><a href="#demo" data-i18n="nav.demo"></a></li>
+          <li><a href="#privacy" data-i18n="nav.privacy"></a></li>
+          <li><a href="#faq" data-i18n="nav.faq"></a></li>
+          <li><a href="#download" data-i18n="nav.download"></a></li>
+        </ul>
+      </nav>
+    </header>
+
+    <main id="main" tabindex="-1">
+      <!-- Hero -->
+      <section class="hero" aria-labelledby="hero-title">
+        <div class="wrap hero-grid">
+          <div class="hero-copy">
+            <h1 id="hero-title" class="hero-title">
+              <span class="hero-line" data-i18n="hero.titleA"></span>
+              <span class="hero-line" data-i18n="hero.titleB"></span>
+            </h1>
+            <p class="hero-lede" data-i18n="hero.lede"></p>
+            <div class="hero-actions">
+              <a
+                class="btn btn-primary"
+                href="#demo"
+                data-i18n="hero.ctaDemo"
+              ></a>
+              <a class="btn btn-secondary" href="#download">
+                <svg class="icon icon-sm" aria-hidden="true">
+                  <use href="#i-download" />
+                </svg>
+                <span data-i18n="hero.ctaDownload"></span>
+              </a>
+              <a class="link-play" href="#video" data-film-open="0">
+                <span class="link-play-disc"
+                  ><svg aria-hidden="true"><use href="#i-play" /></svg
+                ></span>
+                <span data-i18n="hero.watch"></span>
+              </a>
+            </div>
+            <p class="hero-note" data-i18n="hero.note"></p>
+          </div>
+
+          <figure class="hero-figure">
+            <div class="mock" role="img" data-i18n-attr="aria-label:mock.alt">
+              <div class="mock-page">
+                <div class="mock-page-head">
+                  <span class="mock-page-title" data-i18n="mock.page"></span>
+                  <span class="mock-page-to" data-i18n="mock.to"></span>
+                </div>
+                <div class="mock-field">
+                  <span class="mock-sel"
+                    ><span data-i18n="mock.p1"></span
+                    ><span data-i18n="mock.e1"></span
+                    ><span data-i18n="mock.p2"></span
+                    ><span data-i18n="mock.e2"></span
+                    ><span data-i18n="mock.p3"></span
+                    ><span data-i18n="mock.e3"></span
+                    ><span data-i18n="mock.p4"></span
+                  ></span>
+                </div>
+                <div class="mock-lines">
+                  <span></span><span></span><span></span>
+                </div>
+              </div>
+              <span class="mock-handle"
+                ><svg aria-hidden="true"><use href="#i-logo" /></svg
+              ></span>
+              <div class="cw mock-window">
+                <div class="cw-head">
+                  <svg class="cw-logo" aria-hidden="true">
+                    <use href="#i-logo" />
+                  </svg>
+                  <span class="cw-name">Correctly</span>
+                  <span class="cw-head-icons">
+                    <svg aria-hidden="true"><use href="#i-gear" /></svg>
+                    <svg aria-hidden="true"><use href="#i-minus" /></svg>
+                    <svg aria-hidden="true"><use href="#i-close" /></svg>
+                  </span>
+                </div>
+                <div class="cw-tabs">
+                  <span
+                    class="cw-tab is-active"
+                    data-i18n="act.correction.t"
+                  ></span>
+                  <span class="cw-tab" data-i18n="act.rewrite.t"></span>
+                  <span class="cw-tab" data-i18n="act.translation.t"></span>
+                  <span class="cw-tab" data-i18n="act.summary.t"></span>
+                </div>
+                <div class="cw-body">
+                  <span class="cw-label" data-i18n="demo.corrected"></span>
+                  <p class="proof mock-proof">
+                    <span data-i18n="mock.p1"></span
+                    ><span class="fix fix-1"
+                      ><del data-i18n="mock.e1"></del
+                      ><ins data-i18n="mock.c1"></ins></span
+                    ><span data-i18n="mock.p2"></span
+                    ><span class="fix fix-2"
+                      ><del data-i18n="mock.e2"></del
+                      ><ins data-i18n="mock.c2"></ins></span
+                    ><span data-i18n="mock.p3"></span
+                    ><span class="fix fix-3"
+                      ><del data-i18n="mock.e3"></del
+                      ><ins data-i18n="mock.c3"></ins></span
+                    ><span data-i18n="mock.p4"></span>
+                  </p>
+                </div>
+                <div class="cw-foot">
+                  <span
+                    class="cw-btn cw-btn-primary mock-apply"
+                    data-i18n="demo.apply"
+                  ></span>
+                  <span class="cw-btn" data-i18n="demo.copy"></span>
+                  <span class="cw-btn" data-i18n="demo.cancel"></span>
+                </div>
+              </div>
+            </div>
+            <figcaption
+              class="hero-caption"
+              data-i18n="mock.caption"
+            ></figcaption>
+          </figure>
+        </div>
+      </section>
+
+      <!-- Benefits -->
+      <section class="benefits" aria-labelledby="benefits-title">
+        <div class="wrap">
+          <h2
+            id="benefits-title"
+            class="sr-only"
+            data-i18n="benefits.title"
+          ></h2>
+          <ul class="benefit-list">
+            <li class="benefit">
+              <svg class="icon benefit-icon" aria-hidden="true">
+                <use href="#i-click" />
+              </svg>
+              <h3 class="benefit-title" data-i18n="benefit.1.t"></h3>
+              <p class="benefit-text" data-i18n="benefit.1.d"></p>
+            </li>
+            <li class="benefit">
+              <svg class="icon benefit-icon" aria-hidden="true">
+                <use href="#i-eye" />
+              </svg>
+              <h3 class="benefit-title" data-i18n="benefit.2.t"></h3>
+              <p class="benefit-text" data-i18n="benefit.2.d"></p>
+            </li>
+            <li class="benefit">
+              <svg class="icon benefit-icon" aria-hidden="true">
+                <use href="#i-key" />
+              </svg>
+              <h3 class="benefit-title" data-i18n="benefit.3.t"></h3>
+              <p class="benefit-text" data-i18n="benefit.3.d"></p>
+            </li>
+            <li class="benefit">
+              <svg class="icon benefit-icon" aria-hidden="true">
+                <use href="#i-keyboard" />
+              </svg>
+              <h3 class="benefit-title" data-i18n="benefit.4.t"></h3>
+              <p class="benefit-text" data-i18n="benefit.4.d"></p>
+            </li>
+          </ul>
+        </div>
+      </section>
+
+      <!-- Film: a silent teaser loop on the page; the full film (music)
+           opens in a custom player only on request. -->
+      <section
+        class="section section-film"
+        id="video"
+        aria-labelledby="video-title"
+      >
+        <div class="wrap">
+          <header class="section-head">
+            <h2
+              id="video-title"
+              class="section-title"
+              data-i18n="video.title"
+            ></h2>
+            <p class="section-lede" data-i18n="video.lede"></p>
+          </header>
+          <div class="film-stage">
+            <video
+              class="film-teaser"
+              muted
+              loop
+              playsinline
+              preload="none"
+              poster="assets/video/teaser-poster.jpg"
+              width="1280"
+              height="720"
+              aria-hidden="true"
+              tabindex="-1"
+            >
+              <source src="assets/video/teaser.mp4" type="video/mp4" />
+            </video>
+            <div class="film-cta">
+              <button
+                type="button"
+                class="film-open"
+                data-js-only
+                data-film-open="0"
+              >
+                <span class="film-open-disc"
+                  ><svg aria-hidden="true"><use href="#i-play" /></svg
+                ></span>
+                <span class="film-open-label">
+                  <span data-i18n="film.watch"></span>
+                  <span class="film-open-meta" data-i18n="film.meta"></span>
+                </span>
+              </button>
+              <noscript>
+                <a class="film-open" href="assets/video/correctly-1080.mp4">
+                  <span class="film-open-disc"
+                    ><svg aria-hidden="true"><use href="#i-play" /></svg
+                  ></span>
+                  <span class="film-open-label"
+                    ><span data-i18n="film.mp4"></span
+                  ></span>
+                </a>
+              </noscript>
+            </div>
+          </div>
+          <p class="film-note" data-i18n="video.caption"></p>
+          <h3 class="sr-only" data-i18n="film.chapters"></h3>
+          <ol class="film-chips" data-js-only>
+            <li>
+              <button type="button" class="film-chip" data-chapter="0">
+                <span class="chapter-time">0:00</span>
+                <span data-i18n="film.ch.intro"></span>
+              </button>
+            </li>
+            <li>
+              <button type="button" class="film-chip" data-chapter="12.8">
+                <span class="chapter-time">0:12</span>
+                <span data-i18n="film.ch.correction"></span>
+              </button>
+            </li>
+            <li>
+              <button type="button" class="film-chip" data-chapter="19.2">
+                <span class="chapter-time">0:19</span>
+                <span data-i18n="film.ch.rewrite"></span>
+              </button>
+            </li>
+            <li>
+              <button type="button" class="film-chip" data-chapter="24.8">
+                <span class="chapter-time">0:24</span>
+                <span data-i18n="film.ch.translation"></span>
+              </button>
+            </li>
+            <li>
+              <button type="button" class="film-chip" data-chapter="30.4">
+                <span class="chapter-time">0:30</span>
+                <span data-i18n="film.ch.summary"></span>
+              </button>
+            </li>
+            <li>
+              <button type="button" class="film-chip" data-chapter="38.4">
+                <span class="chapter-time">0:38</span>
+                <span data-i18n="film.ch.shortcuts"></span>
+              </button>
+            </li>
+            <li>
+              <button type="button" class="film-chip" data-chapter="43.2">
+                <span class="chapter-time">0:43</span>
+                <span data-i18n="film.ch.settings"></span>
+              </button>
+            </li>
+            <li>
+              <button type="button" class="film-chip" data-chapter="48">
+                <span class="chapter-time">0:48</span>
+                <span data-i18n="film.ch.end"></span>
+              </button>
+            </li>
+          </ol>
+        </div>
+      </section>
+      <!-- Four actions -->
+      <section class="section" id="actions" aria-labelledby="actions-title">
+        <div class="wrap">
+          <header class="section-head">
+            <h2
+              id="actions-title"
+              class="section-title"
+              data-i18n="actions.title"
+            ></h2>
+            <p class="section-lede" data-i18n="actions.lede"></p>
+          </header>
+
+          <div class="actions-grid">
+            <article class="act act-correction">
+              <div class="act-copy">
+                <h3 class="act-title" data-i18n="act.correction.t"></h3>
+                <p data-i18n="act.correction.d"></p>
+                <p class="act-fine" data-i18n="act.correction.limit"></p>
+              </div>
+              <p class="proof proof-display" aria-hidden="true">
+                <span data-i18n="ex.c.p1"></span
+                ><span class="fix"
+                  ><del data-i18n="ex.c.e1"></del
+                  ><ins data-i18n="ex.c.c1"></ins></span
+                ><span data-i18n="ex.c.p2"></span
+                ><span class="fix"
+                  ><del data-i18n="ex.c.e2"></del
+                  ><ins data-i18n="ex.c.c2"></ins></span
+                ><span data-i18n="ex.c.p3"></span>
+              </p>
+            </article>
+
+            <article class="act act-rewrite">
+              <h3 class="act-title" data-i18n="act.rewrite.t"></h3>
+              <p data-i18n="act.rewrite.d"></p>
+              <ul class="chips">
+                <li class="chip" data-i18n="st.professional"></li>
+                <li class="chip" data-i18n="st.formal"></li>
+                <li class="chip" data-i18n="st.friendly"></li>
+                <li class="chip" data-i18n="st.casual"></li>
+                <li class="chip" data-i18n="st.polite"></li>
+                <li class="chip" data-i18n="st.concise"></li>
+                <li class="chip" data-i18n="st.funny"></li>
+                <li class="chip chip-accent" data-i18n="st.custom"></li>
+              </ul>
+              <div class="formality-scale" aria-hidden="true">
+                <span class="formality-track"
+                  ><i></i><i></i><i class="is-on"></i><i></i><i></i
+                ></span>
+                <span class="formality-ends"
+                  ><span data-i18n="fl.1"></span><span data-i18n="fl.5"></span
+                ></span>
+              </div>
+              <p class="act-fine" data-i18n="act.rewrite.slider"></p>
+              <div class="variants">
+                <p class="variant-src" data-i18n="ex.r.src"></p>
+                <div class="variant">
+                  <span class="variant-label" data-i18n="st.formal"></span>
+                  <p data-i18n="ex.r.1"></p>
+                </div>
+                <div class="variant">
+                  <span class="variant-label" data-i18n="st.concise"></span>
+                  <p data-i18n="ex.r.2"></p>
+                </div>
+              </div>
+            </article>
+
+            <article class="act act-translation">
+              <h3 class="act-title" data-i18n="act.translation.t"></h3>
+              <p data-i18n="act.translation.d"></p>
+              <ul class="native-list">
+                <li lang="fr">Français</li>
+                <li lang="en">English</li>
+                <li lang="ar" dir="rtl">العربية</li>
+                <li lang="tr">Türkçe</li>
+                <li lang="de">Deutsch</li>
+                <li lang="es">Español</li>
+              </ul>
+              <p data-i18n="act.translation.arabic"></p>
+              <div class="tr-pair">
+                <p class="tr-src" data-i18n="ex.t.src"></p>
+                <p class="tr-out" lang="ar" dir="rtl">
+                  ببعتلك الأرقام بكرا قبل الساعة عشرة.
+                </p>
+                <span class="variant-label" data-i18n="v.syrian"></span>
+              </div>
+            </article>
+
+            <article class="act act-summary">
+              <div class="act-copy">
+                <h3 class="act-title" data-i18n="act.summary.t"></h3>
+                <p data-i18n="act.summary.d"></p>
+                <p class="act-fine" data-i18n="act.summary.limit"></p>
+              </div>
+              <div class="sum-visual" aria-hidden="true">
+                <div class="sum-lines">
+                  <i></i><i></i><i></i><i></i><i></i><i></i><i></i>
+                </div>
+                <div class="sum-opts">
+                  <span class="opt-row"
+                    ><span class="opt is-on" data-i18n="sl.short"></span
+                    ><span class="opt" data-i18n="sl.medium"></span
+                    ><span class="opt" data-i18n="sl.detailed"></span
+                  ></span>
+                  <span class="opt-row"
+                    ><span class="opt" data-i18n="sf.paragraph"></span
+                    ><span class="opt is-on" data-i18n="sf.points"></span
+                  ></span>
+                </div>
+                <ul class="sum-points">
+                  <li><i></i></li>
+                  <li><i></i></li>
+                  <li><i></i></li>
+                </ul>
+              </div>
+            </article>
+          </div>
+          <p class="act-page">
+            <svg class="icon icon-sm" aria-hidden="true">
+              <use href="#i-info" />
+            </svg>
+            <span data-i18n="act.page"></span>
+          </p>
+        </div>
+      </section>
+
+      <!-- Demo -->
+      <section
+        class="section section-demo"
+        id="demo"
+        aria-labelledby="demo-title"
+      >
+        <div class="wrap demo-grid">
+          <header class="demo-intro">
+            <h2
+              id="demo-title"
+              class="section-title"
+              data-i18n="demo.title"
+            ></h2>
+            <p class="section-lede" data-i18n="demo.lede"></p>
+            <p class="notice">
+              <svg class="icon" aria-hidden="true"><use href="#i-info" /></svg>
+              <span data-i18n="demo.notice"></span>
+            </p>
+          </header>
+
+          <div class="cw demo-window" id="demo-window">
+            <div class="cw-head">
+              <svg class="cw-logo" aria-hidden="true">
+                <use href="#i-logo" />
+              </svg>
+              <span class="cw-name">Correctly</span>
+              <span class="cw-badge" data-i18n="demo.badge"></span>
+            </div>
+            <noscript
+              ><p class="cw-noscript" data-i18n="demo.noscript"></p
+            ></noscript>
+            <div class="demo-live" hidden>
+              <div
+                class="cw-tabs"
+                role="tablist"
+                data-i18n-attr="aria-label:demo.tablist"
+              >
+                <button
+                  type="button"
+                  class="cw-tab"
+                  role="tab"
+                  id="tab-correction"
+                  data-tab="correction"
+                  aria-controls="panel-correction"
+                  aria-selected="true"
+                  data-i18n="act.correction.t"
+                ></button>
+                <button
+                  type="button"
+                  class="cw-tab"
+                  role="tab"
+                  id="tab-rewrite"
+                  data-tab="rewrite"
+                  aria-controls="panel-rewrite"
+                  aria-selected="false"
+                  tabindex="-1"
+                  data-i18n="act.rewrite.t"
+                ></button>
+                <button
+                  type="button"
+                  class="cw-tab"
+                  role="tab"
+                  id="tab-translation"
+                  data-tab="translation"
+                  aria-controls="panel-translation"
+                  aria-selected="false"
+                  tabindex="-1"
+                  data-i18n="act.translation.t"
+                ></button>
+                <button
+                  type="button"
+                  class="cw-tab"
+                  role="tab"
+                  id="tab-summary"
+                  data-tab="summary"
+                  aria-controls="panel-summary"
+                  aria-selected="false"
+                  tabindex="-1"
+                  data-i18n="act.summary.t"
+                ></button>
+                <span class="cw-tab-ink" aria-hidden="true"></span>
+              </div>
+
+              <div class="cw-body">
+                <div class="cw-text-head">
+                  <label
+                    class="cw-label"
+                    for="demo-text"
+                    data-i18n="demo.textLabel"
+                  ></label>
+                  <span class="cw-sample">
+                    <span id="demo-sample-count"></span>
+                    <button
+                      type="button"
+                      class="cw-link"
+                      id="demo-next"
+                      data-i18n="demo.next"
+                    ></button>
+                  </span>
+                </div>
+                <textarea
+                  id="demo-text"
+                  class="cw-textarea"
+                  rows="5"
+                  readonly
+                  aria-describedby="demo-readonly"
+                ></textarea>
+                <p
+                  class="cw-hint"
+                  id="demo-readonly"
+                  data-i18n="demo.readonly"
+                ></p>
+
+                <div
+                  class="cw-panel"
+                  role="tabpanel"
+                  id="panel-correction"
+                  aria-labelledby="tab-correction"
+                  tabindex="0"
+                >
+                  <p class="cw-hint" data-i18n="demo.help.correction"></p>
+                  <button
+                    type="button"
+                    class="cw-btn cw-btn-primary cw-go"
+                    data-go="correction"
+                    data-i18n="demo.go.correction"
+                  ></button>
+                  <div class="cw-result" data-result="correction"></div>
+                </div>
+
+                <div
+                  class="cw-panel"
+                  role="tabpanel"
+                  id="panel-rewrite"
+                  aria-labelledby="tab-rewrite"
+                  tabindex="0"
+                  hidden
+                >
+                  <fieldset class="cw-fieldset">
+                    <legend data-i18n="demo.styles"></legend>
+                    <div class="cw-checks" id="demo-styles"></div>
+                  </fieldset>
+                  <div class="cw-formality" id="demo-formality">
+                    <label
+                      class="cw-label"
+                      for="demo-formality-range"
+                      data-i18n="demo.formality"
+                    ></label>
+                    <input
+                      type="range"
+                      id="demo-formality-range"
+                      min="1"
+                      max="5"
+                      step="1"
+                      value="3"
+                    />
+                    <div class="cw-range-ends">
+                      <span data-i18n="demo.less"></span
+                      ><output
+                        id="demo-formality-value"
+                        for="demo-formality-range"
+                      ></output
+                      ><span data-i18n="demo.more"></span>
+                    </div>
+                  </div>
+                  <p class="cw-hint" data-i18n="demo.help.rewrite"></p>
+                  <button
+                    type="button"
+                    class="cw-btn cw-btn-primary cw-go"
+                    data-go="rewrite"
+                    data-i18n="demo.go.rewrite"
+                  ></button>
+                  <div class="cw-result" data-result="rewrite"></div>
+                </div>
+
+                <div
+                  class="cw-panel"
+                  role="tabpanel"
+                  id="panel-translation"
+                  aria-labelledby="tab-translation"
+                  tabindex="0"
+                  hidden
+                >
+                  <div class="cw-row">
+                    <div class="cw-field">
+                      <span class="cw-label" data-i18n="demo.from"></span>
+                      <span class="cw-static" id="demo-from"></span>
+                    </div>
+                    <div class="cw-field">
+                      <label
+                        class="cw-label"
+                        for="demo-to"
+                        data-i18n="demo.to"
+                      ></label>
+                      <select id="demo-to" class="cw-select"></select>
+                    </div>
+                  </div>
+                  <fieldset class="cw-fieldset" id="demo-variant" hidden>
+                    <legend data-i18n="demo.variant"></legend>
+                    <label class="cw-radio"
+                      ><input
+                        type="radio"
+                        name="demo-variant"
+                        value="ar_msa"
+                        checked />
+                      <span data-i18n="v.msa"></span
+                    ></label>
+                    <label class="cw-radio"
+                      ><input
+                        type="radio"
+                        name="demo-variant"
+                        value="ar_syrian" />
+                      <span data-i18n="v.syrian"></span
+                    ></label>
+                  </fieldset>
+                  <p class="cw-hint" data-i18n="demo.help.translation"></p>
+                  <button
+                    type="button"
+                    class="cw-btn cw-btn-primary cw-go"
+                    data-go="translation"
+                    data-i18n="demo.go.translation"
+                  ></button>
+                  <div class="cw-result" data-result="translation"></div>
+                </div>
+
+                <div
+                  class="cw-panel"
+                  role="tabpanel"
+                  id="panel-summary"
+                  aria-labelledby="tab-summary"
+                  tabindex="0"
+                  hidden
+                >
+                  <div class="cw-row">
+                    <div class="cw-field">
+                      <span class="cw-label" data-i18n="demo.sumLang"></span>
+                      <span class="cw-static" id="demo-sum-lang"></span>
+                    </div>
+                    <div class="cw-field">
+                      <label
+                        class="cw-label"
+                        for="demo-length"
+                        data-i18n="demo.length"
+                      ></label>
+                      <select id="demo-length" class="cw-select">
+                        <option value="short" data-i18n="sl.short"></option>
+                        <option
+                          value="medium"
+                          selected
+                          data-i18n="sl.medium"
+                        ></option>
+                        <option
+                          value="detailed"
+                          data-i18n="sl.detailed"
+                        ></option>
+                      </select>
+                    </div>
+                    <div class="cw-field">
+                      <label
+                        class="cw-label"
+                        for="demo-format"
+                        data-i18n="demo.format"
+                      ></label>
+                      <select id="demo-format" class="cw-select">
+                        <option
+                          value="paragraph"
+                          selected
+                          data-i18n="sf.paragraph"
+                        ></option>
+                        <option value="points" data-i18n="sf.points"></option>
+                      </select>
+                    </div>
+                  </div>
+                  <p class="cw-hint" data-i18n="demo.help.summary"></p>
+                  <button
+                    type="button"
+                    class="cw-btn cw-btn-primary cw-go"
+                    data-go="summary"
+                    data-i18n="demo.go.summary"
+                  ></button>
+                  <div class="cw-result" data-result="summary"></div>
+                </div>
+              </div>
+
+              <div
+                class="cw-status"
+                id="demo-status"
+                role="status"
+                aria-live="polite"
+              ></div>
+              <p class="sr-only" id="demo-announce" aria-live="polite"></p>
+              <div class="cw-foot">
+                <button
+                  type="button"
+                  class="cw-btn cw-btn-primary"
+                  id="demo-apply"
+                  disabled
+                  data-i18n="demo.apply"
+                ></button>
+                <button
+                  type="button"
+                  class="cw-btn"
+                  id="demo-copy"
+                  disabled
+                  data-i18n="demo.copy"
+                ></button>
+                <button
+                  type="button"
+                  class="cw-btn"
+                  id="demo-cancel"
+                  disabled
+                  data-i18n="demo.cancel"
+                ></button>
+              </div>
+              <div class="cw-toast" id="demo-toast" hidden>
+                <span id="demo-toast-text"></span>
+                <button type="button" class="cw-btn" id="demo-undo"></button>
+                <span class="cw-toast-timer" aria-hidden="true"></span>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- Control flow -->
+      <section class="section" id="flow" aria-labelledby="flow-title">
+        <div class="wrap">
+          <header class="section-head">
+            <h2
+              id="flow-title"
+              class="section-title"
+              data-i18n="flow.title"
+            ></h2>
+            <p class="section-lede" data-i18n="flow.lede"></p>
+          </header>
+          <ol class="steps">
+            <li class="step">
+              <span class="step-num" aria-hidden="true">1</span>
+              <h3 class="step-title" data-i18n="flow.1.t"></h3>
+              <p data-i18n="flow.1.d"></p>
+            </li>
+            <li class="step">
+              <span class="step-num" aria-hidden="true">2</span>
+              <h3 class="step-title" data-i18n="flow.2.t"></h3>
+              <p data-i18n="flow.2.d"></p>
+            </li>
+            <li class="step">
+              <span class="step-num" aria-hidden="true">3</span>
+              <h3 class="step-title" data-i18n="flow.3.t"></h3>
+              <p data-i18n="flow.3.d"></p>
+            </li>
+            <li class="step">
+              <span class="step-num" aria-hidden="true">4</span>
+              <h3 class="step-title" data-i18n="flow.4.t"></h3>
+              <p data-i18n="flow.4.d"></p>
+            </li>
+          </ol>
+          <div class="flow-split">
+            <div class="safe">
+              <h3 class="safe-title" data-i18n="flow.safe.title"></h3>
+              <ul class="check-list">
+                <li>
+                  <svg class="icon" aria-hidden="true">
+                    <use href="#i-check" /></svg
+                  ><span data-i18n="flow.safe.1"></span>
+                </li>
+                <li>
+                  <svg class="icon" aria-hidden="true">
+                    <use href="#i-check" /></svg
+                  ><span data-i18n="flow.safe.2"></span>
+                </li>
+                <li>
+                  <svg class="icon" aria-hidden="true">
+                    <use href="#i-check" /></svg
+                  ><span data-i18n="flow.safe.3"></span>
+                </li>
+                <li>
+                  <svg class="icon" aria-hidden="true">
+                    <use href="#i-check" /></svg
+                  ><span data-i18n="flow.safe.4"></span>
+                </li>
+              </ul>
+            </div>
+            <figure class="shot">
+              <img
+                src="assets/shots/summary-chrome.png"
+                width="762"
+                height="484"
+                loading="lazy"
+                decoding="async"
+                data-i18n-attr="alt:shot.alt"
+              />
+              <figcaption data-i18n="shot.caption"></figcaption>
+            </figure>
+          </div>
+        </div>
+      </section>
+
+      <!-- Privacy -->
+      <section class="section" id="privacy" aria-labelledby="privacy-title">
+        <div class="wrap">
+          <header class="section-head">
+            <h2
+              id="privacy-title"
+              class="section-title"
+              data-i18n="privacy.title"
+            ></h2>
+            <p class="section-lede" data-i18n="privacy.lede"></p>
+          </header>
+
+          <figure class="diagram" id="diagram">
+            <figcaption class="sr-only" data-i18n="dg.title"></figcaption>
+            <div class="dg" aria-hidden="true">
+              <div class="dg-node dg-page">
+                <strong data-i18n="dg.page"></strong
+                ><span data-i18n="dg.pageSub"></span>
+              </div>
+              <div class="dg-link dg-link-1">
+                <span class="dg-tag" data-i18n="dg.click"></span
+                ><i class="dg-dot"></i>
+              </div>
+              <div class="dg-node dg-ext">
+                <strong data-i18n="dg.ext"></strong
+                ><span data-i18n="dg.extSub"></span>
+              </div>
+              <div class="dg-link dg-link-2">
+                <span class="dg-tag" data-i18n="dg.https"></span
+                ><i class="dg-dot"></i>
+              </div>
+              <div class="dg-node dg-provider">
+                <strong data-i18n="dg.provider"></strong
+                ><span data-i18n="dg.providerSub"></span>
+              </div>
+              <div class="dg-down"></div>
+              <div class="dg-node dg-local">
+                <strong data-i18n="dg.local"></strong
+                ><span data-i18n="dg.localSub"></span>
+              </div>
+              <div class="dg-back">
+                <span class="dg-tag" data-i18n="dg.result"></span
+                ><i class="dg-dot"></i>
+              </div>
+            </div>
+            <button
+              type="button"
+              class="btn btn-quiet dg-play"
+              id="dg-play"
+              hidden
+              data-i18n="dg.play"
+            ></button>
+          </figure>
+
+          <div class="privacy-cols">
+            <div class="pcol">
+              <h3 class="pcol-title" data-i18n="privacy.local.title"></h3>
+              <ul>
+                <li data-i18n="privacy.local.1"></li>
+                <li data-i18n="privacy.local.2"></li>
+                <li data-i18n="privacy.local.3"></li>
+              </ul>
+            </div>
+            <div class="pcol pcol-sent">
+              <h3 class="pcol-title" data-i18n="privacy.sent.title"></h3>
+              <ul>
+                <li data-i18n="privacy.sent.1"></li>
+                <li data-i18n="privacy.sent.2"></li>
+                <li data-i18n="privacy.sent.3"></li>
+              </ul>
+            </div>
+            <div class="pcol pcol-limits">
+              <h3 class="pcol-title" data-i18n="privacy.limits.title"></h3>
+              <ul>
+                <li data-i18n="privacy.limits.1"></li>
+                <li data-i18n="privacy.limits.2"></li>
+                <li data-i18n="privacy.limits.3"></li>
+              </ul>
+            </div>
+          </div>
+          <p class="privacy-access" data-i18n="privacy.access"></p>
+        </div>
+      </section>
+
+      <!-- More features -->
+      <section class="section" id="more" aria-labelledby="more-title">
+        <div class="wrap more-grid">
+          <header class="more-head">
+            <h2
+              id="more-title"
+              class="section-title"
+              data-i18n="more.title"
+            ></h2>
+            <p class="section-lede" data-i18n="more.lede"></p>
+          </header>
+          <dl class="feature-list">
+            <div class="feature">
+              <dt data-i18n="m.access.t"></dt>
+              <dd>
+                <p data-i18n="m.access.d"></p>
+              </dd>
+            </div>
+            <div class="feature">
+              <dt data-i18n="m.keys.t"></dt>
+              <dd>
+                <p data-i18n="m.keys.d"></p>
+              </dd>
+            </div>
+            <div class="feature">
+              <dt data-i18n="m.shortcuts.t"></dt>
+              <dd>
+                <p data-i18n="m.shortcuts.d"></p>
+              </dd>
+            </div>
+            <div class="feature">
+              <dt data-i18n="m.providers.t"></dt>
+              <dd>
+                <p data-i18n="m.providers.d"></p>
+              </dd>
+            </div>
+            <div class="feature">
+              <dt data-i18n="m.limits.t"></dt>
+              <dd>
+                <p data-i18n="m.limits.d"></p>
+              </dd>
+            </div>
+            <div class="feature">
+              <dt data-i18n="m.stats.t"></dt>
+              <dd>
+                <p data-i18n="m.stats.d"></p>
+              </dd>
+            </div>
+            <div class="feature">
+              <dt data-i18n="m.ui.t"></dt>
+              <dd>
+                <p data-i18n="m.ui.d"></p>
+              </dd>
+            </div>
+            <div class="feature">
+              <dt data-i18n="m.models.t"></dt>
+              <dd>
+                <p data-i18n="m.models.d"></p>
+              </dd>
+            </div>
+          </dl>
+        </div>
+      </section>
+
+      <!-- Use cases -->
+      <section class="section" id="usecases" aria-labelledby="usecases-title">
+        <div class="wrap">
+          <header class="section-head">
+            <h2
+              id="usecases-title"
+              class="section-title"
+              data-i18n="usecases.title"
+            ></h2>
+            <p class="section-lede" data-i18n="usecases.lede"></p>
+          </header>
+          <ul class="cases">
+            <li class="case">
+              <h3 class="case-title" data-i18n="uc.1.t"></h3>
+              <p class="case-action" data-i18n="uc.1.a"></p>
+              <p data-i18n="uc.1.r"></p>
+            </li>
+            <li class="case">
+              <h3 class="case-title" data-i18n="uc.2.t"></h3>
+              <p class="case-action" data-i18n="uc.2.a"></p>
+              <p data-i18n="uc.2.r"></p>
+            </li>
+            <li class="case">
+              <h3 class="case-title" data-i18n="uc.3.t"></h3>
+              <p class="case-action" data-i18n="uc.3.a"></p>
+              <p data-i18n="uc.3.r"></p>
+            </li>
+            <li class="case">
+              <h3 class="case-title" data-i18n="uc.4.t"></h3>
+              <p class="case-action" data-i18n="uc.4.a"></p>
+              <p data-i18n="uc.4.r"></p>
+            </li>
+            <li class="case">
+              <h3 class="case-title" data-i18n="uc.5.t"></h3>
+              <p class="case-action" data-i18n="uc.5.a"></p>
+              <p data-i18n="uc.5.r"></p>
+            </li>
+            <li class="case">
+              <h3 class="case-title" data-i18n="uc.6.t"></h3>
+              <p class="case-action" data-i18n="uc.6.a"></p>
+              <p data-i18n="uc.6.r"></p>
+            </li>
+          </ul>
+        </div>
+      </section>
+
+      <!-- FAQ -->
+      <section class="section" id="faq" aria-labelledby="faq-title">
+        <div class="wrap faq-grid">
+          <h2 id="faq-title" class="section-title" data-i18n="faq.title"></h2>
+          <div class="faq-list">
+            <details class="faq">
+              <summary>
+                <h3 data-i18n="faq.1.q"></h3>
+                <svg class="icon faq-chevron" aria-hidden="true">
+                  <use href="#i-chevron" />
+                </svg>
+              </summary>
+              <p data-i18n="faq.1.a"></p>
+            </details>
+            <details class="faq">
+              <summary>
+                <h3 data-i18n="faq.2.q"></h3>
+                <svg class="icon faq-chevron" aria-hidden="true">
+                  <use href="#i-chevron" />
+                </svg>
+              </summary>
+              <p data-i18n="faq.2.a"></p>
+            </details>
+            <details class="faq">
+              <summary>
+                <h3 data-i18n="faq.3.q"></h3>
+                <svg class="icon faq-chevron" aria-hidden="true">
+                  <use href="#i-chevron" />
+                </svg>
+              </summary>
+              <p data-i18n="faq.3.a"></p>
+            </details>
+            <details class="faq">
+              <summary>
+                <h3 data-i18n="faq.4.q"></h3>
+                <svg class="icon faq-chevron" aria-hidden="true">
+                  <use href="#i-chevron" />
+                </svg>
+              </summary>
+              <p data-i18n="faq.4.a"></p>
+            </details>
+            <details class="faq">
+              <summary>
+                <h3 data-i18n="faq.5.q"></h3>
+                <svg class="icon faq-chevron" aria-hidden="true">
+                  <use href="#i-chevron" />
+                </svg>
+              </summary>
+              <p data-i18n="faq.5.a"></p>
+            </details>
+            <details class="faq">
+              <summary>
+                <h3 data-i18n="faq.6.q"></h3>
+                <svg class="icon faq-chevron" aria-hidden="true">
+                  <use href="#i-chevron" />
+                </svg>
+              </summary>
+              <p data-i18n="faq.6.a"></p>
+            </details>
+            <details class="faq">
+              <summary>
+                <h3 data-i18n="faq.7.q"></h3>
+                <svg class="icon faq-chevron" aria-hidden="true">
+                  <use href="#i-chevron" />
+                </svg>
+              </summary>
+              <p data-i18n="faq.7.a"></p>
+            </details>
+            <details class="faq">
+              <summary>
+                <h3 data-i18n="faq.8.q"></h3>
+                <svg class="icon faq-chevron" aria-hidden="true">
+                  <use href="#i-chevron" />
+                </svg>
+              </summary>
+              <p data-i18n="faq.8.a"></p>
+            </details>
+            <details class="faq">
+              <summary>
+                <h3 data-i18n="faq.9.q"></h3>
+                <svg class="icon faq-chevron" aria-hidden="true">
+                  <use href="#i-chevron" />
+                </svg>
+              </summary>
+              <p data-i18n="faq.9.a"></p>
+            </details>
+            <details class="faq">
+              <summary>
+                <h3 data-i18n="faq.10.q"></h3>
+                <svg class="icon faq-chevron" aria-hidden="true">
+                  <use href="#i-chevron" />
+                </svg>
+              </summary>
+              <p data-i18n="faq.10.a"></p>
+            </details>
+            <details class="faq">
+              <summary>
+                <h3 data-i18n="faq.11.q"></h3>
+                <svg class="icon faq-chevron" aria-hidden="true">
+                  <use href="#i-chevron" />
+                </svg>
+              </summary>
+              <p data-i18n="faq.11.a"></p>
+            </details>
+          </div>
+        </div>
+      </section>
+      <!-- Download: latest version only -->
+      <section
+        class="section section-download"
+        id="download"
+        aria-labelledby="download-title"
+      >
+        <div class="wrap download-grid">
+          <div class="release">
+            <p class="release-tag">
+              <span class="release-name">Correctly</span>
+              <span class="release-num">5.13.3</span>
+            </p>
+            <h2
+              id="download-title"
+              class="section-title"
+              data-i18n="dl.title"
+            ></h2>
+            <p class="section-lede" data-i18n="dl.lede"></p>
+            <h3 class="release-sub" data-i18n="dl.newTitle"></h3>
+            <ul class="release-list">
+              <li data-i18n="dl.new1"></li>
+              <li data-i18n="dl.new2"></li>
+              <li data-i18n="dl.new3"></li>
+            </ul>
+            <div class="cta-row">
+              <a
+                class="btn btn-primary btn-download"
+                href="{{DOWNLOAD}}"
+                download
+              >
+                <svg class="icon" aria-hidden="true">
+                  <use href="#i-download" />
+                </svg>
+                <span data-i18n="dl.button"></span>
+                <span class="btn-meta" data-i18n="dl.size"></span>
+              </a>
+              <a
+                class="btn btn-secondary"
+                href="{{RELEASES}}"
+                target="_blank"
+                rel="noopener noreferrer"
+              >
+                <span data-i18n="dl.all"></span
+                ><span class="sr-only" data-i18n="a11y.newTab"></span>
+                <svg class="icon icon-sm" aria-hidden="true">
+                  <use href="#i-external" />
+                </svg>
+              </a>
+            </div>
+            <p class="release-note" data-i18n="dl.note"></p>
+          </div>
+          <div class="install">
+            <h3 class="install-title" data-i18n="dl.stepsTitle"></h3>
+            <ol class="install-steps">
+              <li><p data-i18n="dl.step1"></p></li>
+              <li><p data-i18n="dl.step2"></p></li>
+              <li><p data-i18n="dl.step3"></p></li>
+            </ol>
+          </div>
+        </div>
+      </section>
+    </main>
+
+    <footer class="site-footer">
+      <div class="wrap footer-grid">
+        <div class="footer-brand">
+          <a class="brand" href="#top" data-i18n-attr="aria-label:nav.home">
+            <svg class="brand-logo" aria-hidden="true">
+              <use href="#i-logo" />
+            </svg>
+            <span class="brand-name">Correctly</span>
+          </a>
+          <p data-i18n="footer.desc"></p>
+          <p class="footer-fine" data-i18n="footer.version"></p>
+          <p class="footer-fine" data-i18n="footer.site"></p>
+        </div>
+        <nav data-i18n-attr="aria-label:footer.nav">
+          <h2 class="footer-title" data-i18n="footer.nav"></h2>
+          <ul>
+            <li><a href="#actions" data-i18n="nav.actions"></a></li>
+            <li><a href="#demo" data-i18n="nav.demo"></a></li>
+            <li><a href="#download" data-i18n="nav.download"></a></li>
+            <li><a href="#privacy" data-i18n="nav.privacy"></a></li>
+            <li><a href="#faq" data-i18n="nav.faq"></a></li>
+            <li><a href="#top" data-i18n="footer.top"></a></li>
+          </ul>
+        </nav>
+        <div>
+          <h2 class="footer-title" data-i18n="footer.project"></h2>
+          <ul>
+            <li>
+              <a href="{{DOWNLOAD}}" download data-i18n="dl.button"></a>
+            </li>
+            <li>
+              <a href="{{RELEASES}}" target="_blank" rel="noopener noreferrer"
+                ><span data-i18n="dl.all"></span
+                ><span class="sr-only" data-i18n="a11y.newTab"></span
+              ></a>
+            </li>
+          </ul>
+          <div class="footer-tools">
+            <div
+              class="seg"
+              data-js-only
+              role="group"
+              data-i18n-attr="aria-label:lang.group"
+            >
+              <button
+                type="button"
+                class="seg-btn"
+                data-lang="fr"
+                lang="fr"
+                aria-pressed="true"
+                data-i18n-attr="title:lang.fr"
+              >
+                FR
+              </button>
+              <button
+                type="button"
+                class="seg-btn"
+                data-lang="en"
+                lang="en"
+                aria-pressed="false"
+                data-i18n-attr="title:lang.en"
+              >
+                EN
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </footer>
+    <dialog class="film-player" id="film" aria-labelledby="film-title">
+      <div class="fp">
+        <div class="fp-head">
+          <h2 id="film-title" class="fp-title" data-i18n="video.title"></h2>
+          <button
+            type="button"
+            class="fp-icon fp-close"
+            data-i18n-attr="aria-label:film.close;title:film.close"
+          >
+            <svg class="icon" aria-hidden="true"><use href="#i-close" /></svg>
+          </button>
+        </div>
+        <div class="fp-screen">
+          <video
+            id="film-video"
+            preload="none"
+            playsinline
+            poster="assets/video/poster.jpg"
+            width="1920"
+            height="1080"
+          >
+            <source
+              src="assets/video/correctly-720.mp4"
+              type="video/mp4"
+              media="(max-width: 900px)"
+            />
+            <source src="assets/video/correctly-1080.mp4" type="video/mp4" />
+          </video>
+          <button
+            type="button"
+            class="fp-big"
+            data-i18n-attr="aria-label:film.play"
+          >
+            <svg aria-hidden="true"><use href="#i-play" /></svg>
+          </button>
+        </div>
+        <div class="fp-controls">
+          <button
+            type="button"
+            class="fp-icon fp-toggle"
+            autofocus
+            data-i18n-attr="aria-label:film.play;title:film.play"
+          >
+            <svg class="fp-ico-play" aria-hidden="true">
+              <use href="#i-play" />
+            </svg>
+            <svg class="fp-ico-pause" aria-hidden="true">
+              <use href="#i-pause" />
+            </svg>
+          </button>
+          <span class="fp-time"><span class="fp-now">0:00</span> / 0:58</span>
+          <div
+            class="fp-bar"
+            role="slider"
+            tabindex="0"
+            aria-valuemin="0"
+            aria-valuemax="58"
+            aria-valuenow="0"
+            aria-valuetext="0:00"
+            data-i18n-attr="aria-label:film.seek"
+          >
+            <span class="fp-buffer"></span>
+            <span class="fp-progress"></span>
+            <span class="fp-tick" style="left: 22.22%"></span>
+            <span class="fp-tick" style="left: 33.33%"></span>
+            <span class="fp-tick" style="left: 43.06%"></span>
+            <span class="fp-tick" style="left: 52.78%"></span>
+            <span class="fp-tick" style="left: 66.67%"></span>
+            <span class="fp-tick" style="left: 75%"></span>
+            <span class="fp-tick" style="left: 83.33%"></span>
+            <span class="fp-knob"></span>
+          </div>
+          <button
+            type="button"
+            class="fp-icon fp-mute"
+            data-i18n-attr="aria-label:film.mute;title:film.mute"
+          >
+            <svg class="fp-ico-sound" aria-hidden="true">
+              <use href="#i-sound" />
+            </svg>
+            <svg class="fp-ico-muted" aria-hidden="true">
+              <use href="#i-muted" />
+            </svg>
+          </button>
+          <button
+            type="button"
+            class="fp-icon fp-full"
+            data-i18n-attr="aria-label:film.full;title:film.full"
+          >
+            <svg aria-hidden="true"><use href="#i-full" /></svg>
+          </button>
+        </div>
+        <ol class="fp-chapters" data-i18n-attr="aria-label:film.chapters">
+          <li>
+            <button type="button" class="fp-chapter" data-chapter="0">
+              <span class="chapter-time">0:00</span>
+              <span data-i18n="film.ch.intro"></span>
+            </button>
+          </li>
+          <li>
+            <button type="button" class="fp-chapter" data-chapter="12.8">
+              <span class="chapter-time">0:12</span>
+              <span data-i18n="film.ch.correction"></span>
+            </button>
+          </li>
+          <li>
+            <button type="button" class="fp-chapter" data-chapter="19.2">
+              <span class="chapter-time">0:19</span>
+              <span data-i18n="film.ch.rewrite"></span>
+            </button>
+          </li>
+          <li>
+            <button type="button" class="fp-chapter" data-chapter="24.8">
+              <span class="chapter-time">0:24</span>
+              <span data-i18n="film.ch.translation"></span>
+            </button>
+          </li>
+          <li>
+            <button type="button" class="fp-chapter" data-chapter="30.4">
+              <span class="chapter-time">0:30</span>
+              <span data-i18n="film.ch.summary"></span>
+            </button>
+          </li>
+          <li>
+            <button type="button" class="fp-chapter" data-chapter="38.4">
+              <span class="chapter-time">0:38</span>
+              <span data-i18n="film.ch.shortcuts"></span>
+            </button>
+          </li>
+          <li>
+            <button type="button" class="fp-chapter" data-chapter="43.2">
+              <span class="chapter-time">0:43</span>
+              <span data-i18n="film.ch.settings"></span>
+            </button>
+          </li>
+          <li>
+            <button type="button" class="fp-chapter" data-chapter="48">
+              <span class="chapter-time">0:48</span>
+              <span data-i18n="film.ch.end"></span>
+            </button>
+          </li>
+        </ol>
+      </div>
+    </dialog>
+
+    <button
+      type="button"
+      class="edge-handle"
+      id="edge-handle"
+      hidden
+      data-i18n-attr="aria-label:handle.label;title:handle.label"
+    >
+      <svg aria-hidden="true"><use href="#i-logo" /></svg>
+    </button>
+  </body>
+</html>

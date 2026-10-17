@@ -8,6 +8,8 @@ export default tseslint.config(
       'node_modules/**',
       'backend/**',
       'artifacts/**',
+      // Static showcase site: its own package and checks (website/README.md).
+      'website/**',
     ],
   },
   js.configs.recommended,
