@@ -112,12 +112,13 @@ conclure. Puis, depuis la racine : `npx prettier --write website`.
 
 ## 6. Publier
 
-- Branche : `showcase-website` uniquement (ne pas fusionner avec `main` ni
-  `dev`). Faire `git pull` d'abord : le workflow GitHub Pages
-  (`.github/workflows/static.yml`) a été ajouté depuis GitHub.
+- Branche : `dev` (le site et la vidéo y vivent avec l'extension ; ne pas
+  fusionner avec `main`). Faire `git pull` d'abord.
 - Commiter `website/assets/video/` **et** `website/site/` (le site publié
   est versionné ; Git ne stocke qu'une fois les fichiers identiques).
-- Ne jamais commiter `video-brag/` (sources de travail, frames, musique).
+- Dans `video-brag/`, seules les sources sont versionnées (plan, HTML,
+  scripts, polices) ; `frames/`, `stills/`, `*.mp4`, `*.wav` sont ignorés
+  (`video-brag/.gitignore`) et ne doivent jamais être forcés dans Git.
 - Ne commiter, taguer ou pousser que sur demande explicite du propriétaire.
 - Après le push, le workflow redéploie le site sur
   https://moqim-ghizlan.github.io/Correctly-Real-time-Grammar-Spelling-Assistant/
