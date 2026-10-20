@@ -400,7 +400,7 @@
     'Text shortcuts do. Correction, reformulation, translation and summary need a Gemini or OpenAI key. API keys are billed by usage: a ChatGPT or Gemini subscription does not pay for them.',
   'faq.5.q': 'Which providers are supported?',
   'faq.5.a':
-    'Google Gemini and OpenAI. The catalog of version 5.14.0 offers Gemini 3.1 Flash-Lite (default), Gemini 3.5 Flash-Lite, GPT-5 nano, GPT-5.6 Luna and GPT-6 Luna. Each action can use its own key and model.',
+    'Google Gemini and OpenAI. The catalog of version 5.14.1 offers Gemini 3.1 Flash-Lite (default), Gemini 3.5 Flash-Lite, GPT-5 nano, GPT-5.6 Luna and GPT-6 Luna. Each action can use its own key and model.',
   'faq.6.q': 'Does Correctly change my text automatically?',
   'faq.6.a':
     'No. Nothing is replaced without a click on Apply, and only in a plain text box that has not changed. Elsewhere, you copy the result. The one deliberate exception: text shortcuts you defined expand as you type.',
@@ -428,21 +428,22 @@
 
   'dl.title': 'Install the latest version',
   'dl.lede':
-    'Version 5.14.0, released on 20 October 2026. No Correctly account: you use your own Gemini or OpenAI keys.',
+    'Version 5.14.1, released on 20 October 2026. No Correctly account: you use your own Gemini or OpenAI keys.',
   'dl.newTitle': 'In this version',
   'dl.new1':
-    'Optional sync between your computers: text shortcuts, settings and keyboard shortcuts, through the browser’s sync.',
+    'A larger, clearer Correctly window: pill tabs, a taller text box, results as cards.',
   'dl.new2':
-    'API keys can follow too, encrypted on your computer with a passphrase you choose.',
+    'With Gemini, long translations and summaries no longer stop with an “unusable response”.',
   'dl.new3':
-    'Good to know: the extension ID changes once. Export your text shortcuts before updating, then enter your keys again.',
-  'dl.button': 'Download version 5.14.0',
-  'dl.size': '.zip, 139 KB',
+    'To update, do not remove the extension: replace its folder’s content, then click Reload. Removing it deletes your data.',
+  'dl.button': 'Download version 5.14.1',
+  'dl.size': '.zip, 140 KB',
   'dl.all': 'All versions',
   'dl.note':
-    'This version passed its automated tests and an automated check in Brave; sync between two computers has not yet been checked by hand.',
+    'This version passed its automated tests and an automated check in Brave; sync between two computers and the Gemini fix have not yet been checked by hand.',
   'dl.stepsTitle': 'Install in three steps',
-  'dl.step1': 'Download the .zip file, then unzip it.',
+  'dl.step1':
+    'Download the .zip file, then unzip it into a folder you keep (do not delete it afterwards).',
   'dl.step2':
     'Open chrome://extensions (or brave://extensions), turn on Developer mode, click Load unpacked and choose the unzipped folder.',
   'dl.step3':
@@ -450,7 +451,7 @@
 
   'footer.desc':
     'A writing assistant for Chrome and Brave that corrects, rewrites, translates and summarizes, while you keep the last word.',
-  'footer.version': 'Version shown: 5.14.0',
+  'footer.version': 'Version shown: 5.14.1',
   'footer.site': 'This site uses no cookies, no analytics and no AI calls.',
   'footer.nav': 'Site map',
   'footer.project': 'Project',

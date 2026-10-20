@@ -406,7 +406,7 @@
     'Les raccourcis de texte, oui. La correction, la reformulation, la traduction et le résumé demandent une clé Gemini ou OpenAI. Une clé API est facturée à l’usage : un abonnement ChatGPT ou Gemini ne la paie pas.',
   'faq.5.q': 'Quels fournisseurs sont pris en charge ?',
   'faq.5.a':
-    'Google Gemini et OpenAI. Le catalogue de la version 5.14.0 propose Gemini 3.1 Flash-Lite (par défaut), Gemini 3.5 Flash-Lite, GPT-5 nano, GPT-5.6 Luna et GPT-6 Luna. Chaque action peut utiliser sa propre clé et son propre modèle.',
+    'Google Gemini et OpenAI. Le catalogue de la version 5.14.1 propose Gemini 3.1 Flash-Lite (par défaut), Gemini 3.5 Flash-Lite, GPT-5 nano, GPT-5.6 Luna et GPT-6 Luna. Chaque action peut utiliser sa propre clé et son propre modèle.',
   'faq.6.q': 'Correctly modifie-t-il mon texte automatiquement ?',
   'faq.6.a':
     'Non. Rien n’est remplacé sans un clic sur Appliquer, et seulement dans une zone de texte simple qui n’a pas changé. Ailleurs, vous copiez le résultat. Seule exception, voulue : les raccourcis de texte que vous avez définis se développent pendant la frappe.',
@@ -434,21 +434,22 @@
 
   'dl.title': 'Installez la dernière version',
   'dl.lede':
-    'Version 5.14.0, publiée le 20 octobre 2026. Aucun compte Correctly : vous utilisez vos propres clés Gemini ou OpenAI.',
+    'Version 5.14.1, publiée le 20 octobre 2026. Aucun compte Correctly : vous utilisez vos propres clés Gemini ou OpenAI.',
   'dl.newTitle': 'Dans cette version',
   'dl.new1':
-    'La synchronisation entre vos ordinateurs, en option : raccourcis de texte, réglages et raccourcis clavier, par la synchronisation du navigateur.',
+    'Une fenêtre Correctly plus grande et plus claire : onglets en pastilles, zone de texte plus haute, résultats en cartes.',
   'dl.new2':
-    'Les clés API peuvent suivre aussi, chiffrées sur votre ordinateur par une phrase secrète que vous choisissez.',
+    'Avec Gemini, les longues traductions et les résumés ne s’arrêtent plus en « réponse inutilisable ».',
   'dl.new3':
-    'À savoir : l’identifiant de l’extension change une fois. Exportez vos raccourcis de texte avant la mise à jour, puis ressaisissez vos clés.',
-  'dl.button': 'Télécharger la version 5.14.0',
-  'dl.size': '.zip, 139 Ko',
+    'Pour mettre à jour, ne supprimez pas l’extension : remplacez le contenu de son dossier, puis cliquez sur Actualiser. Supprimer efface vos données.',
+  'dl.button': 'Télécharger la version 5.14.1',
+  'dl.size': '.zip, 140 Ko',
   'dl.all': 'Toutes les versions',
   'dl.note':
-    'Cette version a réussi ses tests automatisés et un test automatique dans Brave ; la synchronisation entre deux ordinateurs n’a pas encore été vérifiée à la main.',
+    'Cette version a réussi ses tests automatisés et un test automatique dans Brave ; la synchronisation entre deux ordinateurs et le correctif Gemini n’ont pas encore été vérifiés à la main.',
   'dl.stepsTitle': 'Installer en trois étapes',
-  'dl.step1': 'Téléchargez le fichier .zip, puis décompressez-le.',
+  'dl.step1':
+    'Téléchargez le fichier .zip, puis décompressez-le dans un dossier que vous gardez (ne le supprimez pas ensuite).',
   'dl.step2':
     'Ouvrez chrome://extensions (ou brave://extensions), activez le mode développeur, cliquez sur Charger l’extension non empaquetée et choisissez le dossier décompressé.',
   'dl.step3':
@@ -456,7 +457,7 @@
 
   'footer.desc':
     'Un assistant d’écriture pour Chrome et Brave qui corrige, reformule, traduit et résume, en vous laissant le dernier mot.',
-  'footer.version': 'Version présentée : 5.14.0',
+  'footer.version': 'Version présentée : 5.14.1',
   'footer.site':
     'Ce site n’utilise ni cookies, ni mesure d’audience, ni appel à une IA.',
   'footer.nav': 'Plan du site',
