@@ -6,7 +6,10 @@ import {
   splitEdges,
   SYSTEM_INSTRUCTION,
 } from '../../src/background/correction';
-import { geminiBody } from '../../src/background/gemini-client';
+import {
+  THINKING_ALLOWANCE,
+  geminiBody,
+} from '../../src/background/gemini-client';
 import { normalizeSettings } from '../../src/shared/settings';
 import { saveSettings, saveUsage } from '../../src/shared/storage';
 import { emptyUsage } from '../../src/shared/settings';
@@ -42,11 +45,11 @@ describe('prompt contract', () => {
     expect(body.generationConfig).toEqual({
       temperature: 0,
       responseMimeType: 'application/json',
-      maxOutputTokens: 512 + 2 * [...injection].length,
+      maxOutputTokens: 512 + 2 * [...injection].length + THINKING_ALLOWANCE,
     });
   });
 
-  it('GE-15: the Gemini body is byte-for-byte the V5.6 body', () => {
+  it('GE-15: the Gemini body is the V5.6 body plus thinking headroom', () => {
     const text = 'Je suis aller a Lyon hier.';
     expect(geminiBody(correctionTask(text, 'NOTE'))).toBe(
       JSON.stringify({
@@ -57,7 +60,7 @@ describe('prompt contract', () => {
         generationConfig: {
           temperature: 0,
           responseMimeType: 'application/json',
-          maxOutputTokens: 512 + 2 * [...text].length,
+          maxOutputTokens: 512 + 2 * [...text].length + THINKING_ALLOWANCE,
         },
       }),
     );

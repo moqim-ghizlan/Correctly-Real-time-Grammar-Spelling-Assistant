@@ -1,7 +1,7 @@
 {
   "browser": "brave",
   "browserVersion": "Chrome/155.0.8059.85",
-  "date": "2026-10-20T13:34:50.348Z",
+  "date": "2026-10-20T21:35:09.464Z",
   "offline": false,
   "steps": [
     {
@@ -57,12 +57,12 @@
     {
       "id": "L1",
       "result": "PASS",
-      "detail": "20 simultaneous requests for 1 slot: 1 sent (dummy key → INVALID_KEY), 19 refused locally (QUOTA_EXCEEDED) in 656 ms; no fallback to Gemini"
+      "detail": "20 simultaneous requests for 1 slot: 1 sent (dummy key → INVALID_KEY), 19 refused locally (QUOTA_EXCEEDED) in 797 ms; no fallback to Gemini"
     },
     {
       "id": "L2",
       "result": "PASS",
-      "detail": "Pause all AI: 30 requests refused locally (AI_PAUSED), zero network; message + admission round trip p50 15 ms, p95 19 ms"
+      "detail": "Pause all AI: 30 requests refused locally (AI_PAUSED), zero network; message + admission round trip p50 30 ms, p95 36 ms"
     },
     {
       "id": "L3",
@@ -140,241 +140,391 @@
       "source": "options-page",
       "method": "GET",
       "url": "chrome-extension://annnnjfiddfooccihpgebjnipppaejpo/src/options/options.html",
-      "headerNames": ["sec-ch-ua", "sec-ch-ua-mobile", "sec-ch-ua-platform"]
+      "headerNames": [
+        "sec-ch-ua",
+        "sec-ch-ua-mobile",
+        "sec-ch-ua-platform"
+      ]
     },
     {
       "source": "options-page",
       "method": "GET",
       "url": "chrome-extension://annnnjfiddfooccihpgebjnipppaejpo/options.js",
-      "headerNames": ["User-Agent", "Origin", "Referer"]
+      "headerNames": [
+        "User-Agent",
+        "Origin",
+        "Referer"
+      ]
     },
     {
       "source": "options-page",
       "method": "GET",
       "url": "chrome-extension://annnnjfiddfooccihpgebjnipppaejpo/chunks/quota-store.js",
-      "headerNames": ["User-Agent", "Origin", "Referer"]
+      "headerNames": [
+        "User-Agent",
+        "Origin",
+        "Referer"
+      ]
     },
     {
       "source": "options-page",
       "method": "GET",
       "url": "chrome-extension://annnnjfiddfooccihpgebjnipppaejpo/assets/options-CkGfOGeY.css",
-      "headerNames": ["User-Agent", "Origin", "Referer"]
+      "headerNames": [
+        "User-Agent",
+        "Origin",
+        "Referer"
+      ]
     },
     {
       "source": "options-page",
       "method": "GET",
       "url": "chrome-extension://annnnjfiddfooccihpgebjnipppaejpo/icons/icon-48.png",
-      "headerNames": ["User-Agent", "Referer"]
+      "headerNames": [
+        "User-Agent",
+        "Referer"
+      ]
     },
     {
       "source": "options-page",
       "method": "GET",
       "url": "chrome-extension://annnnjfiddfooccihpgebjnipppaejpo/icons/icon-48.png",
-      "headerNames": ["User-Agent", "Referer"]
+      "headerNames": [
+        "User-Agent",
+        "Referer"
+      ]
     },
     {
       "source": "options-page",
       "method": "GET",
       "url": "chrome-extension://annnnjfiddfooccihpgebjnipppaejpo/src/options/options.html",
-      "headerNames": ["sec-ch-ua", "sec-ch-ua-mobile", "sec-ch-ua-platform"]
+      "headerNames": [
+        "sec-ch-ua",
+        "sec-ch-ua-mobile",
+        "sec-ch-ua-platform"
+      ]
     },
     {
       "source": "options-page",
       "method": "GET",
       "url": "chrome-extension://annnnjfiddfooccihpgebjnipppaejpo/options.js",
-      "headerNames": ["User-Agent", "Origin", "Referer"]
+      "headerNames": [
+        "User-Agent",
+        "Origin",
+        "Referer"
+      ]
     },
     {
       "source": "options-page",
       "method": "GET",
       "url": "chrome-extension://annnnjfiddfooccihpgebjnipppaejpo/chunks/quota-store.js",
-      "headerNames": ["User-Agent", "Origin", "Referer"]
+      "headerNames": [
+        "User-Agent",
+        "Origin",
+        "Referer"
+      ]
     },
     {
       "source": "options-page",
       "method": "GET",
       "url": "chrome-extension://annnnjfiddfooccihpgebjnipppaejpo/assets/options-CkGfOGeY.css",
-      "headerNames": ["User-Agent", "Origin", "Referer"]
+      "headerNames": [
+        "User-Agent",
+        "Origin",
+        "Referer"
+      ]
     },
     {
       "source": "options-page",
       "method": "GET",
       "url": "chrome-extension://annnnjfiddfooccihpgebjnipppaejpo/icons/icon-48.png",
-      "headerNames": ["User-Agent", "Referer"]
+      "headerNames": [
+        "User-Agent",
+        "Referer"
+      ]
     },
     {
       "source": "options-page",
       "method": "GET",
       "url": "chrome-extension://annnnjfiddfooccihpgebjnipppaejpo/icons/icon-48.png",
-      "headerNames": ["User-Agent", "Referer"]
+      "headerNames": [
+        "User-Agent",
+        "Referer"
+      ]
     },
     {
       "source": "options-page",
       "method": "GET",
       "url": "chrome-extension://annnnjfiddfooccihpgebjnipppaejpo/src/options/options.html",
-      "headerNames": ["sec-ch-ua", "sec-ch-ua-mobile", "sec-ch-ua-platform"]
+      "headerNames": [
+        "sec-ch-ua",
+        "sec-ch-ua-mobile",
+        "sec-ch-ua-platform"
+      ]
     },
     {
       "source": "options-page",
       "method": "GET",
       "url": "chrome-extension://annnnjfiddfooccihpgebjnipppaejpo/options.js",
-      "headerNames": ["User-Agent", "Origin", "Referer"]
+      "headerNames": [
+        "User-Agent",
+        "Origin",
+        "Referer"
+      ]
     },
     {
       "source": "options-page",
       "method": "GET",
       "url": "chrome-extension://annnnjfiddfooccihpgebjnipppaejpo/chunks/quota-store.js",
-      "headerNames": ["User-Agent", "Origin", "Referer"]
+      "headerNames": [
+        "User-Agent",
+        "Origin",
+        "Referer"
+      ]
     },
     {
       "source": "options-page",
       "method": "GET",
       "url": "chrome-extension://annnnjfiddfooccihpgebjnipppaejpo/assets/options-CkGfOGeY.css",
-      "headerNames": ["User-Agent", "Origin", "Referer"]
+      "headerNames": [
+        "User-Agent",
+        "Origin",
+        "Referer"
+      ]
     },
     {
       "source": "options-page",
       "method": "GET",
       "url": "chrome-extension://annnnjfiddfooccihpgebjnipppaejpo/icons/icon-48.png",
-      "headerNames": ["User-Agent", "Referer"]
+      "headerNames": [
+        "User-Agent",
+        "Referer"
+      ]
     },
     {
       "source": "options-page",
       "method": "GET",
       "url": "chrome-extension://annnnjfiddfooccihpgebjnipppaejpo/icons/icon-48.png",
-      "headerNames": ["User-Agent", "Referer"]
+      "headerNames": [
+        "User-Agent",
+        "Referer"
+      ]
     },
     {
       "source": "options-page",
       "method": "GET",
       "url": "chrome-extension://annnnjfiddfooccihpgebjnipppaejpo/src/options/options.html",
-      "headerNames": ["sec-ch-ua", "sec-ch-ua-mobile", "sec-ch-ua-platform"]
+      "headerNames": [
+        "sec-ch-ua",
+        "sec-ch-ua-mobile",
+        "sec-ch-ua-platform"
+      ]
     },
     {
       "source": "options-page",
       "method": "GET",
       "url": "chrome-extension://annnnjfiddfooccihpgebjnipppaejpo/options.js",
-      "headerNames": ["User-Agent", "Origin", "Referer"]
+      "headerNames": [
+        "User-Agent",
+        "Origin",
+        "Referer"
+      ]
     },
     {
       "source": "options-page",
       "method": "GET",
       "url": "chrome-extension://annnnjfiddfooccihpgebjnipppaejpo/chunks/quota-store.js",
-      "headerNames": ["User-Agent", "Origin", "Referer"]
+      "headerNames": [
+        "User-Agent",
+        "Origin",
+        "Referer"
+      ]
     },
     {
       "source": "options-page",
       "method": "GET",
       "url": "chrome-extension://annnnjfiddfooccihpgebjnipppaejpo/assets/options-CkGfOGeY.css",
-      "headerNames": ["User-Agent", "Origin", "Referer"]
+      "headerNames": [
+        "User-Agent",
+        "Origin",
+        "Referer"
+      ]
     },
     {
       "source": "options-page",
       "method": "GET",
       "url": "chrome-extension://annnnjfiddfooccihpgebjnipppaejpo/icons/icon-48.png",
-      "headerNames": ["User-Agent", "Referer"]
+      "headerNames": [
+        "User-Agent",
+        "Referer"
+      ]
     },
     {
       "source": "options-page",
       "method": "GET",
       "url": "chrome-extension://annnnjfiddfooccihpgebjnipppaejpo/icons/icon-48.png",
-      "headerNames": ["User-Agent", "Referer"]
+      "headerNames": [
+        "User-Agent",
+        "Referer"
+      ]
     },
     {
       "source": "service-worker",
       "method": "GET",
       "url": "https://generativelanguage.googleapis.com/v1beta/models?pageSize=1000",
-      "headerNames": ["User-Agent", "x-goog-api-key", "Referer"]
+      "headerNames": [
+        "User-Agent",
+        "x-goog-api-key",
+        "Referer"
+      ]
     },
     {
       "source": "service-worker",
       "method": "GET",
       "url": "https://api.openai.com/v1/models",
-      "headerNames": ["User-Agent", "Authorization", "Referer"]
+      "headerNames": [
+        "User-Agent",
+        "Authorization",
+        "Referer"
+      ]
     },
     {
       "source": "service-worker",
       "method": "POST",
       "url": "https://generativelanguage.googleapis.com/v1beta/models/gemini-3.1-flash-lite:generateContent",
-      "headerNames": ["x-goog-api-key", "Referer", "User-Agent", "Content-Type"]
+      "headerNames": [
+        "x-goog-api-key",
+        "Referer",
+        "User-Agent",
+        "Content-Type"
+      ]
     },
     {
       "source": "options-page",
       "method": "GET",
       "url": "chrome-extension://annnnjfiddfooccihpgebjnipppaejpo/src/options/options.html",
-      "headerNames": ["sec-ch-ua", "sec-ch-ua-mobile", "sec-ch-ua-platform"]
+      "headerNames": [
+        "sec-ch-ua",
+        "sec-ch-ua-mobile",
+        "sec-ch-ua-platform"
+      ]
     },
     {
       "source": "options-page",
       "method": "GET",
       "url": "chrome-extension://annnnjfiddfooccihpgebjnipppaejpo/options.js",
-      "headerNames": ["User-Agent", "Origin", "Referer"]
+      "headerNames": [
+        "User-Agent",
+        "Origin",
+        "Referer"
+      ]
     },
     {
       "source": "options-page",
       "method": "GET",
       "url": "chrome-extension://annnnjfiddfooccihpgebjnipppaejpo/chunks/quota-store.js",
-      "headerNames": ["User-Agent", "Origin", "Referer"]
+      "headerNames": [
+        "User-Agent",
+        "Origin",
+        "Referer"
+      ]
     },
     {
       "source": "options-page",
       "method": "GET",
       "url": "chrome-extension://annnnjfiddfooccihpgebjnipppaejpo/assets/options-CkGfOGeY.css",
-      "headerNames": ["User-Agent", "Origin", "Referer"]
+      "headerNames": [
+        "User-Agent",
+        "Origin",
+        "Referer"
+      ]
     },
     {
       "source": "options-page",
       "method": "GET",
       "url": "chrome-extension://annnnjfiddfooccihpgebjnipppaejpo/icons/icon-48.png",
-      "headerNames": ["User-Agent", "Referer"]
+      "headerNames": [
+        "User-Agent",
+        "Referer"
+      ]
     },
     {
       "source": "options-page",
       "method": "GET",
       "url": "chrome-extension://annnnjfiddfooccihpgebjnipppaejpo/icons/icon-48.png",
-      "headerNames": ["User-Agent", "Referer"]
+      "headerNames": [
+        "User-Agent",
+        "Referer"
+      ]
     },
     {
       "source": "options-page",
       "method": "GET",
       "url": "chrome-extension://annnnjfiddfooccihpgebjnipppaejpo/src/options/options.html",
-      "headerNames": ["sec-ch-ua", "sec-ch-ua-mobile", "sec-ch-ua-platform"]
+      "headerNames": [
+        "sec-ch-ua",
+        "sec-ch-ua-mobile",
+        "sec-ch-ua-platform"
+      ]
     },
     {
       "source": "options-page",
       "method": "GET",
       "url": "chrome-extension://annnnjfiddfooccihpgebjnipppaejpo/options.js",
-      "headerNames": ["User-Agent", "Origin", "Referer"]
+      "headerNames": [
+        "User-Agent",
+        "Origin",
+        "Referer"
+      ]
     },
     {
       "source": "options-page",
       "method": "GET",
       "url": "chrome-extension://annnnjfiddfooccihpgebjnipppaejpo/chunks/quota-store.js",
-      "headerNames": ["User-Agent", "Origin", "Referer"]
+      "headerNames": [
+        "User-Agent",
+        "Origin",
+        "Referer"
+      ]
     },
     {
       "source": "options-page",
       "method": "GET",
       "url": "chrome-extension://annnnjfiddfooccihpgebjnipppaejpo/assets/options-CkGfOGeY.css",
-      "headerNames": ["User-Agent", "Origin", "Referer"]
+      "headerNames": [
+        "User-Agent",
+        "Origin",
+        "Referer"
+      ]
     },
     {
       "source": "options-page",
       "method": "GET",
       "url": "chrome-extension://annnnjfiddfooccihpgebjnipppaejpo/icons/icon-48.png",
-      "headerNames": ["User-Agent", "Referer"]
+      "headerNames": [
+        "User-Agent",
+        "Referer"
+      ]
     },
     {
       "source": "options-page",
       "method": "GET",
       "url": "chrome-extension://annnnjfiddfooccihpgebjnipppaejpo/icons/icon-48.png",
-      "headerNames": ["User-Agent", "Referer"]
+      "headerNames": [
+        "User-Agent",
+        "Referer"
+      ]
     },
     {
       "source": "service-worker",
       "method": "POST",
       "url": "https://api.openai.com/v1/responses",
-      "headerNames": ["Authorization", "Referer", "User-Agent", "Content-Type"]
+      "headerNames": [
+        "Authorization",
+        "Referer",
+        "User-Agent",
+        "Content-Type"
+      ]
     },
     {
       "source": "options-page",
@@ -386,7 +536,7 @@
   "consoleMessages": [],
   "admissionLatencyMs": {
     "samples": 30,
-    "p50": 15,
-    "p95": 19
+    "p50": 30,
+    "p95": 36
   }
 }

@@ -19,6 +19,11 @@ export const SMOKE_TEST_PROMPT = 'Reply with OK only.';
 // Room for minimal model "thinking" on Flash-Lite models; still a tiny
 // request. This bounds tokens, it is not an exact cost cap.
 export const MAX_OUTPUT_TOKENS = 128;
+// Gemini "thinking" tokens share maxOutputTokens with the answer and the
+// catalog models think by default: without headroom a longer translation or
+// summary is cut (MAX_TOKENS) and rejected. Same headroom as an unreviewed
+// OpenAI model; it bounds tokens, it is not a money cap.
+export const THINKING_ALLOWANCE = 4096;
 const MAX_SAMPLE_LENGTH = 40;
 const MAX_LIST_PAGES = 5;
 
@@ -50,9 +55,10 @@ export const smokeTask = (): TaskRequest => ({
 });
 
 /**
- * The generateContent body, unchanged since V5.2: instructions as the system
- * instruction, the text as its own part, JSON mode when the task has a
- * contract (the shape itself is enforced by the task parsers).
+ * The generateContent body: instructions as the system instruction, the
+ * text as its own part, JSON mode when the task has a contract (the shape
+ * itself is enforced by the task parsers). 5.14.1: tasks with a contract get
+ * thinking headroom; the smoke test keeps its tiny budget.
  */
 export function geminiBody(task: TaskRequest): string {
   return JSON.stringify({
@@ -63,7 +69,8 @@ export function geminiBody(task: TaskRequest): string {
     generationConfig: {
       temperature: task.temperature,
       ...(task.schema ? { responseMimeType: 'application/json' } : {}),
-      maxOutputTokens: task.maxOutputTokens,
+      maxOutputTokens:
+        task.maxOutputTokens + (task.schema ? THINKING_ALLOWANCE : 0),
     },
   });
 }

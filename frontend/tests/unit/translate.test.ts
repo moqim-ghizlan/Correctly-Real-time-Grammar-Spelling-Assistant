@@ -5,7 +5,10 @@ import {
   translationTask,
   translationInstruction,
 } from '../../src/background/translate';
-import { geminiBody } from '../../src/background/gemini-client';
+import {
+  THINKING_ALLOWANCE,
+  geminiBody,
+} from '../../src/background/gemini-client';
 import { TRANSLATE_TEXT } from '../../src/shared/contracts';
 import { normalizeSettings } from '../../src/shared/settings';
 import { saveSettings } from '../../src/shared/storage';
@@ -150,9 +153,23 @@ describe('prompt contract', () => {
     expect(body.contents).toEqual([{ role: 'user', parts: [{ text }] }]);
     expect(body.generationConfig).toMatchObject({
       responseMimeType: 'application/json',
-      maxOutputTokens: 512 + 3 * [...text].length + 64,
+      maxOutputTokens: 512 + 3 * [...text].length + 64 + THINKING_ALLOWANCE,
     });
   });
+});
+
+it('5.14.1: a long Syrian Arabic translation gets thinking headroom', () => {
+  // Gemini thinking shares maxOutputTokens: without headroom the answer was
+  // cut (MAX_TOKENS) and shown as an unusable response.
+  const text = 'Conseil d’orientation des retraites ; '.repeat(20);
+  const task = translationTask(text, options());
+  const body = JSON.parse(geminiBody(task)) as {
+    generationConfig: { maxOutputTokens: number };
+  };
+  expect(body.generationConfig.maxOutputTokens).toBe(
+    task.maxOutputTokens + THINKING_ALLOWANCE,
+  );
+  expect(THINKING_ALLOWANCE).toBeGreaterThanOrEqual(4096);
 });
 
 describe('D: parseTranslation', () => {

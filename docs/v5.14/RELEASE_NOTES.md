@@ -1,4 +1,38 @@
-# Correctly 5.14.0 — Release notes
+# Correctly 5.14.1 — Release notes
+
+## Fixed: "unusable response" on longer translations and summaries (Gemini)
+
+- Gemini counts its internal "thinking" in the same output limit as the
+  answer. On a longer text (for example several lines translated into Syrian
+  Arabic) the answer could be cut in the middle (`MAX_TOKENS`) and was then
+  rightly refused as "The provider answered, but the response was not
+  usable". Every Gemini request with a structured answer now gets 4,096
+  tokens of thinking headroom, like an unreviewed OpenAI model already had.
+  This is a bound, not a fixed cost: only the tokens actually used are
+  billed. The key check ("Test") keeps its tiny budget.
+
+## Changed: a larger, clearer Correctly window
+
+- The window is larger (760 × 620 instead of 640 × 520; it still shrinks on
+  small screens), with pill-shaped tabs, a taller text box, gradient primary
+  buttons, error messages in a colored box, style choices and results as
+  cards, and Apply / Copy / Cancel aligned right. Light and dark themes,
+  reduced motion and high-contrast mode are kept. Style only: behaviour is
+  unchanged.
+
+## Important: never remove the extension to update it
+
+- Removing Correctly in `chrome://extensions` deletes its data (keys,
+  shortcuts, settings) and may delete its synced copy too (observed by the
+  owner on 2026-10-20). To update: replace the folder's content with the new
+  zip, then click **Reload** on the Correctly card. See `sharedProfil.md`.
+
+- Tests: 41 files, 726 tests. Checked in the real-browser smoke test; the
+  new window was checked visually (four tabs, dark and light). Not checked
+  with a real key: the Gemini fix (owner test on the failing Syrian Arabic
+  translation).
+
+## 5.14.0 — Release notes
 
 ## Before you update: the extension ID changes once
 

@@ -217,8 +217,8 @@ describe('Summary tab', () => {
       ),
     ).toEqual(['Correction', 'Reformulation', 'Translation', 'Summary']);
     const css = modal.root.querySelector('style')!.textContent;
-    expect(css).toContain('width: min(640px, calc(100vw - 24px))');
-    expect(css).toContain('height: min(520px, calc(100dvh - 24px))');
+    expect(css).toContain('width: min(760px, calc(100vw - 32px))');
+    expect(css).toContain('height: min(620px, calc(100dvh - 32px))');
     expect(
       [...modal.root.querySelectorAll('header button')].map((node) =>
         node.getAttribute('aria-label'),

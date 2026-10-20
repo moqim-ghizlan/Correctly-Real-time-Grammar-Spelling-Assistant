@@ -5,7 +5,10 @@ import {
   rewriteTask,
   rewriteInstruction,
 } from '../../src/background/rewrite';
-import { geminiBody } from '../../src/background/gemini-client';
+import {
+  geminiBody,
+  THINKING_ALLOWANCE,
+} from '../../src/background/gemini-client';
 import { REWRITE_TEXT } from '../../src/shared/contracts';
 import {
   FORMALITY_LEVELS,
@@ -76,7 +79,8 @@ describe('prompt contract', () => {
     ]);
     expect(body.generationConfig).toMatchObject({
       responseMimeType: 'application/json',
-      maxOutputTokens: 512 + 2 * (2 * [...injection].length + 64),
+      maxOutputTokens:
+        512 + 2 * (2 * [...injection].length + 64) + THINKING_ALLOWANCE,
     });
   });
 });

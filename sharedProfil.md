@@ -7,6 +7,20 @@
 | Identifiant d'extension   | `annnnjfiddfooccihpgebjnipppaejpo`                                            |
 | Mécanisme                 | Synchronisation du navigateur (`chrome.storage.sync`), sans serveur Correctly |
 
+## À lire avant tout : ne jamais supprimer l'extension
+
+**Supprimer Correctly dans `chrome://extensions` efface ses données** (clés
+API, raccourcis, réglages) sur cet ordinateur, et peut aussi effacer sa copie
+synchronisée. Pour passer à une nouvelle version, on ne supprime pas :
+
+1. remplacer le contenu du dossier de l'extension par celui du nouveau zip ;
+2. cliquer sur **Actualiser** sur la carte Correctly dans
+   `chrome://extensions`.
+
+Les données sont conservées. Avant toute suppression volontaire, exporter les
+raccourcis texte (Paramètres → Raccourcis texte → **Exporter**) et garder ses
+clés API à portée de main.
+
 ## Principe
 
 La configuration est préparée sur **PC 1** (ordinateur source), puis
@@ -25,7 +39,7 @@ PC 2.**
 - La **synchronisation Chrome** est activée.
 - Dans `chrome://settings/syncSetup`, la catégorie **Extensions** est
   incluse.
-- Le paquet **Correctly 5.14.0** (`.zip`) est disponible.
+- Le paquet **Correctly 5.14.1** (`.zip`, dernière version) est disponible.
 
 > **Migration depuis la 5.13 ou une version antérieure.** La 5.14.0 fixe
 > l'identifiant de l'extension : la première installation démarre sans
@@ -39,11 +53,13 @@ PC 2.**
 
 ### 2.1 Installer l'extension
 
-1. Décompresser le paquet 5.14.0 dans un dossier permanent (par exemple
+1. Décompresser le paquet 5.14.1 dans un dossier permanent (par exemple
    `Documents\Correctly`). Ce dossier ne doit pas être supprimé : Chrome
    l'utilise en continu.
 2. Ouvrir `chrome://extensions` et activer le **Mode développeur**.
-3. Supprimer toute version antérieure de Correctly.
+3. Uniquement lors de la migration depuis la 5.13 : supprimer l'ancienne
+   version (après export des raccourcis). Pour toute mise à jour ultérieure,
+   ne rien supprimer : voir « À lire avant tout ».
 4. Cliquer sur **Charger l'extension non empaquetée** et sélectionner le
    dossier décompressé.
 5. Contrôler l'identifiant : `annnnjfiddfooccihpgebjnipppaejpo`.
@@ -82,7 +98,7 @@ propagation par Chrome n'est pas instantanée.
 
 ### 3.1 Installer l'extension
 
-Reprendre les étapes 2.1 avec le **même paquet 5.14.0**, et contrôler que
+Reprendre les étapes 2.1 avec le **même paquet 5.14.1**, et contrôler que
 l'identifiant est identique à celui de PC 1.
 
 ### 3.2 Activer la synchronisation
@@ -154,7 +170,7 @@ clé API.
 
 | Symptôme                                                   | Action                                                                                                                                    |
 | ---------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------- |
-| Identifiants différents sur PC 1 et PC 2                   | Réinstaller à partir du paquet 5.14.0.                                                                                                    |
+| Identifiants différents sur PC 1 et PC 2                   | Réinstaller à partir du paquet 5.14.1.                                                                                                    |
 | Aucune donnée sur PC 2                                     | Vérifier le compte Google et l'inclusion des **Extensions** dans la synchronisation Chrome ; patienter, puis **Synchroniser maintenant**. |
 | « Trop volumineux »                                        | Réduire ou supprimer des raccourcis texte longs.                                                                                          |
 | « Phrase secrète incorrecte »                              | Saisir exactement la phrase définie sur PC 1 (casse comprise).                                                                            |
