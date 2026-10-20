@@ -13,6 +13,11 @@ const HOSTS = [GEMINI_HOST_PERMISSION, OPENAI_HOST_PERMISSION];
 const CONNECT_SRC =
   "connect-src 'self' https://generativelanguage.googleapis.com https://api.openai.com";
 export const TEST_KEY_SENTINEL = 'CORRECTLY_TEST_SENTINEL_KEY';
+// 5.14: public key that fixes the extension ID (same ID on every computer,
+// so storage.sync is shared). Public by design; the private .pem never
+// enters the repository or dist/.
+export const EXTENSION_PUBLIC_KEY =
+  'MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEApp3XQ9T8KTC/IuYukU/ohcfJuSPFDUstH6XQ8OpkoacbB/SHfKDsD86hi29iuLimHvz43s/6uX8+1AEhzEL9oAshDqmvprIubzHE6J7Z5NSVkM6MMerS5f3Tg662lvqnPp6K4AqYkcILNMfPxDyLTbE3RbSkZPAxVpEVI396HPpwZzG0lgtHCyc3X0CwPkgkXc9cKwFihfjxoQqNVDYh433jFsv8MkQSYf6FU2kZealOcnnvUZwMWI/u/t9EHhCm66Mkup5e0m4nZPdmH82JLlvEyLyrxKgl1wVtQsehZ+jU6tBq/RTNgodEXYioBMdqwwqgOPBctTd2jJvz/ViBhwIDAQAB';
 const PERMISSIONS = ['activeTab', 'contextMenus', 'scripting', 'storage'];
 // Requested at runtime only when the user turns the handle or shortcuts on.
 const OPTIONAL_HOSTS = ['<all_urls>'];
@@ -65,6 +70,7 @@ const FORBIDDEN_TEXT = [
   ],
   [new RegExp(TEST_KEY_SENTINEL), 'test key sentinel'],
   [/http:\/\/(?!www\.w3\.org\/)/, 'plain http:// URL'],
+  [/-----BEGIN [A-Z ]*PRIVATE KEY-----/, 'a private key'],
 ];
 
 function listFiles(root) {
@@ -112,9 +118,11 @@ export function auditDist(distDir) {
 
   // B01 — manifest shape and minimal permissions.
   if (manifest.manifest_version !== 3) fail('manifest_version must be 3');
-  if (manifest.version !== '5.13.4') fail('version must be 5.13.4');
-  if (!String(manifest.name ?? '').includes('V5.13'))
-    fail('name must say V5.13');
+  if (manifest.version !== '5.14.0') fail('version must be 5.14.0');
+  if (!String(manifest.name ?? '').includes('V5.14'))
+    fail('name must say V5.14');
+  if (manifest.key !== EXTENSION_PUBLIC_KEY)
+    fail('manifest key must be the Correctly public key (stable extension ID)');
   // activeTab + scripting: inject content.js into the clicked tab only.
   if (!same(manifest.permissions, PERMISSIONS))
     fail(`permissions must be exactly ${JSON.stringify(PERMISSIONS)}`);

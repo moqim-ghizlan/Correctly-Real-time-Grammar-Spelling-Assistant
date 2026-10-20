@@ -8,6 +8,7 @@ export type HtmlKey =
   | 'about2'
   | 'about3'
   | 'about4'
+  | 'about5'
   | 'action'
   | 'actionsLead'
   | 'activation'
@@ -109,6 +110,7 @@ export type HtmlKey =
   | 'navShortcuts'
   | 'navStart'
   | 'navStats'
+  | 'navSync'
   | 'outputPrice'
   | 'overwrite'
   | 'pageKeysHint'
@@ -164,6 +166,24 @@ export type HtmlKey =
   | 'step3'
   | 'step3Title'
   | 'successful'
+  | 'syncBrowserHint'
+  | 'syncBrowserTitle'
+  | 'syncClear'
+  | 'syncClearHint'
+  | 'syncEnabled'
+  | 'syncHint'
+  | 'syncKeybindings'
+  | 'syncKeys'
+  | 'syncKeysHint'
+  | 'syncKeysTitle'
+  | 'syncLead'
+  | 'syncMainTitle'
+  | 'syncNever'
+  | 'syncNow'
+  | 'syncPass'
+  | 'syncPass2'
+  | 'syncSettings'
+  | 'syncShortcuts'
   | 'tasksHint'
   | 'tasksLimits'
   | 'thisMonth'
@@ -201,6 +221,7 @@ export const HTML_MARKUP: readonly HtmlKey[] = [
   'statsLead',
   'step1',
   'step3',
+  'syncHint',
   'translationHint',
   'triggerKeyboard',
   'triggerKeyboardHint',
@@ -214,6 +235,8 @@ export const HTML_EN: Record<HtmlKey, string> = {
   about3:
     'OpenAI requests are sent with <code>store: false</code> (not kept for later retrieval); this is not a zero-retention guarantee.',
   about4: 'Documentation: <code>docs/</code> in the project repository.',
+  about5:
+    'Sync (off by default): goes through the browser’s synced storage, with no Correctly server; API keys are never there in clear.',
   action: 'Action',
   actionsLead:
     'Defaults of the Reformulation, Translation and Summary tabs. You can change them each time before generating.',
@@ -298,7 +321,7 @@ export const HTML_EN: Record<HtmlKey, string> = {
   keyHint: 'Spaces before or after the key are removed. Saving sends nothing.',
   keyName: 'Name (only shown here)',
   keyWarning:
-    'Keys are stored locally in this browser profile (not synced, never exported, never shown again). This is not a vault: anyone with access to this profile or computer may read them. Set spending limits at your provider and rotate a key if in doubt.',
+    'Keys are stored locally in this browser profile (never exported, never shown again; synced only if you turn it on, encrypted with your passphrase). This is not a vault: anyone with access to this profile or computer may read them. Set spending limits at your provider and rotate a key if in doubt.',
   keyboardLead:
     'Two kinds of shortcuts, usable together. They only open Correctly or start an action on the selection: nothing is sent to the AI without your click on Generate (except “Correct the selection”, which corrects directly like the right-click menu).',
   keysEnabled:
@@ -329,6 +352,7 @@ export const HTML_EN: Record<HtmlKey, string> = {
   navShortcuts: 'Text shortcuts',
   navStart: 'Getting started',
   navStats: 'Statistics',
+  navSync: 'Sync',
   outputPrice: 'Output $ / 1M',
   overwrite: 'Replace mine with the file’s version',
   pageKeysHint:
@@ -401,6 +425,33 @@ export const HTML_EN: Record<HtmlKey, string> = {
     'Toolbar button, <kbd>Ctrl</kbd>+<kbd>M</kbd> or the handle on the right edge of the page.',
   step3Title: 'Select text and open Correctly',
   successful: 'Successful AI results',
+  syncBrowserHint:
+    'Check that browser sync is on and includes extensions. Chrome: supported. Brave: not guaranteed (Brave Sync works differently).',
+  syncBrowserTitle: 'Browser and synced data',
+  syncClear: 'Delete synced data',
+  syncClearHint:
+    'Empties Correctly’s data in the account (not this computer’s) and turns sync off here. Turn it off on your other computers first, or they will send it again.',
+  syncEnabled: 'Sync this browser with my other computers',
+  syncHint:
+    'Data goes through the browser’s synced storage (<code>chrome.storage.sync</code>), tied to your account. Turn it on on each computer, with the same Correctly version. This browser always keeps its own copy and works offline.',
+  syncKeybindings:
+    'Correctly keyboard shortcuts (the combinations; turning them on stays per computer)',
+  syncKeys: 'API keys and routes, encrypted with a passphrase',
+  syncKeysHint:
+    'Keys are encrypted on this computer (AES-GCM, key derived with PBKDF2) before they are synced: without the passphrase, neither Google nor anyone else can read them. Enter the same passphrase once on each computer. Forgotten passphrase: the synced keys are lost; enter them again.',
+  syncKeysTitle: 'API key passphrase',
+  syncLead:
+    'Get your shortcuts and settings on your other computers through your browser’s sync (your Google account). Correctly has no server. Off by default.',
+  syncMainTitle: 'What to sync',
+  syncNever:
+    'Never synced: usage limits, statistics, permission to send text, the handle and access to all sites. Each computer applies its own limits.',
+  syncNow: 'Sync now',
+  syncPass: 'Passphrase (at least 8 characters, not your Google password)',
+  syncPass2: 'Confirm the passphrase',
+  syncSettings:
+    'Settings (language, styles, translation, keyboard shortcuts and right-click menu allowed)',
+  syncShortcuts:
+    'Text shortcuts (the list; turning expansion on stays per computer)',
   tasksHint:
     'Correction, rewrite, translation, summary… Off by default, but each action’s usage is always counted.',
   tasksLimits: 'Limits per action (optional)',
@@ -444,6 +495,8 @@ export const HTML_FR: Record<HtmlKey, string> = {
   about3:
     'Les requêtes OpenAI sont envoyées avec <code>store: false</code> (non conservées pour être relues) ; ce n’est pas une garantie de non-conservation.',
   about4: 'Documentation : <code>docs/</code> dans le dépôt du projet.',
+  about5:
+    'Synchronisation (désactivée par défaut) : passe par le stockage synchronisé du navigateur, sans serveur Correctly ; les clés API n’y sont jamais en clair.',
   action: 'Action',
   actionsLead:
     'Les choix par défaut des onglets Reformulation, Traduction et Résumé. Vous pouvez les changer à chaque fois avant de générer.',
@@ -529,7 +582,7 @@ export const HTML_FR: Record<HtmlKey, string> = {
     'Les espaces avant ou après la clé sont retirés. Enregistrer n’envoie rien.',
   keyName: 'Nom (affiché seulement ici)',
   keyWarning:
-    'Les clés sont stockées localement dans ce profil de navigateur (non synchronisées, jamais exportées, jamais réaffichées). Ce n’est pas un coffre-fort : toute personne ayant accès à ce profil ou à cet ordinateur peut les lire. Fixez des plafonds de dépense chez votre fournisseur et changez une clé en cas de doute.',
+    'Les clés sont stockées localement dans ce profil de navigateur (jamais exportées, jamais réaffichées ; synchronisées seulement si vous l’activez, chiffrées par votre phrase secrète). Ce n’est pas un coffre-fort : toute personne ayant accès à ce profil ou à cet ordinateur peut les lire. Fixez des plafonds de dépense chez votre fournisseur et changez une clé en cas de doute.',
   keyboardLead:
     'Deux sortes de raccourcis, utilisables ensemble. Ils ne font qu’ouvrir Correctly ou lancer une action sur la sélection : rien n’est envoyé à l’IA sans votre clic sur Générer (sauf « Corriger la sélection », qui corrige directement comme le menu clic droit).',
   keysEnabled:
@@ -560,6 +613,7 @@ export const HTML_FR: Record<HtmlKey, string> = {
   navShortcuts: 'Raccourcis texte',
   navStart: 'Démarrage',
   navStats: 'Statistiques',
+  navSync: 'Synchronisation',
   outputPrice: 'Sortie $ / 1M',
   overwrite: 'Remplacer le mien par celui du fichier',
   pageKeysHint:
@@ -633,6 +687,34 @@ export const HTML_FR: Record<HtmlKey, string> = {
     'Bouton de la barre d’outils, <kbd>Ctrl</kbd>+<kbd>M</kbd> ou la poignée au bord droit de la page.',
   step3Title: 'Sélectionnez du texte et ouvrez Correctly',
   successful: 'Résultats IA réussis',
+  syncBrowserHint:
+    'Vérifiez que la synchronisation du navigateur est activée et inclut les extensions. Chrome : pris en charge. Brave : non garanti (Brave Sync fonctionne autrement).',
+  syncBrowserTitle: 'Navigateur et données synchronisées',
+  syncClear: 'Effacer les données synchronisées',
+  syncClearHint:
+    'Vide les données de Correctly dans le compte (pas celles de cet ordinateur) et désactive la synchronisation ici. Désactivez-la d’abord sur vos autres ordinateurs, sinon ils les renverront.',
+  syncEnabled: 'Synchroniser ce navigateur avec mes autres ordinateurs',
+  syncHint:
+    'Les données passent par le stockage synchronisé du navigateur (<code>chrome.storage.sync</code>), lié à votre compte. Activez-la sur chaque ordinateur, avec la même version de Correctly. Ce navigateur garde toujours sa propre copie et fonctionne hors ligne.',
+  syncKeybindings:
+    'Raccourcis clavier Correctly (les combinaisons ; leur activation reste propre à chaque ordinateur)',
+  syncKeys: 'Clés API et routes, chiffrées par une phrase secrète',
+  syncKeysHint:
+    'Les clés sont chiffrées sur cet ordinateur (AES-GCM, clé dérivée par PBKDF2) avant d’être synchronisées : sans la phrase, ni Google ni personne d’autre ne peut les lire. Saisissez la même phrase une fois sur chaque ordinateur. Phrase oubliée : les clés synchronisées sont perdues, ressaisissez-les.',
+  syncKeysTitle: 'Phrase secrète des clés API',
+  syncLead:
+    'Retrouvez vos raccourcis et réglages sur vos autres ordinateurs grâce à la synchronisation de votre navigateur (votre compte Google). Correctly n’a pas de serveur. Désactivée par défaut.',
+  syncMainTitle: 'Que synchroniser ?',
+  syncNever:
+    'Jamais synchronisés : limites d’usage, statistiques, autorisation d’envoyer le texte, poignée et accès à tous les sites. Chaque ordinateur applique ses propres limites.',
+  syncNow: 'Synchroniser maintenant',
+  syncPass:
+    'Phrase secrète (8 caractères minimum, différente de votre mot de passe Google)',
+  syncPass2: 'Confirmer la phrase secrète',
+  syncSettings:
+    'Réglages (langue, styles, traduction, raccourcis clavier et menu clic droit autorisés)',
+  syncShortcuts:
+    'Raccourcis texte (la liste ; leur activation reste propre à chaque ordinateur)',
   tasksHint:
     'Correction, reformulation, traduction, résumé… Désactivées par défaut, mais l’usage de chaque action est toujours compté.',
   tasksLimits: 'Limites par action (facultatif)',

@@ -150,3 +150,18 @@ it('V5.9: in-page anchors are links, not files; a missing file still fails', () 
     /options page asset missing: \/missing\.js/,
   );
 });
+
+it('5.14: the stable extension key is required; no private key ships', () => {
+  writeManifest({ ...manifest, key: 'MIIBother' });
+  expect(auditDist(dir).errors.join('\n')).toMatch(/manifest key must be/);
+  const withoutKey = { ...manifest };
+  delete withoutKey.key;
+  writeManifest(withoutKey);
+  expect(auditDist(dir).errors.join('\n')).toMatch(/manifest key must be/);
+  writeManifest(manifest);
+  put('extra.txt', '-----BEGIN PRIVATE KEY-----\nMIIE');
+  put('correctly-key.pem', 'x');
+  const text = auditDist(dir).errors.join('\n');
+  expect(text).toMatch(/extra\.txt: contains a private key/);
+  expect(text).toMatch(/forbidden file type in dist: correctly-key\.pem/);
+});

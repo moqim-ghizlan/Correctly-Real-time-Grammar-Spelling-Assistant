@@ -32,6 +32,7 @@ import {
 } from '../shared/keybindings';
 import { resolveLocale, type Locale } from '../shared/locale';
 import { isSummarizeTextRequest } from '../shared/summary';
+import { isSyncRequest } from '../shared/sync';
 import { isTranslateTextRequest } from '../shared/translate';
 import {
   browserStorage,
@@ -42,6 +43,7 @@ import {
   type StorageArea,
 } from '../shared/storage';
 import { ConnectionController } from './connection-controller';
+import { SyncEngine, type SyncArea } from './sync';
 
 // No logging here on purpose: nothing in this worker should ever print a
 // key, a request, the user's text or a provider response.
@@ -389,6 +391,17 @@ export function registerServiceWorker(
   void chrome.storage.local
     .setAccessLevel?.({ accessLevel: 'TRUSTED_CONTEXTS' })
     .catch(() => undefined);
+  // 5.14: storage.sync holds synced settings, shortcuts and (encrypted)
+  // keys: extension pages and this worker only, like storage.local.
+  const syncArea = chrome.storage.sync as SyncArea | undefined;
+  void chrome.storage.sync
+    ?.setAccessLevel?.({ accessLevel: 'TRUSTED_CONTEXTS' })
+    .catch(() => undefined);
+  const sync = syncArea
+    ? new SyncEngine({ local: area, sync: syncArea })
+    : null;
+  // Off by default: then storage.sync is never read or written.
+  void sync?.reconcile().catch(() => undefined);
   void migrateLegacyKey(area).catch(() => undefined);
   // Usage limits: created/imported once, then requests a stopped worker left
   // behind are settled. Retried before the next request if this fails.
@@ -401,6 +414,8 @@ export function registerServiceWorker(
       task = controller.testConnection(message.slot);
     else if (trusted && isTestKeyRequest(message))
       task = controller.testKey(message.credentialId);
+    else if (trusted && sync && isSyncRequest(message))
+      task = sync.handle(message);
     else if (
       isContentScriptSender(sender, chrome.runtime.id) &&
       isCorrectTextRequest(message)
@@ -547,7 +562,15 @@ export function registerServiceWorker(
     void installMenu(area).catch(() => undefined);
     void syncSmartScript(area).catch(() => undefined);
   });
+  chrome.runtime.onStartup?.addListener(() => {
+    void sync?.reconcile().catch(() => undefined);
+  });
   chrome.storage.onChanged.addListener((changes, areaName) => {
+    // 5.14: mirror local edits out, merge other computers' edits in.
+    if (areaName === 'local')
+      void sync?.onLocalChanged(Object.keys(changes))?.catch(() => undefined);
+    if (areaName === 'sync')
+      void sync?.onSyncChanged(Object.keys(changes))?.catch(() => undefined);
     if (
       areaName === 'local' &&
       (PROVIDERS_KEY in changes || SECRETS_KEY in changes)

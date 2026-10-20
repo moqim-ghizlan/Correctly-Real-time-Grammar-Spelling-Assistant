@@ -14,6 +14,7 @@ import { StatsSection } from './stats-ui';
 import { ProvidersSection } from './providers-ui';
 import { SettingsPage } from './settings-ui';
 import { ShortcutsSection } from './shortcuts-ui';
+import { SyncSection } from './sync-ui';
 
 // One page of the settings at a time (sidebar + URL hash).
 installNav(document, window);
@@ -114,6 +115,19 @@ function start(locale: Locale): void {
   // Back from chrome://extensions/shortcuts: show the new combinations.
   window.addEventListener('focus', () => void keyboard.refreshCommands());
 
+  // 5.14: this page writes only its sync choices; the worker does the rest.
+  const sync = new SyncSection(document, {
+    locale,
+    area,
+    send: (message) => chrome.runtime.sendMessage(message),
+    confirm: (question, action) =>
+      confirmDialog(document, {
+        question,
+        confirm: action,
+        cancel: OPTIONS[locale].cancel,
+      }),
+  });
+
   const quota = browserQuotaStore();
   const limits = new LimitsSection(document, {
     locale,
@@ -154,6 +168,7 @@ function start(locale: Locale): void {
     shortcuts.onStorageChanged(Object.keys(changes));
     keyboard.onStorageChanged(Object.keys(changes));
     limits.onStorageChanged(Object.keys(changes));
+    sync.onStorageChanged(Object.keys(changes));
   });
 
   // Usage changes come from the worker or another settings tab (IndexedDB).
@@ -180,6 +195,7 @@ function start(locale: Locale): void {
   void providers.init();
   void shortcuts.init();
   void keyboard.init();
+  void sync.init();
   void limits.init();
   void stats.init();
 }

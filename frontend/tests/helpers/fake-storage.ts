@@ -21,7 +21,7 @@ export class FakeStorage implements StorageArea {
   gets = 0;
   sets = 0;
 
-  private tick() {
+  protected tick() {
     return new Promise<void>((resolve) => setTimeout(resolve, 0));
   }
 
@@ -210,4 +210,145 @@ export async function dumpQuota(): Promise<string> {
   );
   db.close();
   return JSON.stringify(all);
+}
+
+// ---- 5.14 storage.sync stand-in -------------------------------------------
+
+const utf8 = (text: string) => new TextEncoder().encode(text).length;
+
+/** FakeStorage that yields with setImmediate: same races, much faster. */
+export class FastFakeStorage extends FakeStorage {
+  protected override tick() {
+    return new Promise<void>((resolve) => setImmediate(resolve));
+  }
+}
+
+interface SyncOp {
+  seq: number;
+  key: string;
+  value: unknown;
+  removed: boolean;
+}
+let opSeq = 0;
+
+/**
+ * chrome.storage.sync for one computer: Chrome's quotas (a failing set()
+ * writes nothing), get(null), remove, getBytesInUse and change listeners.
+ * Two computers are two instances; `deliverTo` plays the browser's sync by
+ * replaying this computer's own writes (last arrival wins, item by item).
+ */
+export class FakeSyncArea {
+  data = new Map<string, unknown>();
+  writes = 0;
+  gets = 0;
+  failSet: Error | null = null;
+  maxWritesPerMinute = 120;
+  private listeners: ((keys: string[]) => void)[] = [];
+  private log: SyncOp[] = [];
+  private delivered = new Map<FakeSyncArea, Set<number>>();
+
+  onChanged(listener: (keys: string[]) => void) {
+    this.listeners.push(listener);
+  }
+
+  private emit(keys: string[]) {
+    if (keys.length) for (const listener of this.listeners) listener(keys);
+  }
+
+  /** Yields to the event loop (setTimeout(0) costs ~15 ms on Windows). */
+  private tick() {
+    return new Promise<void>((resolve) => setImmediate(resolve));
+  }
+
+  bytes(): number {
+    let total = 0;
+    for (const [key, value] of this.data)
+      total += utf8(key) + utf8(JSON.stringify(value));
+    return total;
+  }
+
+  async get(keys: string[] | null): Promise<Record<string, unknown>> {
+    await this.tick();
+    this.gets++;
+    const result: Record<string, unknown> = {};
+    for (const [key, value] of this.data)
+      if (!keys || keys.includes(key)) result[key] = structuredClone(value);
+    return result;
+  }
+
+  async set(items: Record<string, unknown>): Promise<void> {
+    await this.tick();
+    if (this.failSet) throw this.failSet;
+    if (++this.writes > this.maxWritesPerMinute)
+      throw new Error(
+        'This request exceeds the MAX_WRITE_OPERATIONS_PER_MINUTE quota.',
+      );
+    const next = new Map(this.data);
+    for (const [key, value] of Object.entries(items)) {
+      if (utf8(key) + utf8(JSON.stringify(value)) > 8192)
+        throw new Error('QUOTA_BYTES_PER_ITEM quota exceeded.');
+      next.set(key, structuredClone(value));
+    }
+    if (next.size > 512) throw new Error('MAX_ITEMS quota exceeded.');
+    const before = this.data;
+    this.data = next;
+    if (this.bytes() > 102400) {
+      this.data = before;
+      throw new Error('QUOTA_BYTES quota exceeded.');
+    }
+    for (const [key, value] of Object.entries(items))
+      this.log.push({
+        seq: opSeq++,
+        key,
+        value: structuredClone(value),
+        removed: false,
+      });
+    this.emit(Object.keys(items));
+  }
+
+  async remove(keys: string[]): Promise<void> {
+    await this.tick();
+    this.writes++;
+    const removed = keys.filter((key) => this.data.delete(key));
+    for (const key of removed)
+      this.log.push({ seq: opSeq++, key, value: undefined, removed: true });
+    this.emit(removed);
+  }
+
+  async getBytesInUse(keys: string[] | null): Promise<number> {
+    await this.tick();
+    if (!keys) return this.bytes();
+    let total = 0;
+    for (const key of keys)
+      if (this.data.has(key))
+        total += utf8(key) + utf8(JSON.stringify(this.data.get(key)));
+    return total;
+  }
+
+  /**
+   * The browser's sync: replays this computer's writes not yet delivered to
+   * `other` (only those on `keys` when given, to deliver a batch partly or
+   * out of order), then fires the other computer's listeners.
+   */
+  deliverTo(other: FakeSyncArea, keys?: string[]): number {
+    const done = this.delivered.get(other) ?? new Set<number>();
+    this.delivered.set(other, done);
+    const changed = new Set<string>();
+    for (const op of this.log) {
+      if (done.has(op.seq) || (keys && !keys.includes(op.key))) continue;
+      done.add(op.seq);
+      if (op.removed) {
+        if (other.data.delete(op.key)) changed.add(op.key);
+      } else {
+        other.data.set(op.key, structuredClone(op.value));
+        changed.add(op.key);
+      }
+    }
+    other.emit([...changed]);
+    return changed.size;
+  }
+
+  dump(): string {
+    return JSON.stringify([...this.data.entries()]);
+  }
 }

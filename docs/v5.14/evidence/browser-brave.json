@@ -1,0 +1,392 @@
+{
+  "browser": "brave",
+  "browserVersion": "Chrome/155.0.8059.85",
+  "date": "2026-10-20T13:34:50.348Z",
+  "offline": false,
+  "steps": [
+    {
+      "id": "M3",
+      "result": "PASS",
+      "detail": "extension loaded (annnnjfiddfooccihpgebjnipppaejpo)"
+    },
+    {
+      "id": "K05",
+      "result": "PASS",
+      "detail": "command registered; shortcut reported: none (automated profiles may not assign suggested keys; check chrome://extensions/shortcuts manually)"
+    },
+    {
+      "id": "M4",
+      "result": "PASS",
+      "detail": "settings open: no key, no route; usage limits created in IndexedDB (total 20/day); Disponible — 0 / 20 utilisée(s), 20 restante(s). Remise à zéro : mer. 21 oct., 00:00 (Europe/Paris)."
+    },
+    {
+      "id": "M6",
+      "result": "PASS",
+      "detail": "no route: Test disabled and refused by the worker, zero network"
+    },
+    {
+      "id": "M5a",
+      "result": "PASS",
+      "detail": "two dummy keys (Gemini, OpenAI) saved; after reopen listed, keys not in DOM, zero network"
+    },
+    {
+      "id": "M5c",
+      "result": "PASS",
+      "detail": "routes saved and persisted (Correction → OpenAI, Rewrite → default Gemini), zero network"
+    },
+    {
+      "id": "M5d",
+      "result": "PASS",
+      "detail": "key checks: one GET each, not counted; UI: « Gemini Test » : Le fournisseur a refusé cette clé API. Remplacez-la ou vérifiez-la dans Paramètres de Correctly → Fournisseurs IA. | « OpenAI Test » : Le fournisseur a refusé cette clé API. Remplacez-la ou vérifiez-la dans Paramètres de Correctly → Fournisseurs IA."
+    },
+    {
+      "id": "M5b",
+      "result": "PASS",
+      "detail": "dummy key → one worker POST to Google, no fallback; UI shows: Le fournisseur a refusé cette clé API. Remplacez-la ou vérifiez-la dans Paramètres de Correctly → Fournisseurs IA. (HTTP 400)"
+    },
+    {
+      "id": "M8",
+      "result": "PASS",
+      "detail": "cap 1 shared by both providers: OpenAI and Gemini tests refused locally, also after reload"
+    },
+    {
+      "id": "M9",
+      "result": "PASS",
+      "detail": "worker stopped and woken by message; keys, routes and count persisted (QUOTA_EXCEEDED)"
+    },
+    {
+      "id": "L1",
+      "result": "PASS",
+      "detail": "20 simultaneous requests for 1 slot: 1 sent (dummy key → INVALID_KEY), 19 refused locally (QUOTA_EXCEEDED) in 656 ms; no fallback to Gemini"
+    },
+    {
+      "id": "L2",
+      "result": "PASS",
+      "detail": "Pause all AI: 30 requests refused locally (AI_PAUSED), zero network; message + admission round trip p50 15 ms, p95 19 ms"
+    },
+    {
+      "id": "L3",
+      "result": "PASS",
+      "detail": "IndexedDB stores alerts, counters, events, meta, operations, policy, prices: no key, prompt or header inside (8548 bytes)"
+    },
+    {
+      "id": "S1",
+      "result": "PASS",
+      "detail": "Statistics: 2 request(s) today (OpenAI filter: 1), cost \"Indisponible\"; presets, filters, 10 refreshes and CSV/JSON export with zero provider requests"
+    },
+    {
+      "id": "Y01",
+      "result": "PASS",
+      "detail": "sync page shown, off by default, storage.sync empty"
+    },
+    {
+      "id": "M14",
+      "result": "PASS",
+      "detail": "no horizontal overflow at 360/900px; Tab order: Vérifier → Modifier → Désactiver → Supprimer → Vérifier → Modifier → Désactiver → Supprimer → profile-provider → profile-label → profile-key → profile-toggle → profile-help-link → profile-save → route-key-default → route-model-default"
+    },
+    {
+      "id": "M6b",
+      "result": "PASS",
+      "detail": "deleting the default key blocks inheriting actions (ROUTE_BROKEN); the OpenAI key is not used"
+    },
+    {
+      "id": "M11",
+      "result": "PASS",
+      "detail": "regular page: no injected UI, text unchanged"
+    },
+    {
+      "id": "C01",
+      "result": "PASS",
+      "detail": "content.js: exact selection sent, no change before Apply, Apply/Undo exact range, closed panel"
+    },
+    {
+      "id": "H05",
+      "result": "PASS",
+      "detail": "smart.js: handle on the right edge, centred; a real drag moves Y only and opens nothing"
+    },
+    {
+      "id": "C02",
+      "result": "PASS",
+      "detail": "modal: real click opens it with the selection, handle hidden, Settings/Minimize/Close, fixed centred size on all tabs, nothing sent before Generate, Apply hides it, Undo restores"
+    },
+    {
+      "id": "S12",
+      "result": "PASS",
+      "detail": "V5.12: page text selection survives the handle click, Summary sends one request, Apply disabled, page unchanged; Minimize keeps the session (real handle click restores it), Close ends it"
+    },
+    {
+      "id": "C05",
+      "result": "PASS",
+      "detail": "shortcut: real typed \"bjr,\" → \"Bonjour,\" locally, caret after separator, \"abjr\" untouched, nothing sent"
+    },
+    {
+      "id": "C03",
+      "result": "PASS",
+      "detail": "rewrite: picker sends nothing, one request for 2 styles, cards in requested order, chosen card applied, undo"
+    },
+    {
+      "id": "C04",
+      "result": "PASS",
+      "detail": "translate: picker sends nothing, one request (auto → Arabic Syrian), RTL result, exact Apply/Undo"
+    },
+    {
+      "id": "M15",
+      "result": "PASS",
+      "detail": "0 console messages, none with a key; only the Gemini and OpenAI APIs contacted"
+    }
+  ],
+  "networkRequests": [
+    {
+      "source": "options-page",
+      "method": "GET",
+      "url": "chrome-extension://annnnjfiddfooccihpgebjnipppaejpo/src/options/options.html",
+      "headerNames": ["sec-ch-ua", "sec-ch-ua-mobile", "sec-ch-ua-platform"]
+    },
+    {
+      "source": "options-page",
+      "method": "GET",
+      "url": "chrome-extension://annnnjfiddfooccihpgebjnipppaejpo/options.js",
+      "headerNames": ["User-Agent", "Origin", "Referer"]
+    },
+    {
+      "source": "options-page",
+      "method": "GET",
+      "url": "chrome-extension://annnnjfiddfooccihpgebjnipppaejpo/chunks/quota-store.js",
+      "headerNames": ["User-Agent", "Origin", "Referer"]
+    },
+    {
+      "source": "options-page",
+      "method": "GET",
+      "url": "chrome-extension://annnnjfiddfooccihpgebjnipppaejpo/assets/options-CkGfOGeY.css",
+      "headerNames": ["User-Agent", "Origin", "Referer"]
+    },
+    {
+      "source": "options-page",
+      "method": "GET",
+      "url": "chrome-extension://annnnjfiddfooccihpgebjnipppaejpo/icons/icon-48.png",
+      "headerNames": ["User-Agent", "Referer"]
+    },
+    {
+      "source": "options-page",
+      "method": "GET",
+      "url": "chrome-extension://annnnjfiddfooccihpgebjnipppaejpo/icons/icon-48.png",
+      "headerNames": ["User-Agent", "Referer"]
+    },
+    {
+      "source": "options-page",
+      "method": "GET",
+      "url": "chrome-extension://annnnjfiddfooccihpgebjnipppaejpo/src/options/options.html",
+      "headerNames": ["sec-ch-ua", "sec-ch-ua-mobile", "sec-ch-ua-platform"]
+    },
+    {
+      "source": "options-page",
+      "method": "GET",
+      "url": "chrome-extension://annnnjfiddfooccihpgebjnipppaejpo/options.js",
+      "headerNames": ["User-Agent", "Origin", "Referer"]
+    },
+    {
+      "source": "options-page",
+      "method": "GET",
+      "url": "chrome-extension://annnnjfiddfooccihpgebjnipppaejpo/chunks/quota-store.js",
+      "headerNames": ["User-Agent", "Origin", "Referer"]
+    },
+    {
+      "source": "options-page",
+      "method": "GET",
+      "url": "chrome-extension://annnnjfiddfooccihpgebjnipppaejpo/assets/options-CkGfOGeY.css",
+      "headerNames": ["User-Agent", "Origin", "Referer"]
+    },
+    {
+      "source": "options-page",
+      "method": "GET",
+      "url": "chrome-extension://annnnjfiddfooccihpgebjnipppaejpo/icons/icon-48.png",
+      "headerNames": ["User-Agent", "Referer"]
+    },
+    {
+      "source": "options-page",
+      "method": "GET",
+      "url": "chrome-extension://annnnjfiddfooccihpgebjnipppaejpo/icons/icon-48.png",
+      "headerNames": ["User-Agent", "Referer"]
+    },
+    {
+      "source": "options-page",
+      "method": "GET",
+      "url": "chrome-extension://annnnjfiddfooccihpgebjnipppaejpo/src/options/options.html",
+      "headerNames": ["sec-ch-ua", "sec-ch-ua-mobile", "sec-ch-ua-platform"]
+    },
+    {
+      "source": "options-page",
+      "method": "GET",
+      "url": "chrome-extension://annnnjfiddfooccihpgebjnipppaejpo/options.js",
+      "headerNames": ["User-Agent", "Origin", "Referer"]
+    },
+    {
+      "source": "options-page",
+      "method": "GET",
+      "url": "chrome-extension://annnnjfiddfooccihpgebjnipppaejpo/chunks/quota-store.js",
+      "headerNames": ["User-Agent", "Origin", "Referer"]
+    },
+    {
+      "source": "options-page",
+      "method": "GET",
+      "url": "chrome-extension://annnnjfiddfooccihpgebjnipppaejpo/assets/options-CkGfOGeY.css",
+      "headerNames": ["User-Agent", "Origin", "Referer"]
+    },
+    {
+      "source": "options-page",
+      "method": "GET",
+      "url": "chrome-extension://annnnjfiddfooccihpgebjnipppaejpo/icons/icon-48.png",
+      "headerNames": ["User-Agent", "Referer"]
+    },
+    {
+      "source": "options-page",
+      "method": "GET",
+      "url": "chrome-extension://annnnjfiddfooccihpgebjnipppaejpo/icons/icon-48.png",
+      "headerNames": ["User-Agent", "Referer"]
+    },
+    {
+      "source": "options-page",
+      "method": "GET",
+      "url": "chrome-extension://annnnjfiddfooccihpgebjnipppaejpo/src/options/options.html",
+      "headerNames": ["sec-ch-ua", "sec-ch-ua-mobile", "sec-ch-ua-platform"]
+    },
+    {
+      "source": "options-page",
+      "method": "GET",
+      "url": "chrome-extension://annnnjfiddfooccihpgebjnipppaejpo/options.js",
+      "headerNames": ["User-Agent", "Origin", "Referer"]
+    },
+    {
+      "source": "options-page",
+      "method": "GET",
+      "url": "chrome-extension://annnnjfiddfooccihpgebjnipppaejpo/chunks/quota-store.js",
+      "headerNames": ["User-Agent", "Origin", "Referer"]
+    },
+    {
+      "source": "options-page",
+      "method": "GET",
+      "url": "chrome-extension://annnnjfiddfooccihpgebjnipppaejpo/assets/options-CkGfOGeY.css",
+      "headerNames": ["User-Agent", "Origin", "Referer"]
+    },
+    {
+      "source": "options-page",
+      "method": "GET",
+      "url": "chrome-extension://annnnjfiddfooccihpgebjnipppaejpo/icons/icon-48.png",
+      "headerNames": ["User-Agent", "Referer"]
+    },
+    {
+      "source": "options-page",
+      "method": "GET",
+      "url": "chrome-extension://annnnjfiddfooccihpgebjnipppaejpo/icons/icon-48.png",
+      "headerNames": ["User-Agent", "Referer"]
+    },
+    {
+      "source": "service-worker",
+      "method": "GET",
+      "url": "https://generativelanguage.googleapis.com/v1beta/models?pageSize=1000",
+      "headerNames": ["User-Agent", "x-goog-api-key", "Referer"]
+    },
+    {
+      "source": "service-worker",
+      "method": "GET",
+      "url": "https://api.openai.com/v1/models",
+      "headerNames": ["User-Agent", "Authorization", "Referer"]
+    },
+    {
+      "source": "service-worker",
+      "method": "POST",
+      "url": "https://generativelanguage.googleapis.com/v1beta/models/gemini-3.1-flash-lite:generateContent",
+      "headerNames": ["x-goog-api-key", "Referer", "User-Agent", "Content-Type"]
+    },
+    {
+      "source": "options-page",
+      "method": "GET",
+      "url": "chrome-extension://annnnjfiddfooccihpgebjnipppaejpo/src/options/options.html",
+      "headerNames": ["sec-ch-ua", "sec-ch-ua-mobile", "sec-ch-ua-platform"]
+    },
+    {
+      "source": "options-page",
+      "method": "GET",
+      "url": "chrome-extension://annnnjfiddfooccihpgebjnipppaejpo/options.js",
+      "headerNames": ["User-Agent", "Origin", "Referer"]
+    },
+    {
+      "source": "options-page",
+      "method": "GET",
+      "url": "chrome-extension://annnnjfiddfooccihpgebjnipppaejpo/chunks/quota-store.js",
+      "headerNames": ["User-Agent", "Origin", "Referer"]
+    },
+    {
+      "source": "options-page",
+      "method": "GET",
+      "url": "chrome-extension://annnnjfiddfooccihpgebjnipppaejpo/assets/options-CkGfOGeY.css",
+      "headerNames": ["User-Agent", "Origin", "Referer"]
+    },
+    {
+      "source": "options-page",
+      "method": "GET",
+      "url": "chrome-extension://annnnjfiddfooccihpgebjnipppaejpo/icons/icon-48.png",
+      "headerNames": ["User-Agent", "Referer"]
+    },
+    {
+      "source": "options-page",
+      "method": "GET",
+      "url": "chrome-extension://annnnjfiddfooccihpgebjnipppaejpo/icons/icon-48.png",
+      "headerNames": ["User-Agent", "Referer"]
+    },
+    {
+      "source": "options-page",
+      "method": "GET",
+      "url": "chrome-extension://annnnjfiddfooccihpgebjnipppaejpo/src/options/options.html",
+      "headerNames": ["sec-ch-ua", "sec-ch-ua-mobile", "sec-ch-ua-platform"]
+    },
+    {
+      "source": "options-page",
+      "method": "GET",
+      "url": "chrome-extension://annnnjfiddfooccihpgebjnipppaejpo/options.js",
+      "headerNames": ["User-Agent", "Origin", "Referer"]
+    },
+    {
+      "source": "options-page",
+      "method": "GET",
+      "url": "chrome-extension://annnnjfiddfooccihpgebjnipppaejpo/chunks/quota-store.js",
+      "headerNames": ["User-Agent", "Origin", "Referer"]
+    },
+    {
+      "source": "options-page",
+      "method": "GET",
+      "url": "chrome-extension://annnnjfiddfooccihpgebjnipppaejpo/assets/options-CkGfOGeY.css",
+      "headerNames": ["User-Agent", "Origin", "Referer"]
+    },
+    {
+      "source": "options-page",
+      "method": "GET",
+      "url": "chrome-extension://annnnjfiddfooccihpgebjnipppaejpo/icons/icon-48.png",
+      "headerNames": ["User-Agent", "Referer"]
+    },
+    {
+      "source": "options-page",
+      "method": "GET",
+      "url": "chrome-extension://annnnjfiddfooccihpgebjnipppaejpo/icons/icon-48.png",
+      "headerNames": ["User-Agent", "Referer"]
+    },
+    {
+      "source": "service-worker",
+      "method": "POST",
+      "url": "https://api.openai.com/v1/responses",
+      "headerNames": ["Authorization", "Referer", "User-Agent", "Content-Type"]
+    },
+    {
+      "source": "options-page",
+      "method": "GET",
+      "url": "data:text/html,<textarea id=t>Je sui ici</textarea><div contenteditable id=c>helo</div>",
+      "headerNames": []
+    }
+  ],
+  "consoleMessages": [],
+  "admissionLatencyMs": {
+    "samples": 30,
+    "p50": 15,
+    "p95": 19
+  }
+}

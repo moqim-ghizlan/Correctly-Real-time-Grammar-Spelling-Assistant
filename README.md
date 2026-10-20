@@ -1,4 +1,4 @@
-# Correctly V5.13
+# Correctly V5.14
 
 Personal Chrome/Brave extension (Manifest V3, TypeScript): an on-demand AI
 writing assistant using your own Google Gemini and/or OpenAI API keys.
@@ -71,6 +71,18 @@ Interface language; "Automatic" follows the browser).
   provider, model and key, with CSV/JSON export and deletion. Local only:
   viewing statistics never contacts a provider, and unknown is never shown
   as $0.00. See [docs/v5.9/USER_GUIDE.md](docs/v5.9/USER_GUIDE.md).
+- **Sync between your computers (V5.14, optional).** Settings → **Sync**:
+  text shortcuts, settings, Correctly's keyboard shortcuts and, if you
+  choose, API keys and routes follow your browser account through
+  `chrome.storage.sync` — no Correctly server. Off by default, domain by
+  domain. Keys are encrypted on your computer with a passphrase
+  (PBKDF2-SHA-256 600,000 iterations → AES-GCM) before they leave it.
+  Shortcuts are merged one by one; a version replaced by another computer's
+  is kept and can be restored. Never synced: usage limits, statistics,
+  consent, the handle and site access. About 100 KB in all (Chrome's limit):
+  above that nothing is sent and a message says so. Chrome: supported;
+  Brave: not guaranteed. See
+  [docs/v5.14/ARCHITECTURE.md](docs/v5.14/ARCHITECTURE.md).
 - **Release audit (V5.10).** No new feature: security and quota audit,
   cross-version regression tests, a clearer message when an answer is lost
   after sending (it may be billed), and the owner guide
@@ -94,7 +106,7 @@ npm run lint
 Optional:
 
 ```powershell
-npm run package        # release/Correctly-V5.13-Extension.zip (+ .sha256)
+npm run package        # release/Correctly-V5.14-Extension.zip (+ .sha256)
 npm run test:browser   # real-browser smoke test (Brave by default)
 node scripts/verify-browser.mjs --browser=chrome
 ```
@@ -113,7 +125,16 @@ Add `--offline` to send none.
 4. After rebuilding, click **Reload** on the extension card.
 
 Chrome and Brave profiles are separate: each keeps its own keys, routes,
-limits and usage.
+limits and usage (unless you turn on **Sync**, 5.14).
+
+Since 5.14 the manifest has a fixed public `key`, so the extension ID is the
+same on every computer (`annnnjfiddfooccihpgebjnipppaejpo`), which
+`chrome.storage.sync` needs. **Coming from 5.13 or older:** the ID changes
+once and the extension starts empty. Before updating, export your text
+shortcuts (Settings → Text shortcuts → Export) and, if you want, your
+statistics (CSV/JSON, not re-importable); then import the shortcuts and enter
+your keys, routes and limits again. See
+[docs/v5.14/RELEASE_NOTES.md](docs/v5.14/RELEASE_NOTES.md).
 
 ## Use
 
@@ -146,9 +167,10 @@ limits and usage.
    billing limit — set spend caps at Google and OpenAI. A request whose
    answer was lost (timeout) stays counted and may still be billed.
 
-Keys are stored in `chrome.storage.local` of this browser profile only (not
-synced, not exported, not encrypted), restricted to the extension's own pages
-and worker. Use them only on your own computer and profile. Usage records
+Keys are stored in `chrome.storage.local` of this browser profile (not
+exported, not encrypted locally), restricted to the extension's own pages
+and worker. They are synced only if you tick **API keys and routes** in
+**Sync**, and then only encrypted with your passphrase. Use them only on your own computer and profile. Usage records
 (metadata only: never text, prompts or keys) are kept in the extension's
 IndexedDB.
 
@@ -160,11 +182,12 @@ IndexedDB.
 | `frontend/tests/`            | unit and integration tests                                |
 | `frontend/manifest.json`     | the only manifest (copied to `dist/` by Vite)             |
 | `scripts/`                   | dist audit, packaging, dev watch, browser smoke test      |
-| `docs/v5.1/` … `docs/v5.12/` | architecture, security, test reports, checklists          |
+| `docs/v5.1/` … `docs/v5.14/` | architecture, security, test reports, checklists          |
 | `v5/`                        | V5.1–V5.x specifications                                  |
 | `plans/`                     | V1–V4 plans (history)                                     |
 
-See [docs/v5.12/TEST_REPORT.md](docs/v5.12/TEST_REPORT.md) (Summary tab, read-only page selection, French settings page),
+See [docs/v5.14/TEST_REPORT.md](docs/v5.14/TEST_REPORT.md) (sync between computers, fixed extension ID),
+[docs/v5.12/TEST_REPORT.md](docs/v5.12/TEST_REPORT.md) (Summary tab, read-only page selection, French settings page),
 [docs/v5.11/TEST_REPORT.md](docs/v5.11/TEST_REPORT.md) (right-edge handle and three-tab modal),
 [docs/v5.10/V5.10_REPORT.md](docs/v5.10/V5.10_REPORT.md) (release audit and owner guide [docs/v5.10/USER_GUIDE.md](docs/v5.10/USER_GUIDE.md)),
 [docs/v5.9/V5.9_REPORT.md](docs/v5.9/V5.9_REPORT.md),

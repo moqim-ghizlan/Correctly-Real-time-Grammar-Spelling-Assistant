@@ -6,6 +6,7 @@ import type { Locale } from '../shared/locale';
 import type { ProviderErrorCode } from '../shared/providers';
 import type { ShortcutErrorCode } from '../shared/shortcuts';
 import type { RangeError } from '../shared/stats';
+import type { DomainStatus, SyncErrorCode } from '../shared/sync';
 import { HTML_EN, HTML_FR, type HtmlKey } from './messages-html';
 
 type Params = Record<string, string | number>;
@@ -307,6 +308,37 @@ export interface OptionsMessages {
   sameAsBrowser: (shortcut: string) => string;
   clashWith: (shortcut: string, action: string) => string;
   bindingProblem: (problem: BindingProblem, combo: string) => string;
+  // ---- sync (5.14)
+  sync: SyncMessages;
+}
+
+export interface SyncMessages {
+  status: Record<DomainStatus, string>;
+  syncedAt: (time: string) => string;
+  error: Record<SyncErrorCode, string>;
+  replaced: string;
+  restore: string;
+  restored: string;
+  keepLocal: string;
+  keepRemote: string;
+  resolved: string;
+  usage: (usedKb: number) => string;
+  on: string;
+  off: string;
+  done: string;
+  passSet: string;
+  passChange: string;
+  passUnlock: string;
+  passReplace: string;
+  passMismatch: string;
+  passSaved: string;
+  unlocked: string;
+  passNeedsDomain: string;
+  confirmReplace: string;
+  replaceAction: string;
+  confirmClear: string;
+  clearAction: string;
+  cleared: string;
 }
 
 // ===================================================================== EN
@@ -735,6 +767,69 @@ const EN: OptionsMessages = {
         : problem === 'altSpace'
           ? 'Alt+Space is reserved by the system.'
           : `${combo} is used by the browser or text editing: choose another combination.`,
+  sync: {
+    status: {
+      off: 'Off.',
+      synced: 'Synced.',
+      pending: 'Waiting for the rest of the data from another computer…',
+      choose:
+        'This computer and the synced data differ: choose which version to keep (the other one is kept, restorable).',
+      locked:
+        'Synced keys are available: enter the passphrase below to unlock them.',
+      needsPassphrase:
+        'Choose a passphrase below to encrypt and sync your keys.',
+      error: 'Not synced.',
+    },
+    syncedAt: (time) => `Synced at ${time}.`,
+    error: {
+      tooLarge:
+        'Too large for the browser’s synced storage (about 100 KB in all): nothing was sent and nothing was cut. Shorten or remove some text shortcuts.',
+      quota: 'The browser’s synced storage is full: nothing was sent.',
+      rate: 'Too many changes in a short time: sync will resume on the next change.',
+      storage: 'The browser’s storage could not be read or written.',
+      remoteDamaged:
+        'The synced data cannot be read: nothing was applied. Delete the synced data below to start over.',
+      unknownSchema:
+        'The synced data comes from a newer Correctly: update Correctly on this computer. Nothing was changed.',
+      localDamaged:
+        'This computer’s data is damaged: it is neither sent nor replaced.',
+      badPassphrase: 'Wrong passphrase: nothing was changed.',
+      weakPassphrase: 'Use at least 8 characters.',
+      noPassphrase: 'Choose a passphrase first.',
+      noBackup: 'Nothing to restore.',
+      nothingToResolve: 'Nothing to choose any more.',
+    },
+    replaced:
+      'Changes made on this computer were replaced by another computer’s.',
+    restore: 'Restore',
+    restored:
+      'Previous version restored; it will be sent to your other computers.',
+    keepLocal: 'Keep this computer’s version',
+    keepRemote: 'Use the synced version',
+    resolved:
+      'Done: both versions now match (the other one is kept, restorable).',
+    usage: (usedKb) =>
+      `${usedKb} KB of about 100 KB used in the browser’s synced storage.`,
+    on: 'Sync on.',
+    off: 'Sync off. This computer keeps all its data.',
+    done: 'Sync done.',
+    passSet: 'Encrypt and sync my keys',
+    passChange: 'Change the passphrase',
+    passUnlock: 'Unlock the synced keys',
+    passReplace: 'Use a new passphrase instead…',
+    passMismatch: 'The two passphrases differ.',
+    passSaved:
+      'Passphrase saved: your keys are encrypted and synced. Enter the same passphrase once on your other computers.',
+    unlocked: 'Keys unlocked: they are now on this computer.',
+    passNeedsDomain: 'Turn on sync and tick “API keys and routes” above first.',
+    confirmReplace:
+      'The keys synced by your other computers will be replaced by this computer’s, encrypted with the new passphrase. Your other computers will need it. Continue?',
+    replaceAction: 'Replace',
+    confirmClear:
+      'Delete Correctly’s data from the browser’s synced storage and turn sync off here? This computer keeps all its data.',
+    clearAction: 'Delete',
+    cleared: 'Synced data deleted; sync is off here.',
+  },
 };
 
 // ===================================================================== FR
@@ -1197,6 +1292,72 @@ const FR: OptionsMessages = {
         : problem === 'altSpace'
           ? 'Alt+Espace est réservé au système.'
           : `${combo} est utilisé par le navigateur ou l’édition de texte : choisissez une autre combinaison.`,
+  sync: {
+    status: {
+      off: 'Désactivé.',
+      synced: 'Synchronisé.',
+      pending: 'En attente du reste des données d’un autre ordinateur…',
+      choose:
+        'Cet ordinateur et les données synchronisées diffèrent : choisissez la version à garder (l’autre est conservée, restaurable).',
+      locked:
+        'Des clés synchronisées sont disponibles : saisissez la phrase secrète ci-dessous pour les déverrouiller.',
+      needsPassphrase:
+        'Choisissez une phrase secrète ci-dessous pour chiffrer et synchroniser vos clés.',
+      error: 'Non synchronisé.',
+    },
+    syncedAt: (time) => `Synchronisé à ${time}.`,
+    error: {
+      tooLarge:
+        'Trop volumineux pour le stockage synchronisé du navigateur (environ 100 Ko en tout) : rien n’a été envoyé ni tronqué. Raccourcissez ou supprimez des raccourcis texte.',
+      quota:
+        'Le stockage synchronisé du navigateur est plein : rien n’a été envoyé.',
+      rate: 'Trop de modifications en peu de temps : la synchronisation reprendra à la prochaine modification.',
+      storage: 'Le stockage du navigateur n’a pas pu être lu ou écrit.',
+      remoteDamaged:
+        'Les données synchronisées sont illisibles : rien n’a été appliqué. Effacez les données synchronisées ci-dessous pour repartir de zéro.',
+      unknownSchema:
+        'Les données synchronisées viennent d’une version plus récente de Correctly : mettez Correctly à jour sur cet ordinateur. Rien n’a été modifié.',
+      localDamaged:
+        'Les données de cet ordinateur sont endommagées : elles ne sont ni envoyées ni remplacées.',
+      badPassphrase: 'Phrase secrète incorrecte : rien n’a été modifié.',
+      weakPassphrase: 'Utilisez au moins 8 caractères.',
+      noPassphrase: 'Choisissez d’abord une phrase secrète.',
+      noBackup: 'Rien à restaurer.',
+      nothingToResolve: 'Plus rien à choisir.',
+    },
+    replaced:
+      'Des modifications de cet ordinateur ont été remplacées par celles d’un autre appareil.',
+    restore: 'Restaurer',
+    restored:
+      'Version précédente restaurée ; elle sera envoyée à vos autres ordinateurs.',
+    keepLocal: 'Garder la version de cet ordinateur',
+    keepRemote: 'Prendre la version synchronisée',
+    resolved:
+      'C’est fait : les deux versions sont identiques (l’autre est conservée, restaurable).',
+    usage: (usedKb) =>
+      `${usedKb} Ko utilisés sur environ 100 Ko dans le stockage synchronisé du navigateur.`,
+    on: 'Synchronisation activée.',
+    off: 'Synchronisation désactivée. Cet ordinateur garde toutes ses données.',
+    done: 'Synchronisation terminée.',
+    passSet: 'Chiffrer et synchroniser mes clés',
+    passChange: 'Changer la phrase secrète',
+    passUnlock: 'Déverrouiller les clés synchronisées',
+    passReplace: 'Utiliser plutôt une nouvelle phrase…',
+    passMismatch: 'Les deux phrases secrètes sont différentes.',
+    passSaved:
+      'Phrase secrète enregistrée : vos clés sont chiffrées et synchronisées. Saisissez la même phrase une fois sur vos autres ordinateurs.',
+    unlocked: 'Clés déverrouillées : elles sont maintenant sur cet ordinateur.',
+    passNeedsDomain:
+      'Activez d’abord la synchronisation et cochez « Clés API et routes » ci-dessus.',
+    confirmReplace:
+      'Les clés synchronisées par vos autres ordinateurs seront remplacées par celles de cet ordinateur, chiffrées avec la nouvelle phrase. Vos autres ordinateurs en auront besoin. Continuer ?',
+    replaceAction: 'Remplacer',
+    confirmClear:
+      'Effacer les données de Correctly du stockage synchronisé du navigateur et désactiver la synchronisation ici ? Cet ordinateur garde toutes ses données.',
+    clearAction: 'Effacer',
+    cleared:
+      'Données synchronisées effacées ; la synchronisation est désactivée ici.',
+  },
 };
 
 export const OPTIONS: Record<Locale, OptionsMessages> = { en: EN, fr: FR };

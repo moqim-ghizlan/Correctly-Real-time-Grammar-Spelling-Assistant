@@ -37,7 +37,7 @@ const extensionPath = resolve('dist');
 const DUMMY_KEY = 'CORRECTLY_TEST_SENTINEL_KEY_dummy_000000';
 const DUMMY_OPENAI_KEY = 'CORRECTLY_TEST_SENTINEL_KEY_openai_dummy_0';
 const profile = await mkdtemp(join(tmpdir(), 'correctly-v511-'));
-const EVIDENCE = 'docs/v5.12/evidence';
+const EVIDENCE = 'docs/v5.14/evidence';
 const delay = (ms) => new Promise((done) => setTimeout(done, ms));
 
 const evidence = {
@@ -395,8 +395,8 @@ try {
   await openOptions();
   await wakeWorker(extensionId);
   const manifest = await page.evaluate('chrome.runtime.getManifest()');
-  assert.equal(manifest.version, '5.13.0');
-  assert.equal(manifest.name, 'Correctly V5.13');
+  assert.equal(manifest.version, '5.14.0');
+  assert.equal(manifest.name, 'Correctly V5.14');
   assert.deepEqual(manifest.host_permissions, [
     'https://generativelanguage.googleapis.com/*',
     'https://api.openai.com/*',
@@ -765,6 +765,7 @@ try {
       ['usage-limits', 'limits'],
       ['statistics', 'statistics'],
       ['keyboard', 'keyboard'],
+      ['sync', 'sync'],
     ]) {
       await page.evaluate(`location.hash = '#${id}'`);
       await delay(150);
@@ -784,6 +785,17 @@ try {
     }
   }
   await page.call('Emulation.clearDeviceMetricsOverride');
+  // 5.14: the sync page shows, sync is off by default and storage.sync holds
+  // nothing of Correctly (no sync call while it is off).
+  await page.evaluate(`location.hash = '#sync'`);
+  await delay(150);
+  const syncPage = await page.evaluate(`(async () => ({
+    visible: !document.getElementById('sync').hidden,
+    enabled: document.getElementById('sync-enabled').checked,
+    synced: Object.keys(await chrome.storage.sync.get(null)).length,
+  }))()`);
+  assert.deepEqual(syncPage, { visible: true, enabled: false, synced: 0 });
+  step('Y01', 'PASS', 'sync page shown, off by default, storage.sync empty');
   const focusOrder = [];
   await page.evaluate(`location.hash = '#providers'`);
   await delay(150);
