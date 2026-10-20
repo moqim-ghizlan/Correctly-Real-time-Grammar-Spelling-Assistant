@@ -101,6 +101,14 @@ export interface ContentMessages {
   // handle
   handleLabel: string;
   handleTitle: string;
+  // 5.15 translate button and bubble
+  selectionButton: string;
+  bubbleTitle: string;
+  bubbleTranslate: string;
+  bubbleTranslating: string;
+  bubbleSame: string;
+  bubbleEmpty: string;
+  bubbleOpen: string;
 }
 
 const EN_NOUN: Record<Kind, string> = {
@@ -243,6 +251,13 @@ const EN: ContentMessages = {
   tryAgain: 'Try again',
   handleLabel: 'Open Correctly (drag to move)',
   handleTitle: 'Correctly — click to open, drag up or down to move',
+  selectionButton: 'Translate with Correctly',
+  bubbleTitle: 'Translation',
+  bubbleTranslate: 'Translate',
+  bubbleTranslating: 'Translating…',
+  bubbleSame: 'This text is already in the chosen language.',
+  bubbleEmpty: 'No usable translation was returned.',
+  bubbleOpen: 'Open in Correctly',
 };
 
 // French nouns are all feminine here: "aucune correction / reformulation /
@@ -392,6 +407,13 @@ const FR: ContentMessages = {
   handleLabel: 'Ouvrir Correctly (glisser pour déplacer)',
   handleTitle:
     'Correctly — cliquer pour ouvrir, glisser vers le haut ou le bas pour déplacer',
+  selectionButton: 'Traduire avec Correctly',
+  bubbleTitle: 'Traduction',
+  bubbleTranslate: 'Traduire',
+  bubbleTranslating: 'Traduction…',
+  bubbleSame: 'Ce texte est déjà dans la langue choisie.',
+  bubbleEmpty: 'Aucune traduction utilisable n’a été renvoyée.',
+  bubbleOpen: 'Ouvrir dans Correctly',
 };
 
 export const CONTENT: Record<Locale, ContentMessages> = { en: EN, fr: FR };

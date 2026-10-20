@@ -200,6 +200,7 @@ export type HtmlKey =
   | 'triggerKeyboard'
   | 'triggerKeyboardHint'
   | 'triggerMenu'
+  | 'triggerSelection'
   | 'triggerSmart'
   | 'triggersHint'
   | 'triggersTitle'
@@ -473,6 +474,8 @@ export const HTML_EN: Record<HtmlKey, string> = {
   triggerKeyboardHint:
     'See and change the combinations: <a href="#keyboard">Keyboard shortcuts</a>.',
   triggerMenu: 'Right-click menu: Correctly → Correct selected text',
+  triggerSelection:
+    'Translate button on selected text (up to 5 words: a small translation bubble; more: the Correctly window on Translation). Nothing is sent until you click the button; each click counts as one request. Asks for access to all sites, removed when nothing needs it any more.',
   triggerSmart:
     'Correctly handle on the right edge of every page (click to open, drag up or down to move; asks for access to all sites, removed when you turn it off)',
   triggersHint:
@@ -736,6 +739,8 @@ export const HTML_FR: Record<HtmlKey, string> = {
   triggerKeyboardHint:
     'Voir et modifier les combinaisons : <a href="#keyboard">Raccourcis clavier</a>.',
   triggerMenu: 'Menu clic droit : Correctly → Corriger le texte sélectionné',
+  triggerSelection:
+    'Bouton de traduction sur le texte sélectionné (jusqu’à 5 mots : petite bulle de traduction ; au-delà : la fenêtre Correctly sur Traduction). Rien n’est envoyé tant que vous ne cliquez pas sur le bouton ; chaque clic compte comme une requête. Demande l’accès à tous les sites, retiré si plus rien n’en a besoin.',
   triggerSmart:
     'Poignée Correctly au bord droit de chaque page (clic pour ouvrir, glisser vers le haut ou le bas pour la déplacer ; demande l’accès à tous les sites, retiré si vous la désactivez)',
   triggersHint:

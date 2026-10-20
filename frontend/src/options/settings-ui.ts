@@ -36,6 +36,10 @@ export interface SettingsDeps {
   enableSmartButton?: () => Promise<boolean>;
   /** Unregisters it, drops the access and removes open buttons. */
   disableSmartButton?: () => Promise<void>;
+  /** 5.15: same access for the translate button on selected text. */
+  enableSelectionButton?: () => Promise<boolean>;
+  /** 5.15: removes the button from open tabs and releases unused access. */
+  disableSelectionButton?: () => Promise<void>;
   uiTimeoutMs?: number;
   /** 5.13: language of this page (French when absent). */
   locale?: Locale;
@@ -190,6 +194,12 @@ export class SettingsPage {
         void this.saveSmartButton();
       },
     );
+    this.el<HTMLInputElement>('trigger-selection').addEventListener(
+      'change',
+      () => {
+        void this.saveSelectionButton();
+      },
+    );
     this.el<HTMLButtonElement>('open-shortcuts').addEventListener('click', () =>
       this.deps.openShortcuts?.(),
     );
@@ -204,6 +214,7 @@ export class SettingsPage {
       'trigger-keyboard',
       'trigger-menu',
       'trigger-smart',
+      'trigger-selection',
       'open-shortcuts',
       'rewrite-enabled',
       'rewrite-formality',
@@ -233,6 +244,8 @@ export class SettingsPage {
       settings.triggers.contextMenu;
     this.el<HTMLInputElement>('trigger-smart').checked =
       settings.triggers.smartButton;
+    this.el<HTMLInputElement>('trigger-selection').checked =
+      settings.triggers.selectionButton;
     this.el<HTMLInputElement>('rewrite-enabled').checked =
       settings.rewrite.enabled;
     this.el<HTMLSelectElement>('ui-language').value = settings.ui.language;
@@ -397,6 +410,33 @@ export class SettingsPage {
       this.message(
         'triggers-message',
         on ? this.m.handleOn : this.m.handleOff,
+        'ok',
+      );
+    } catch {
+      this.message('triggers-message', this.c.error('STORAGE_ERROR'), 'error');
+    }
+    this.render();
+  }
+
+  /** 5.15: the translate button on selected text (needs all-sites access). */
+  async saveSelectionButton(): Promise<void> {
+    const on = this.el<HTMLInputElement>('trigger-selection').checked;
+    try {
+      // The permission prompt must come first, while the click still counts
+      // as a user gesture.
+      if (on && !(await this.deps.enableSelectionButton?.())) {
+        this.message('triggers-message', this.m.selectionNoAccess, 'error');
+        this.render();
+        return;
+      }
+      await this.update((settings) => ({
+        ...settings,
+        triggers: { ...settings.triggers, selectionButton: on },
+      }));
+      if (!on) await this.deps.disableSelectionButton?.();
+      this.message(
+        'triggers-message',
+        on ? this.m.selectionOn : this.m.selectionOff,
         'ok',
       );
     } catch {

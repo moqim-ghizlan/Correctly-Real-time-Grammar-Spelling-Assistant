@@ -30,8 +30,14 @@ export interface V51Settings {
   // V5.2: no selected text is ever sent before the user opts in.
   correction: { consent: boolean };
   // V5.3 entry points. The smart button needs optional all-sites access, so
-  // it is off until the user enables it (and grants that access).
-  triggers: { keyboard: boolean; contextMenu: boolean; smartButton: boolean };
+  // it is off until the user enables it (and grants that access). 5.15: the
+  // translate button on selected text needs the same access, also opt-in.
+  triggers: {
+    keyboard: boolean;
+    contextMenu: boolean;
+    smartButton: boolean;
+    selectionButton: boolean;
+  };
   // V5.4: styles pre-selected in the rewrite picker (stable IDs only).
   // Custom formality (2026-10-16): the slider's starting level.
   rewrite: {
@@ -106,7 +112,12 @@ export const defaultSettings = (): V51Settings => ({
   gemini: { apiKey: null, modelId: DEFAULT_MODEL_ID, keyRevision: 0 },
   safety: { dailyTestAttemptLimit: DAILY_LIMIT_DEFAULT },
   correction: { consent: false },
-  triggers: { keyboard: true, contextMenu: true, smartButton: false },
+  triggers: {
+    keyboard: true,
+    contextMenu: true,
+    smartButton: false,
+    selectionButton: false,
+  },
   rewrite: {
     enabled: true,
     defaultStyles: [...DEFAULT_REWRITE_STYLES],
@@ -194,6 +205,7 @@ export function normalizeSettings(value: unknown): V51Settings {
       keyboard: triggers.keyboard !== false,
       contextMenu: triggers.contextMenu !== false,
       smartButton: triggers.smartButton === true,
+      selectionButton: triggers.selectionButton === true,
     },
     rewrite: {
       enabled: rewrite.enabled !== false,

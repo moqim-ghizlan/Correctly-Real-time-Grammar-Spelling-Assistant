@@ -26,6 +26,9 @@ export interface OptionsMessages {
   handleNoAccess: string;
   handleOn: string;
   handleOff: string;
+  selectionNoAccess: string;
+  selectionOn: string;
+  selectionOff: string;
   languageSaved: (name: string) => string;
   // ---- providers
   providersDamaged: string;
@@ -413,6 +416,11 @@ const EN: OptionsMessages = {
     'Site access was not granted, so the Correctly handle stays off.',
   handleOn: 'Correctly handle on. Reload already open pages to see it.',
   handleOff: 'Correctly handle off. Site access removed.',
+  selectionNoAccess:
+    'Site access was not granted, so the translate button stays off.',
+  selectionOn:
+    'Translate button on. Reload already open pages, then select some text.',
+  selectionOff: 'Translate button off.',
   languageSaved: (name) =>
     `Interface language: ${name}. Reload already open pages to use it there.`,
   providersDamaged:
@@ -924,6 +932,11 @@ const FR: OptionsMessages = {
   handleOn:
     'Poignée Correctly activée. Rechargez les pages déjà ouvertes pour la voir.',
   handleOff: 'Poignée Correctly désactivée. Accès aux sites retiré.',
+  selectionNoAccess:
+    'L’accès aux sites n’a pas été accordé : le bouton de traduction reste désactivé.',
+  selectionOn:
+    'Bouton de traduction activé. Rechargez les pages déjà ouvertes, puis sélectionnez du texte.',
+  selectionOff: 'Bouton de traduction désactivé.',
   languageSaved: (name) =>
     `Langue de l’interface : ${name}. Rechargez les pages déjà ouvertes pour l’y utiliser.`,
   providersDamaged:

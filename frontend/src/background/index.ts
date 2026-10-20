@@ -6,6 +6,7 @@ import {
   OPEN_SETTINGS,
   isAiEditRequest,
   isHandlePositionRequest,
+  isOpenTranslationRequest,
   PAGE_CONFIG,
   REWRITE_COMMAND,
   TRANSLATE_COMMAND,
@@ -112,7 +113,14 @@ const origin = (sender: chrome.runtime.MessageSender) => ({
   frameId: sender.frameId ?? -1,
 });
 
-export type Trigger = 'toolbar' | 'keyboard' | 'contextMenu' | 'smartButton';
+export type Trigger =
+  'toolbar' | 'keyboard' | 'contextMenu' | 'smartButton' | 'selectionButton';
+
+/** 5.15: open the window on Translation with this text (translate button). */
+export interface OpenWith {
+  text: string;
+  generate: boolean;
+}
 type Action = 'correct' | 'rewrite' | 'translate' | 'translateRewrite';
 /** V5.11: 'open' shows the modal (four tabs since V5.12) (handle, Ctrl+M, toolbar icon). */
 type Request = Action | 'open';
@@ -169,6 +177,7 @@ async function inject(
   rewriteEnabled = true,
   locale: Locale = 'en',
   formality: number = DEFAULT_FORMALITY,
+  openWith: OpenWith | null = null,
 ): Promise<void> {
   const target = frameIds ? { tabId, frameIds } : { tabId };
   await chrome.scripting.executeScript({ target, files: [CONTENT_SCRIPT] });
@@ -181,6 +190,7 @@ async function inject(
       rewriteEnabled: boolean,
       locale: string,
       formality: number,
+      openWith: OpenWith | null,
     ) => {
       (
         globalThis as {
@@ -191,6 +201,7 @@ async function inject(
             rewriteEnabled: boolean,
             locale: string,
             formality: number,
+            openWith: OpenWith | null,
           ) => void;
         }
       ).correctlyRun?.(
@@ -200,9 +211,18 @@ async function inject(
         rewriteEnabled,
         locale,
         formality,
+        openWith,
       );
     },
-    args: [intent, styles, translation, rewriteEnabled, locale, formality],
+    args: [
+      intent,
+      styles,
+      translation,
+      rewriteEnabled,
+      locale,
+      formality,
+      openWith,
+    ],
   });
 }
 
@@ -220,6 +240,7 @@ export async function correctInTab(
   trigger: Trigger,
   frameId = 0,
   requested: Request = 'correct',
+  openWith: OpenWith | null = null,
 ): Promise<void> {
   let tabId: number | undefined;
   let intent: Intent = requested;
@@ -260,6 +281,7 @@ export async function correctInTab(
       rewriteEnabled,
       locale,
       formality,
+      intent === 'open' ? openWith : null,
     );
   } catch {
     if (frameId === 0) return chrome.runtime.openOptionsPage();
@@ -341,6 +363,12 @@ export async function pageConfig(area: StorageArea) {
     // 5.13: the handle's labels follow the interface language.
     locale: resolveLocale(settings.ui.language),
     smartButton: settings.triggers.smartButton,
+    // 5.15: the translate button on selected text, and the bubble's defaults.
+    selectionButton: settings.triggers.selectionButton,
+    translation: {
+      target: settings.translation.target,
+      arabicVariant: settings.translation.arabicVariant,
+    },
     handleY: handle.yRatio,
     // Correctly's own keyboard shortcuts: only when on (and keyboard allowed).
     keybindings:
@@ -367,7 +395,10 @@ export async function syncSmartScript(area: StorageArea): Promise<void> {
     .catch(() => undefined);
   const keysOn = keys.enabled && Object.keys(keys.bindings).length > 0;
   if (
-    (settings.triggers.smartButton || loaded.store.enabled || keysOn) &&
+    (settings.triggers.smartButton ||
+      settings.triggers.selectionButton ||
+      loaded.store.enabled ||
+      keysOn) &&
     granted
   )
     await chrome.scripting.registerContentScripts([
@@ -491,6 +522,21 @@ export function registerServiceWorker(
         'keyboard',
         sender.frameId,
         message.action,
+      ).catch(() => undefined);
+      return false;
+    } else if (
+      isContentScriptSender(sender, chrome.runtime.id) &&
+      isOpenTranslationRequest(message)
+    ) {
+      // 5.15 translate button: the window on Translation with this text
+      // (the same path as the handle: setting, consent, route, frame).
+      void correctInTab(
+        sender.tab,
+        area,
+        'selectionButton',
+        sender.frameId,
+        'open',
+        { text: message.text, generate: message.generate },
       ).catch(() => undefined);
       return false;
     } else if (

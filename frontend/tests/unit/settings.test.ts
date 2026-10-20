@@ -22,7 +22,12 @@ describe('settings defaults and validation', () => {
       gemini: { apiKey: null, modelId: DEFAULT_MODEL_ID, keyRevision: 0 },
       safety: { dailyTestAttemptLimit: 20 },
       correction: { consent: false },
-      triggers: { keyboard: true, contextMenu: true, smartButton: false },
+      triggers: {
+        keyboard: true,
+        contextMenu: true,
+        smartButton: false,
+        selectionButton: false,
+      },
       rewrite: {
         enabled: true,
         defaultStyles: ['professional'],
@@ -54,12 +59,34 @@ describe('settings defaults and validation', () => {
     expect(
       normalizeSettings({ triggers: { keyboard: 'no', smartButton: 1 } })
         .triggers,
-    ).toEqual({ keyboard: true, contextMenu: true, smartButton: false });
+    ).toEqual({
+      keyboard: true,
+      contextMenu: true,
+      smartButton: false,
+      selectionButton: false,
+    });
     expect(
       normalizeSettings({
         triggers: { keyboard: false, contextMenu: false, smartButton: true },
       }).triggers,
-    ).toEqual({ keyboard: false, contextMenu: false, smartButton: true });
+    ).toEqual({
+      keyboard: false,
+      contextMenu: false,
+      smartButton: true,
+      selectionButton: false,
+    });
+  });
+
+  it('5.15: the translate button is on only when stored true', () => {
+    for (const selectionButton of [undefined, 'true', 1, null, {}])
+      expect(
+        normalizeSettings({ triggers: { selectionButton } }).triggers
+          .selectionButton,
+      ).toBe(false);
+    expect(
+      normalizeSettings({ triggers: { selectionButton: true } }).triggers
+        .selectionButton,
+    ).toBe(true);
   });
 
   it('V5.2: correction consent is on only for a stored boolean true', () => {

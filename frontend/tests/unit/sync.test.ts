@@ -134,6 +134,14 @@ describe('payloads', () => {
     expect(merged.ui.language).toBe('en');
     expect(merged.triggers.keyboard).toBe(false);
     expect(merged.triggers.smartButton).toBe(true);
+    // 5.15: the translate button needs site access on each computer too.
+    expect(
+      mergeSettings(
+        normalizeSettings({ triggers: { selectionButton: true } }),
+        synced,
+      ).triggers.selectionButton,
+    ).toBe(true);
+    expect(Object.keys(synced)).not.toContain('selectionButton');
     expect(merged.correction.consent).toBe(true);
     expect(merged.safety.dailyTestAttemptLimit).toBe(7);
   });

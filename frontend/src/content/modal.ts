@@ -113,6 +113,29 @@ export interface ModalOptions {
   locale?: Locale;
   /** Starting level of the custom-formality slider (normalized here). */
   formality?: unknown;
+  /**
+   * 5.15 translate button: start on Translation with this text (the live
+   * selection when it is the same text, else a copy-only page text), and
+   * translate it at once when `generate` is true.
+   */
+  open?: OpenWith | null;
+}
+
+export interface OpenWith {
+  text: string;
+  generate: boolean;
+}
+
+/** The worker's argument is untrusted here too: exact fields, bounded text. */
+export function toOpenWith(value: unknown): OpenWith | null {
+  if (!value || typeof value !== 'object') return null;
+  const data = value as Record<string, unknown>;
+  return typeof data.text === 'string' &&
+    data.text.trim() !== '' &&
+    [...data.text].length <= MAX_SUMMARY_CODE_POINTS &&
+    typeof data.generate === 'boolean'
+    ? { text: data.text, generate: data.generate }
+    : null;
 }
 
 /** chrome.runtime.sendMessage, injectable for tests. */
@@ -1490,23 +1513,47 @@ export function openModal(
   send: Send = (message) => chrome.runtime.sendMessage(message),
 ): CorrectlyModal {
   const current = pageUi.correctlyModal;
+  const open = options.open ?? null;
   if (current?.visible && current.host.isConnected) {
     current.restore();
+    // 5.15: an open session keeps its text; the button only shows the tab.
+    if (open) current.selectTab('translation');
     current.focus();
     return current;
   }
   // Capture first: nothing below may move the focus or the selection. V5.12:
   // plain page text is accepted too, as a copy-only source.
-  const captured = capture(doc, {
+  const m = CONTENT[options.locale ?? 'en'];
+  let captured = capture(doc, {
     readOnlyPage: true,
     max: MAX_SUMMARY_CODE_POINTS,
-    m: CONTENT[options.locale ?? 'en'],
+    m,
   });
+  // 5.15: the selection the button was shown for. When the page no longer
+  // has it (focus moved), it is used as copy-only page text.
+  if (
+    open &&
+    (typeof captured === 'string' || captured.text.trim() !== open.text.trim())
+  )
+    captured = {
+      text: open.text,
+      source: 'read_only_page',
+      field: null,
+      start: 0,
+      end: 0,
+      value: '',
+      copyOnlyReason: m.notices.readOnlyPage,
+    };
   const panel = pageUi.correctlyPanel;
   if (panel && !panel.busy) panel.close();
   const modal = new CorrectlyModal(doc, captured, options, send);
   pageUi.correctlyModal = modal;
   pageUi.correctlyHandle?.modalOpen(true);
+  if (open) {
+    modal.selectTab('translation');
+    // The click on the translate button was the explicit action.
+    if (open.generate) void modal.generate('translation');
+  }
   modal.focus();
   return modal;
 }

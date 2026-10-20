@@ -25,6 +25,15 @@ export const TEST_KEY = 'correctly.v5.testKey';
 export const CORRECT_TEXT = 'correctly.v5.correctText';
 /** Sent by the options page to open tabs when the smart button is turned off. */
 export const SMART_BUTTON_OFF = 'correctly.v5.smartButtonOff';
+/** 5.15: settings page → open tabs: remove the translate button now. */
+export const SELECTION_BUTTON_OFF = 'correctly.v5.selectionButtonOff';
+/**
+ * 5.15: the translate button (page script) → worker: open the Correctly
+ * window on the Translation tab with this text, and translate it at once
+ * when `generate` is true. Never replied to; the worker sends nothing to a
+ * provider for it.
+ */
+export const OPEN_TRANSLATION = 'correctly.v5.openTranslation';
 /** Sent by the injected content script with selected text and style IDs. */
 export const REWRITE_TEXT = 'correctly.v5.rewriteText';
 /** Sent by the injected content script with text, languages and styles. */
@@ -353,4 +362,26 @@ export function toConnectionResult(value: unknown): ConnectionResult {
     ...failureOf(data),
     ...(status === undefined ? {} : { httpStatus: status }),
   };
+}
+
+export interface OpenTranslationRequest {
+  type: typeof OPEN_TRANSLATION;
+  text: string;
+  generate: boolean;
+}
+
+/** Exact shape `{ type, text, generate }`; the text is a bounded selection. */
+export function isOpenTranslationRequest(
+  value: unknown,
+): value is OpenTranslationRequest {
+  if (!value || typeof value !== 'object' || Array.isArray(value)) return false;
+  const data = value as Record<string, unknown>;
+  return (
+    Object.keys(data).sort().join() === 'generate,text,type' &&
+    data.type === OPEN_TRANSLATION &&
+    typeof data.text === 'string' &&
+    data.text.trim() !== '' &&
+    [...data.text].length <= MAX_SUMMARY_CODE_POINTS &&
+    typeof data.generate === 'boolean'
+  );
 }

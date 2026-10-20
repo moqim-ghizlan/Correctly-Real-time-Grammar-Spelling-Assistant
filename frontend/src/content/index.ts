@@ -1,6 +1,6 @@
 import { isLocale } from '../shared/locale';
 import { runInPage, type Intent } from './correction';
-import { openModal } from './modal';
+import { openModal, toOpenWith } from './modal';
 
 // Injected by the worker for the toolbar, shortcuts, context menu and the
 // right-edge handle; the worker then calls
@@ -17,6 +17,7 @@ import { openModal } from './modal';
   rewriteEnabled: unknown,
   locale?: unknown,
   formality?: unknown,
+  openWith?: unknown,
 ) => {
   const language = isLocale(locale) ? locale : 'en';
   if (intent === 'open')
@@ -26,6 +27,7 @@ import { openModal } from './modal';
       rewriteEnabled: rewriteEnabled !== false,
       locale: language,
       formality,
+      open: toOpenWith(openWith),
     });
   else runInPage(document, intent, styles, translation, language, formality);
 };

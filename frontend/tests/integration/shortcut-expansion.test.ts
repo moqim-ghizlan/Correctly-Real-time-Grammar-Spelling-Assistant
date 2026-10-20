@@ -32,6 +32,8 @@ beforeEach(() => {
   expander = new ShortcutExpander(document, () =>
     Promise.resolve({
       smartButton: false,
+      selectionButton: false,
+      translation: { target: 'en' as const, arabicVariant: 'msa' as const },
       locale: 'en' as const,
       keybindings: {},
       handleY: 0.5,
@@ -149,6 +151,8 @@ describe('I03/I05/I06: never expand when unsafe', () => {
     expander = new ShortcutExpander(document, () =>
       Promise.resolve({
         smartButton: false,
+        selectionButton: false,
+        translation: { target: 'en' as const, arabicVariant: 'msa' as const },
         locale: 'en' as const,
         keybindings: {},
         handleY: 0.5,
@@ -327,6 +331,8 @@ describe('toPageConfig', () => {
       }),
     ).toEqual({
       smartButton: false,
+      selectionButton: false,
+      translation: { target: 'en' as const, arabicVariant: 'msa' as const },
       locale: 'en' as const,
       keybindings: {},
       handleY: 0.5,
@@ -334,6 +340,8 @@ describe('toPageConfig', () => {
     });
     expect(toPageConfig(undefined)).toEqual({
       smartButton: false,
+      selectionButton: false,
+      translation: { target: 'en' as const, arabicVariant: 'msa' as const },
       locale: 'en' as const,
       keybindings: {},
       handleY: 0.5,

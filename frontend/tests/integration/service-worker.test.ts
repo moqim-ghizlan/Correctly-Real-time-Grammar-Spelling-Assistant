@@ -6,6 +6,7 @@ import {
   OPEN_LIMITS,
   OPEN_MODAL,
   OPEN_SETTINGS,
+  OPEN_TRANSLATION,
   PAGE_CONFIG,
   REWRITE_TEXT,
   TEST_CONNECTION,
@@ -404,6 +405,38 @@ describe('V5.11 unified modal entry points', () => {
     await send({ type: OPEN_MODAL, text: 'x' }, contentSender);
     await send({ type: OPEN_MODAL }, { ...contentSender, id: 'other' });
     await send({ type: OPEN_MODAL }, optionsSender);
+    await new Promise((resolve) => setTimeout(resolve, 20));
+    expect(executeScript).toHaveBeenCalledTimes(2);
+    expect(fetcher).not.toHaveBeenCalled();
+  });
+
+  it('5.15: the translate button opens the window on Translation, only when enabled', async () => {
+    const message = {
+      type: OPEN_TRANSLATION,
+      text: 'Bonjour à tous',
+      generate: true,
+    };
+    await configure(true);
+    await send(message, { ...contentSender, frameId: 3 });
+    await new Promise((resolve) => setTimeout(resolve, 20));
+    expect(executeScript).not.toHaveBeenCalled(); // button setting is off
+    await configure(true, { selectionButton: true });
+    const { handled } = await send(message, { ...contentSender, frameId: 3 });
+    expect(handled).toBe(false);
+    await vi.waitFor(() => expect(executeScript).toHaveBeenCalledTimes(2));
+    expectInjected([3], ['open', ['professional']]);
+    const args = (executeScript.mock.calls[1]![0] as { args: unknown[] }).args;
+    expect(args[6]).toEqual({ text: 'Bonjour à tous', generate: true });
+    // Wrong shapes, other senders: nothing.
+    for (const bad of [
+      { type: OPEN_TRANSLATION, text: 'x' },
+      { type: OPEN_TRANSLATION, text: '  ', generate: true },
+      { type: OPEN_TRANSLATION, text: 'x', generate: 'yes' },
+      { ...message, extra: 1 },
+    ])
+      await send(bad, contentSender);
+    await send(message, optionsSender);
+    await send(message, { ...contentSender, id: 'other' });
     await new Promise((resolve) => setTimeout(resolve, 20));
     expect(executeScript).toHaveBeenCalledTimes(2);
     expect(fetcher).not.toHaveBeenCalled();
@@ -997,6 +1030,8 @@ describe('V5.6 text shortcuts', () => {
     expect(reply).toEqual({
       locale: 'en',
       smartButton: true,
+      selectionButton: false,
+      translation: { target: 'en', arabicVariant: 'msa' },
       handleY: 0.5,
       keybindings: {},
       shortcuts: [{ trigger: 'bjr', replacement: 'Bonjour' }],

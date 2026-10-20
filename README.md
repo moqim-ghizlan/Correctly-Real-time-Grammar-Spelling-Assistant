@@ -1,4 +1,4 @@
-# Correctly V5.14
+# Correctly V5.15
 
 Personal Chrome/Brave extension (Manifest V3, TypeScript): an on-demand AI
 writing assistant using your own Google Gemini and/or OpenAI API keys.
@@ -71,6 +71,14 @@ Interface language; "Automatic" follows the browser).
   provider, model and key, with CSV/JSON export and deletion. Local only:
   viewing statistics never contacts a provider, and unknown is never shown
   as $0.00. See [docs/v5.9/USER_GUIDE.md](docs/v5.9/USER_GUIDE.md).
+- **Translate button on selected text (V5.15, optional).** Settings →
+  Getting started → Opening Correctly. Select text on any page: a small
+  button appears at the end of the selection. Up to 5 words, a click shows a
+  bubble with the translation (one request), the target language and Arabic
+  variant, Copy and **Open in Correctly**; longer selections open the
+  Correctly window on Translation and translate at once. Showing the button
+  sends nothing; each click counts as one request. Off by default; it asks
+  for access to all sites, like the handle.
 - **Sync between your computers (V5.14, optional).** Settings → **Sync**:
   text shortcuts, settings, Correctly's keyboard shortcuts and, if you
   choose, API keys and routes follow your browser account through
@@ -106,7 +114,7 @@ npm run lint
 Optional:
 
 ```powershell
-npm run package        # release/Correctly-V5.14-Extension.zip (+ .sha256)
+npm run package        # release/Correctly-V5.15-Extension.zip (+ .sha256)
 npm run test:browser   # real-browser smoke test (Brave by default)
 node scripts/verify-browser.mjs --browser=chrome
 ```
@@ -182,11 +190,12 @@ IndexedDB.
 | `frontend/tests/`            | unit and integration tests                                |
 | `frontend/manifest.json`     | the only manifest (copied to `dist/` by Vite)             |
 | `scripts/`                   | dist audit, packaging, dev watch, browser smoke test      |
-| `docs/v5.1/` … `docs/v5.14/` | architecture, security, test reports, checklists          |
+| `docs/v5.1/` … `docs/v5.15/` | architecture, security, test reports, checklists          |
 | `v5/`                        | V5.1–V5.x specifications                                  |
 | `plans/`                     | V1–V4 plans (history)                                     |
 
-See [docs/v5.14/TEST_REPORT.md](docs/v5.14/TEST_REPORT.md) (sync between computers, fixed extension ID),
+See [docs/v5.15/TEST_REPORT.md](docs/v5.15/TEST_REPORT.md) (translate button on selected text),
+[docs/v5.14/TEST_REPORT.md](docs/v5.14/TEST_REPORT.md) (sync between computers, fixed extension ID),
 [docs/v5.12/TEST_REPORT.md](docs/v5.12/TEST_REPORT.md) (Summary tab, read-only page selection, French settings page),
 [docs/v5.11/TEST_REPORT.md](docs/v5.11/TEST_REPORT.md) (right-edge handle and three-tab modal),
 [docs/v5.10/V5.10_REPORT.md](docs/v5.10/V5.10_REPORT.md) (release audit and owner guide [docs/v5.10/USER_GUIDE.md](docs/v5.10/USER_GUIDE.md)),

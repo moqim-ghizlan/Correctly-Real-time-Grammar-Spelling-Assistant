@@ -37,7 +37,7 @@ const extensionPath = resolve('dist');
 const DUMMY_KEY = 'CORRECTLY_TEST_SENTINEL_KEY_dummy_000000';
 const DUMMY_OPENAI_KEY = 'CORRECTLY_TEST_SENTINEL_KEY_openai_dummy_0';
 const profile = await mkdtemp(join(tmpdir(), 'correctly-v511-'));
-const EVIDENCE = 'docs/v5.14/evidence';
+const EVIDENCE = 'docs/v5.15/evidence';
 const delay = (ms) => new Promise((done) => setTimeout(done, ms));
 
 const evidence = {
@@ -395,8 +395,8 @@ try {
   await openOptions();
   await wakeWorker(extensionId);
   const manifest = await page.evaluate('chrome.runtime.getManifest()');
-  assert.equal(manifest.version, '5.14.1');
-  assert.equal(manifest.name, 'Correctly V5.14');
+  assert.equal(manifest.version, '5.15.0');
+  assert.equal(manifest.name, 'Correctly V5.15');
   assert.deepEqual(manifest.host_permissions, [
     'https://generativelanguage.googleapis.com/*',
     'https://api.openai.com/*',
@@ -1271,6 +1271,68 @@ try {
     'C04',
     'PASS',
     'translate: picker sends nothing, one request (auto → Arabic Syrian), RTL result, exact Apply/Undo',
+  );
+
+  // 5.15: the translate button on a real mouse selection (worker stubbed):
+  // the button appears and sends nothing; a click opens the bubble with one
+  // translation request.
+  await page.evaluate(`(() => {
+    globalThis.correctlyPanel?.close();
+    const p = document.createElement('p');
+    p.id = 'sel';
+    p.textContent = 'Combined Operating Ratio';
+    p.style.cssText = 'font: 20px sans-serif; margin: 40px; display: inline-block';
+    document.body.prepend(p);
+    window.scrollTo(0, 0);
+    document.activeElement?.blur();
+    globalThis.sentMessages = [];
+    globalThis.chrome = { runtime: { id: 'test', onMessage: { addListener() {} },
+      sendMessage: async (message) => {
+        if (message.type === 'correctly.v5.pageConfig')
+          return { selectionButton: true, locale: 'en', translation: { target: 'fr', arabicVariant: 'msa' } };
+        globalThis.sentMessages.push(message);
+        return { ok: true, missing: [], candidates: [
+          { styleId: 'neutral', text: 'Ratio combiné', suspicious: false } ] };
+      } } };
+  })()`);
+  await page.evaluate(`${smartBundle}; void 0`);
+  await page.evaluate('new Promise((resolve) => setTimeout(resolve, 100))');
+  const words = await page.evaluate(`(() => {
+    const range = document.createRange();
+    range.selectNodeContents(document.getElementById('sel'));
+    const r = range.getBoundingClientRect();
+    return { left: r.left, right: r.right, top: r.top, bottom: r.bottom };
+  })()`);
+  const middle = (words.top + words.bottom) / 2;
+  await mouse('mousePressed', words.left + 1, middle);
+  await mouse('mouseMoved', words.right - 1, middle, { buttons: 1 });
+  await mouse('mouseReleased', words.right - 1, middle);
+  await page.until(`!!document.querySelector('correctly-selection')`);
+  assert.equal(
+    await page.evaluate('globalThis.sentMessages.length'),
+    0,
+    'showing the button sends nothing',
+  );
+  // The button sits just below the end of the selection (closed shadow root).
+  await mouse('mousePressed', words.right - 1, words.bottom + 19);
+  await mouse('mouseReleased', words.right - 1, words.bottom + 19);
+  await page.until(`!!document.querySelector('correctly-bubble')`);
+  await page.until('globalThis.sentMessages.length === 1');
+  await screenshot('selection');
+  assert.deepEqual(await page.evaluate('globalThis.sentMessages'), [
+    {
+      type: 'correctly.v5.translateText',
+      text: 'Combined Operating Ratio',
+      source: 'auto',
+      target: 'fr',
+      variant: null,
+      styleIds: [],
+    },
+  ]);
+  step(
+    'Y02',
+    'PASS',
+    'translate button: a real selection shows it and sends nothing; a click opens the bubble with exactly one request',
   );
 
   // Step 15: no console output containing the key; only approved hosts.

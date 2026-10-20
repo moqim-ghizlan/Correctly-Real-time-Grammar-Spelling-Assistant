@@ -93,6 +93,10 @@ const TEXTS = {
     'Menu clic droit : Correctly → Corriger le texte sélectionné',
     'Right-click menu: Correctly → Correct selected text',
   ],
+  triggerSelection: [
+    'Bouton de traduction sur le texte sélectionné (jusqu’à 5 mots : petite bulle de traduction ; au-delà : la fenêtre Correctly sur Traduction). Rien n’est envoyé tant que vous ne cliquez pas sur le bouton ; chaque clic compte comme une requête. Demande l’accès à tous les sites, retiré si plus rien n’en a besoin.',
+    'Translate button on selected text (up to 5 words: a small translation bubble; more: the Correctly window on Translation). Nothing is sent until you click the button; each click counts as one request. Asks for access to all sites, removed when nothing needs it any more.',
+  ],
   triggerSmart: [
     'Poignée Correctly au bord droit de chaque page (clic pour ouvrir, glisser vers le haut ou le bas pour la déplacer ; demande l’accès à tous les sites, retiré si vous la désactivez)',
     'Correctly handle on the right edge of every page (click to open, drag up or down to move; asks for access to all sites, removed when you turn it off)',
@@ -574,6 +578,10 @@ const TEMPLATE = `<!doctype html>
             <label class="check" for="trigger-smart">
               <input id="trigger-smart" type="checkbox" disabled />
               <span ${T('triggerSmart')}</span>
+            </label>
+            <label class="check" for="trigger-selection">
+              <input id="trigger-selection" type="checkbox" disabled />
+              <span ${T('triggerSelection')}</span>
             </label>
             <p id="triggers-message" class="message" aria-live="polite"></p>
           </section>

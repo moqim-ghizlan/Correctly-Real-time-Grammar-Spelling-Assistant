@@ -1,4 +1,4 @@
-import { SMART_BUTTON_OFF } from '../shared/contracts';
+import { SELECTION_BUTTON_OFF, SMART_BUTTON_OFF } from '../shared/contracts';
 import { loadKeybindings } from '../shared/keybindings';
 import { QUOTA_CHANNEL, browserQuotaStore } from '../shared/quota-store';
 import { loadShortcuts } from '../shared/shortcuts';
@@ -24,8 +24,8 @@ if (version) version.textContent = chrome.runtime.getManifest().version;
 const area = browserStorage();
 const ALL_SITES = { origins: ['<all_urls>'] };
 /**
- * All-sites access stays while the right-edge handle, text shortcuts or
- * Correctly's own keyboard shortcuts need it.
+ * All-sites access stays while the right-edge handle, the translate button,
+ * text shortcuts or Correctly's own keyboard shortcuts need it.
  */
 const releaseSiteAccess = async () => {
   const [settings, shortcuts, keys] = await Promise.all([
@@ -35,6 +35,7 @@ const releaseSiteAccess = async () => {
   ]);
   if (
     !settings.triggers.smartButton &&
+    !settings.triggers.selectionButton &&
     !shortcuts.store.enabled &&
     !keys.enabled
   )
@@ -55,6 +56,15 @@ function start(locale: Locale): void {
     enableSmartButton: () => chrome.permissions.request(ALL_SITES),
     // The whole page re-renders in the new language.
     onLanguageChanged: () => window.location.reload(),
+    enableSelectionButton: () => chrome.permissions.request(ALL_SITES),
+    disableSelectionButton: async () => {
+      for (const tab of await chrome.tabs.query({}))
+        if (typeof tab.id === 'number')
+          void chrome.tabs
+            .sendMessage(tab.id, { type: SELECTION_BUTTON_OFF })
+            .catch(() => undefined);
+      await releaseSiteAccess();
+    },
     disableSmartButton: async () => {
       for (const tab of await chrome.tabs.query({}))
         if (typeof tab.id === 'number')

@@ -76,3 +76,14 @@ export const minimizeIcon = (doc: Document): SVGSVGElement =>
 /** Close: an X (ends the session). */
 export const closeIcon = (doc: Document): SVGSVGElement =>
   svg(doc, 18, [['path', { d: 'M7 7l10 10M17 7L7 17', ...STROKE }]]);
+
+/** 5.15 translate button (Lucide "languages", ISC). */
+export const translateIcon = (doc: Document, size = 18): SVGSVGElement =>
+  svg(doc, size, [
+    ['path', { d: 'm5 8 6 6', ...STROKE }],
+    ['path', { d: 'm4 14 6-6 2-3', ...STROKE }],
+    ['path', { d: 'M2 5h12', ...STROKE }],
+    ['path', { d: 'M7 2h1', ...STROKE }],
+    ['path', { d: 'm22 22-5-10-5 10', ...STROKE }],
+    ['path', { d: 'M14 18h6', ...STROKE }],
+  ]);

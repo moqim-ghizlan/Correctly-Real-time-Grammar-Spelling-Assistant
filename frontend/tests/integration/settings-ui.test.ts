@@ -113,6 +113,7 @@ describe('V5.3 entry points', () => {
       keyboard: false,
       contextMenu: true,
       smartButton: false,
+      selectionButton: false,
     });
     $('open-shortcuts').click();
     expect(openShortcuts).toHaveBeenCalledTimes(1);
@@ -138,6 +139,32 @@ describe('V5.3 entry points', () => {
     await page.saveSmartButton();
     expect(disableSmartButton).toHaveBeenCalledTimes(1);
     expect((await loadSettings(area)).triggers.smartButton).toBe(false);
+  });
+
+  it('5.15: the translate button is off by default and needs site access', async () => {
+    const enableSelectionButton = vi.fn(() => Promise.resolve(false));
+    const disableSelectionButton = vi.fn(() => Promise.resolve());
+    const page = await openWith({
+      enableSelectionButton,
+      disableSelectionButton,
+    });
+    expect($<HTMLInputElement>('trigger-selection').checked).toBe(false);
+    $<HTMLInputElement>('trigger-selection').checked = true;
+    await page.saveSelectionButton();
+    expect((await loadSettings(area)).triggers.selectionButton).toBe(false);
+    expect($<HTMLInputElement>('trigger-selection').checked).toBe(false);
+    expect(text('triggers-message')).toContain('pas été accordé');
+
+    enableSelectionButton.mockResolvedValueOnce(true);
+    $<HTMLInputElement>('trigger-selection').checked = true;
+    await page.saveSelectionButton();
+    expect((await loadSettings(area)).triggers.selectionButton).toBe(true);
+    expect(text('triggers-message')).toContain('Bouton de traduction activé');
+
+    $<HTMLInputElement>('trigger-selection').checked = false;
+    await page.saveSelectionButton();
+    expect(disableSelectionButton).toHaveBeenCalledTimes(1);
+    expect((await loadSettings(area)).triggers.selectionButton).toBe(false);
   });
 });
 
