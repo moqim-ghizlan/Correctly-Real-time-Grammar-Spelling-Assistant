@@ -507,6 +507,17 @@ fieldset.styles legend {
   font-weight: 500;
 }
 
+/* 5.16: "Your languages", a compact grid of the whole catalog. */
+fieldset.favorites {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(190px, 1fr));
+  gap: 0 12px;
+}
+
+fieldset.favorites label.check {
+  margin: 4px 0;
+}
+
 .formality-setting {
   margin: 12px 0 0;
 }

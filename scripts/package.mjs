@@ -1,4 +1,4 @@
-// Builds release/Correctly-V5.15-Extension.zip from an audited dist/.
+// Builds release/Correctly-V5.16-Extension.zip from an audited dist/.
 // manifest.json sits at the archive root, ready for "Load unpacked" after
 // extraction. Minimal ZIP writer (deflate) to avoid a new dependency.
 import console from 'node:console';
@@ -6,7 +6,7 @@ import process from 'node:process';
 import { Buffer } from 'node:buffer';
 import { createHash } from 'node:crypto';
 import { mkdirSync, readFileSync, writeFileSync } from 'node:fs';
-import { join, resolve } from 'node:path';
+import { basename, join, resolve } from 'node:path';
 import { crc32, deflateRawSync } from 'node:zlib';
 import { auditDist } from './audit-dist.mjs';
 
@@ -67,9 +67,9 @@ end.writeUInt32LE(offset, 16);
 const zip = Buffer.concat([...locals, ...centrals, end]);
 
 mkdirSync('release', { recursive: true });
-const target = join('release', 'Correctly-V5.15-Extension.zip');
+const target = join('release', 'Correctly-V5.16-Extension.zip');
 writeFileSync(target, zip);
 const sha = createHash('sha256').update(zip).digest('hex');
-writeFileSync(target + '.sha256', `${sha}  Correctly-V5.14-Extension.zip\n`);
+writeFileSync(target + '.sha256', `${sha}  ${basename(target)}\n`);
 console.info(`${target} (${files.length} files, ${zip.length} bytes)`);
 console.info('SHA-256 ' + sha);

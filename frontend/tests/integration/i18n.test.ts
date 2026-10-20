@@ -174,7 +174,11 @@ describe('in-page modal', () => {
       expect(labels(modal)).toContain(text);
     expect(modal.root.textContent).toContain('Langue du résumé');
     expect(modal.root.textContent).toContain('Détection automatique');
-    expect(modal.root.textContent).toContain('Syrien (dialecte parlé)');
+    // 5.16: language names in French, with their own script.
+    expect(
+      [...modal.root.querySelectorAll('optgroup')].map((group) => group.label),
+    ).toContain('Toutes les langues');
+    expect(modal.root.textContent).toContain('Japonais — 日本語');
   });
 
   it('English (default) is the V5.x copy, unchanged', () => {

@@ -118,9 +118,9 @@ export function auditDist(distDir) {
 
   // B01 — manifest shape and minimal permissions.
   if (manifest.manifest_version !== 3) fail('manifest_version must be 3');
-  if (manifest.version !== '5.15.0') fail('version must be 5.15.0');
-  if (!String(manifest.name ?? '').includes('V5.15'))
-    fail('name must say V5.15');
+  if (manifest.version !== '5.16.0') fail('version must be 5.16.0');
+  if (!String(manifest.name ?? '').includes('V5.16'))
+    fail('name must say V5.16');
   if (manifest.key !== EXTENSION_PUBLIC_KEY)
     fail('manifest key must be the Correctly public key (stable extension ID)');
   // activeTab + scripting: inject content.js into the clicked tab only.

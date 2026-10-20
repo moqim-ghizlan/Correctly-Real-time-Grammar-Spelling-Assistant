@@ -470,8 +470,8 @@
             <p class="hint" data-i18n-html="translationHint">
               Langues par défaut de l’onglet Traduction (et du menu clic droit).
               L’onglet <strong>Résumé</strong> démarre avec la même langue cible
-              et la même variante d’arabe, et écrit le résumé directement dans
-              cette langue, en une requête.
+              et la même variante, et écrit le résumé directement dans cette
+              langue, en une requête.
             </p>
             <div class="grid-3">
               <label class="stack" for="translation-source"
@@ -486,15 +486,27 @@
                 class="stack"
                 id="translation-variant-row"
                 for="translation-variant"
-                ><span data-i18n="arabicVariant">Variante d’arabe</span>
+                ><span data-i18n="variant">Variante</span>
                 <select id="translation-variant" disabled></select>
               </label>
             </div>
+            <fieldset id="translation-favorites" class="styles favorites">
+              <legend data-i18n="favoritesLegend">Vos langues</legend>
+            </fieldset>
+            <p class="hint" data-i18n="favoritesHint">
+              Cochez jusqu’à 12 langues : elles sont proposées en premier dans
+              tous les menus de langue (fenêtre, menu clic droit, bulle de
+              traduction, résumé). Les autres restent dans « Toutes les langues
+              ». La variante choisie est retenue pour chaque langue qui en a
+              (arabe, portugais, chinois, kurde).
+            </p>
             <p class="hint" data-i18n="translationNote">
               Une requête IA par traduction (détection de la langue comprise).
-              Le syrien est l’arabe parlé au quotidien ; l’arabe standard
-              moderne est la norme écrite. Une traduction automatique peut être
-              fausse : relisez-la avant d’envoyer quelque chose d’important.
+              Pour l’arabe, les dialectes parlés (syrien, égyptien, marocain,
+              libanais, du Golfe) sont l’arabe de tous les jours ; l’arabe
+              standard moderne est la norme écrite. Une traduction automatique
+              peut être fausse : relisez-la avant d’envoyer quelque chose
+              d’important.
             </p>
             <p id="translation-message" class="message" aria-live="polite"></p>
           </section>

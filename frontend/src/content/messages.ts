@@ -42,7 +42,7 @@ export interface ContentMessages {
   from: string;
   to: string;
   autoDetect: string;
-  arabicVariant: string;
+  variant: string;
   alsoRewrite: string;
   summaryLanguage: string;
   length: string;
@@ -183,7 +183,7 @@ const EN: ContentMessages = {
   from: 'From',
   to: 'To',
   autoDetect: 'Auto-detect',
-  arabicVariant: 'Arabic variant',
+  variant: 'Variant',
   alsoRewrite: 'Also rewrite in a style',
   summaryLanguage: 'Summary language',
   length: 'Length',
@@ -333,7 +333,7 @@ const FR: ContentMessages = {
   from: 'De',
   to: 'Vers',
   autoDetect: 'Détection automatique',
-  arabicVariant: 'Variante d’arabe',
+  variant: 'Variante',
   alsoRewrite: 'Reformuler aussi dans un style',
   summaryLanguage: 'Langue du résumé',
   length: 'Longueur',

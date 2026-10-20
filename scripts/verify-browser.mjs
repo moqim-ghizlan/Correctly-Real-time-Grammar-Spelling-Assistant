@@ -37,7 +37,7 @@ const extensionPath = resolve('dist');
 const DUMMY_KEY = 'CORRECTLY_TEST_SENTINEL_KEY_dummy_000000';
 const DUMMY_OPENAI_KEY = 'CORRECTLY_TEST_SENTINEL_KEY_openai_dummy_0';
 const profile = await mkdtemp(join(tmpdir(), 'correctly-v511-'));
-const EVIDENCE = 'docs/v5.15/evidence';
+const EVIDENCE = 'docs/v5.16/evidence';
 const delay = (ms) => new Promise((done) => setTimeout(done, ms));
 
 const evidence = {
@@ -395,8 +395,8 @@ try {
   await openOptions();
   await wakeWorker(extensionId);
   const manifest = await page.evaluate('chrome.runtime.getManifest()');
-  assert.equal(manifest.version, '5.15.0');
-  assert.equal(manifest.name, 'Correctly V5.15');
+  assert.equal(manifest.version, '5.16.0');
+  assert.equal(manifest.name, 'Correctly V5.16');
   assert.deepEqual(manifest.host_permissions, [
     'https://generativelanguage.googleapis.com/*',
     'https://api.openai.com/*',
@@ -1130,6 +1130,66 @@ try {
     'S12',
     'PASS',
     'V5.12: page text selection survives the handle click, Summary sends one request, Apply disabled, page unchanged; Minimize keeps the session (real handle click restores it), Close ends it',
+  );
+
+  // 5.16: a non-Latin, right-to-left target through the modal (worker
+  // stubbed): favorites first in the menu, one request, RTL layout.
+  await page.evaluate(`(() => {
+    document.getElementById('article')?.remove();
+    const t = document.getElementById('t');
+    t.value = 'Bonjour à tous';
+    t.focus(); t.setSelectionRange(0, t.value.length);
+    globalThis.sentMessages = [];
+    // Wraps the stub above (kept for the next steps) with a Persian reply.
+    const runtime = globalThis.chrome.runtime;
+    globalThis.stubbedSend = runtime.sendMessage;
+    runtime.sendMessage = async (message) => {
+      if (message.type !== 'correctly.v5.translateText')
+        return globalThis.stubbedSend(message);
+      globalThis.sentMessages.push(message);
+      return { ok: true, missing: [], candidates: [{ styleId: 'neutral', text: 'سلام به همه', suspicious: false }] };
+    };
+    globalThis.correctlyRun('open', [], { source: 'auto', target: 'fa', favorites: ['fa', 'ja'] }, true);
+  })()`);
+  await page.until(`globalThis.correctlyModal?.visible === true`);
+  await page.evaluate(`${modal}.selectTab('translation')`);
+  const tSelect = `${modal}.root.querySelectorAll('#correctly-panel-translation select')[1]`;
+  assert.deepEqual(
+    await page.evaluate(
+      `[...${tSelect}.querySelector('optgroup').querySelectorAll('option')].map((o) => o.value)`,
+    ),
+    ['fa', 'ja'],
+    'favorites first in the target menu',
+  );
+  assert.equal(await page.evaluate(`${tSelect}.value`), 'fa');
+  assert(
+    !(await page.evaluate(types)).includes('correctly.v5.translateText'),
+    'opening the Translation tab must not send',
+  );
+  await page.evaluate(`${modal}.generate('translation')`);
+  const tOutput = `${modal}.root.querySelector('#correctly-panel-translation .results .text')`;
+  await page.until(`${tOutput}?.textContent === 'سلام به همه'`);
+  assert.deepEqual(
+    await page.evaluate(
+      `globalThis.sentMessages.filter((m) => m.type === 'correctly.v5.translateText').map((m) => [m.target, m.variant])`,
+    ),
+    [['fa', null]],
+    'one translation request to Persian',
+  );
+  assert.equal(
+    await page.evaluate(`getComputedStyle(${tOutput}).direction`),
+    'rtl',
+    'Persian result must render right-to-left',
+  );
+  await screenshot('translation-rtl');
+  await page.evaluate(`(() => {
+    ${modal}.root.querySelector('[aria-label="Close Correctly"]').click();
+    globalThis.chrome.runtime.sendMessage = globalThis.stubbedSend;
+  })()`);
+  step(
+    'T16',
+    'PASS',
+    '5.16: modal target menu shows favorites first; Persian: one request, result laid out right-to-left',
   );
 
   // V5.6: real typing (trusted input events over CDP) expands a shortcut

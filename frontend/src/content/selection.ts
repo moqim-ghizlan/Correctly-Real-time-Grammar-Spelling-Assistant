@@ -11,15 +11,15 @@ import {
   SELECTION_BUTTON_OFF,
   TRANSLATE_TEXT,
 } from '../shared/contracts';
-import { COMMON, languageName, type CommonMessages } from '../shared/i18n';
+import { COMMON, type CommonMessages } from '../shared/i18n';
+import { fillLanguages, linkVariants } from '../shared/language-menu';
 import type { Locale } from '../shared/locale';
 import { toRewriteResult } from '../shared/rewrite';
 import {
-  ARABIC_VARIANTS,
-  LANGUAGES,
+  isLanguageId,
+  isRtl,
   translationKeys,
-  type ArabicVariant,
-  type LanguageId,
+  variantFor,
   type TranslationPreferences,
 } from '../shared/translate';
 import { capture } from './correction';
@@ -42,7 +42,10 @@ const OWN_HOSTS = new Set([
 
 export interface SelectionConfig {
   locale: Locale;
-  translation: Pick<TranslationPreferences, 'target' | 'arabicVariant'>;
+  translation: Pick<
+    TranslationPreferences,
+    'target' | 'variants' | 'favorites'
+  >;
 }
 
 /** chrome.runtime.sendMessage, injectable for tests. */
@@ -395,16 +398,11 @@ export class SelectionButton {
       select.value = value;
       return select;
     };
-    const target = options(
-      this.m.to,
-      LANGUAGES.map((l) => ({ id: l.id, label: languageName(this.c, l.id) })),
-      this.config.translation.target,
-    );
-    const variant = options(
-      this.m.arabicVariant,
-      ARABIC_VARIANTS.map((v) => ({ id: v.id, label: this.c.variant[v.id] })),
-      this.config.translation.arabicVariant,
-    );
+    // 5.16: the whole catalog, favorites first; the variant follows it.
+    const prefs = this.config.translation;
+    const target = options(this.m.to, [], '');
+    fillLanguages(target, this.c, prefs.favorites, prefs.target);
+    const variant = options(this.m.variant, [], '');
     const translate = make('button', 'action primary', this.m.bubbleTranslate);
     translate.type = 'button';
     const row = make('div', 'row');
@@ -427,16 +425,14 @@ export class SelectionButton {
     box.append(head, source, row, result, status, foot);
     root.append(box);
 
-    const sync = () => {
-      variant.hidden = target.value !== 'ar';
-    };
-    sync();
     // The language chosen here is for this bubble only (owner decision D3).
-    target.addEventListener('change', sync);
+    linkVariants(target, variant, variant, this.c, prefs.variants);
 
     const run = async () => {
       const token = ++this.token;
-      const language = target.value as LanguageId;
+      // Frozen with the request: the result is shown in what was asked.
+      const language = isLanguageId(target.value) ? target.value : prefs.target;
+      const dialect = variantFor(language, variant.value);
       translate.disabled = true;
       copy.disabled = true;
       result.textContent = '';
@@ -449,7 +445,7 @@ export class SelectionButton {
           text,
           source: 'auto',
           target: language,
-          variant: language === 'ar' ? (variant.value as ArabicVariant) : null,
+          variant: dialect,
           styleIds: [],
         });
       } catch {
@@ -472,6 +468,7 @@ export class SelectionButton {
       }
       // Model output is shown as text only, never as markup.
       result.textContent = best;
+      result.dir = isRtl(language, dialect) ? 'rtl' : 'auto';
       status.textContent = '';
       copy.disabled = false;
       copy.textContent = this.m.copy;

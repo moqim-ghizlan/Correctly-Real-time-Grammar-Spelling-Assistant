@@ -206,19 +206,119 @@ describe('V5.5 translation settings', () => {
     expect(select('translation-source').value).toBe('auto');
     expect(select('translation-target').value).toBe('en');
     expect($('translation-variant-row').hidden).toBe(true);
+    // Choosing Arabic saves it and shows the Arabic variants (5.16).
     select('translation-target').value = 'ar';
+    await page.saveTranslation();
+    expect($('translation-variant-row').hidden).toBe(false);
     select('translation-variant').value = 'syrian';
     await page.saveTranslation();
-    expect((await loadSettings(area)).translation).toEqual({
+    expect((await loadSettings(area)).translation).toMatchObject({
       source: 'auto',
       target: 'ar',
+      variants: { ar: 'syrian' },
       arabicVariant: 'syrian',
     });
-    expect($('translation-variant-row').hidden).toBe(false);
     select('translation-source').value = 'ar';
     await page.saveTranslation();
     expect(text('translation-message')).toContain('identiques');
     expect((await loadSettings(area)).translation.source).toBe('auto');
     expect(fetchImpl).not.toHaveBeenCalled();
+  });
+});
+
+describe('5.16 languages in the settings', () => {
+  const favorites = () => [
+    ...document.querySelectorAll<HTMLInputElement>('input[data-favorite]'),
+  ];
+  const groupValues = (id: string, index: number) => {
+    const group = $<HTMLSelectElement>(id).querySelectorAll('optgroup')[index]!;
+    return [...group.querySelectorAll('option')].map((option) => option.value);
+  };
+
+  it('favorites: the V5.5 six by default, in the menus first; saved in the order added', async () => {
+    const page = await openPage();
+    const boxes = favorites();
+    expect(boxes).toHaveLength(39);
+    expect(
+      boxes
+        .filter((box) => box.checked)
+        .map((box) => box.value)
+        .sort(),
+    ).toEqual(['ar', 'de', 'en', 'es', 'fr', 'tr']);
+    // French page: "Allemand" first in the A→Z list.
+    expect(boxes[0]!.value).toBe('de');
+    expect(groupValues('translation-target', 0)).toEqual([
+      'fr',
+      'en',
+      'ar',
+      'tr',
+      'de',
+      'es',
+    ]);
+    for (const box of boxes) box.checked = ['ja', 'ar'].includes(box.value);
+    await page.saveTranslation();
+    expect((await loadSettings(area)).translation.favorites).toEqual([
+      'ar',
+      'ja',
+    ]);
+    expect(groupValues('translation-target', 0)).toEqual(['ar', 'ja']);
+    expect(groupValues('translation-source', 0)).toEqual(['ar', 'ja']);
+    for (const box of boxes) box.checked = true;
+    await page.saveTranslation();
+    expect(text('translation-message')).toContain('12');
+    expect((await loadSettings(area)).translation.favorites).toEqual([
+      'ar',
+      'ja',
+    ]);
+    expect(favorites().filter((box) => box.checked)).toHaveLength(2);
+    expect(fetchImpl).not.toHaveBeenCalled();
+  });
+
+  it('each language keeps its own variant', async () => {
+    const page = await openPage();
+    const select = (id: string) => $<HTMLSelectElement>(id);
+    select('translation-target').value = 'pt';
+    await page.saveTranslation();
+    expect(
+      [...select('translation-variant').options].map((o) => o.value),
+    ).toEqual(['pt_br', 'pt_pt']);
+    select('translation-variant').value = 'pt_pt';
+    await page.saveTranslation();
+    select('translation-target').value = 'ar';
+    await page.saveTranslation();
+    expect(select('translation-variant').value).toBe('msa');
+    select('translation-variant').value = 'egyptian';
+    await page.saveTranslation();
+    select('translation-target').value = 'ja';
+    await page.saveTranslation();
+    expect($('translation-variant-row').hidden).toBe(true);
+    select('translation-target').value = 'pt';
+    await page.saveTranslation();
+    expect(select('translation-variant').value).toBe('pt_pt');
+    expect((await loadSettings(area)).translation).toMatchObject({
+      target: 'pt',
+      variants: { ar: 'egyptian', pt: 'pt_pt' },
+      arabicVariant: 'egyptian',
+    });
+  });
+
+  it('English page: English names, sorted in English', async () => {
+    document.body.innerHTML = body;
+    const page = new SettingsPage(document, { area, confirm, locale: 'en' });
+    await page.init();
+    expect(favorites()[0]!.parentElement!.textContent).toBe('Amharic — አማርኛ');
+    const labels = [
+      ...$<HTMLSelectElement>('translation-target')
+        .querySelectorAll('optgroup')[1]!
+        .querySelectorAll('option'),
+    ].map((option) => option.textContent);
+    expect(labels).toContain('Japanese — 日本語');
+    expect(
+      [
+        ...$<HTMLSelectElement>('translation-target').querySelectorAll(
+          'optgroup',
+        ),
+      ].map((group) => group.label),
+    ).toEqual(['Your languages', 'All languages']);
   });
 });

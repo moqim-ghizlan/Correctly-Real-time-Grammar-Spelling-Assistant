@@ -22,7 +22,6 @@ export type HtmlKey =
   | 'apiKey'
   | 'applied'
   | 'appliesFrom'
-  | 'arabicVariant'
   | 'asTable'
   | 'backup'
   | 'brandSub'
@@ -72,6 +71,8 @@ export type HtmlKey =
   | 'export'
   | 'exportCsv'
   | 'exportJson'
+  | 'favoritesHint'
+  | 'favoritesLegend'
   | 'from'
   | 'historyLink'
   | 'howItWorks'
@@ -204,6 +205,7 @@ export type HtmlKey =
   | 'triggerSmart'
   | 'triggersHint'
   | 'triggersTitle'
+  | 'variant'
   | 'warn80'
   | 'warn95'
   | 'warnings'
@@ -253,7 +255,6 @@ export const HTML_EN: Record<HtmlKey, string> = {
   apiKey: 'API key',
   applied: 'AI edits applied',
   appliesFrom: 'Applies from',
-  arabicVariant: 'Arabic variant',
   asTable: 'Show as a table',
   backup: 'Backup',
   brandSub: 'Settings',
@@ -307,6 +308,9 @@ export const HTML_EN: Record<HtmlKey, string> = {
   export: 'Export (JSON)',
   exportCsv: 'Export CSV',
   exportJson: 'Export JSON',
+  favoritesHint:
+    'Tick up to 12 languages: they come first in every language menu (window, right-click menu, translate bubble, summary). The others stay under “All languages”. The chosen variant is remembered for each language that has variants (Arabic, Portuguese, Chinese, Kurdish).',
+  favoritesLegend: 'Your languages',
   from: 'From',
   historyLink:
     'Full history, tokens and estimated cost: <a href="#statistics">Statistics</a>.',
@@ -464,9 +468,9 @@ export const HTML_EN: Record<HtmlKey, string> = {
   todayTitle: 'Today by key, model and action',
   tokens: 'Tokens reported',
   translationHint:
-    'Default languages of the Translation tab (and the right-click menu). The <strong>Summary</strong> tab starts with the same target language and Arabic variant, and writes the summary directly in that language, in one request.',
+    'Default languages of the Translation tab (and the right-click menu). The <strong>Summary</strong> tab starts with the same target language and variant, and writes the summary directly in that language, in one request.',
   translationNote:
-    'One AI request per translation (language detection included). Syrian colloquial is everyday spoken Arabic; Modern Standard Arabic is the formal written standard. Machine translation can be wrong: review it before sending anything important.',
+    'One AI request per translation (language detection included). For Arabic, the colloquial dialects (Syrian, Egyptian, Moroccan, Lebanese, Gulf) are everyday spoken Arabic; Modern Standard Arabic is the formal written standard. Machine translation can be wrong: review it before sending anything important.',
   translationTitle: 'Translation and summary',
   trigger: 'Shortcut (1–32 letters or digits)',
   triggerKeyboard:
@@ -481,6 +485,7 @@ export const HTML_EN: Record<HtmlKey, string> = {
   triggersHint:
     'The toolbar button always opens the Correctly window. AI is called only after you act.',
   triggersTitle: 'Opening Correctly',
+  variant: 'Variant',
   warn80: 'Warn at 80% of a limit',
   warn95: 'Warn at 95% of a limit',
   warnings: 'Warnings',
@@ -515,7 +520,6 @@ export const HTML_FR: Record<HtmlKey, string> = {
   apiKey: 'Clé API',
   applied: 'Modifications appliquées',
   appliesFrom: 'S’applique à partir du',
-  arabicVariant: 'Variante d’arabe',
   asTable: 'Voir sous forme de tableau',
   backup: 'Sauvegarde',
   brandSub: 'Paramètres',
@@ -569,6 +573,9 @@ export const HTML_FR: Record<HtmlKey, string> = {
   export: 'Exporter (JSON)',
   exportCsv: 'Exporter CSV',
   exportJson: 'Exporter JSON',
+  favoritesHint:
+    'Cochez jusqu’à 12 langues : elles sont proposées en premier dans tous les menus de langue (fenêtre, menu clic droit, bulle de traduction, résumé). Les autres restent dans « Toutes les langues ». La variante choisie est retenue pour chaque langue qui en a (arabe, portugais, chinois, kurde).',
+  favoritesLegend: 'Vos langues',
   from: 'De',
   historyLink:
     'Historique complet, tokens et coût estimé : <a href="#statistics">Statistiques</a>.',
@@ -729,9 +736,9 @@ export const HTML_FR: Record<HtmlKey, string> = {
   todayTitle: 'Aujourd’hui par clé, modèle et action',
   tokens: 'Tokens déclarés',
   translationHint:
-    'Langues par défaut de l’onglet Traduction (et du menu clic droit). L’onglet <strong>Résumé</strong> démarre avec la même langue cible et la même variante d’arabe, et écrit le résumé directement dans cette langue, en une requête.',
+    'Langues par défaut de l’onglet Traduction (et du menu clic droit). L’onglet <strong>Résumé</strong> démarre avec la même langue cible et la même variante, et écrit le résumé directement dans cette langue, en une requête.',
   translationNote:
-    'Une requête IA par traduction (détection de la langue comprise). Le syrien est l’arabe parlé au quotidien ; l’arabe standard moderne est la norme écrite. Une traduction automatique peut être fausse : relisez-la avant d’envoyer quelque chose d’important.',
+    'Une requête IA par traduction (détection de la langue comprise). Pour l’arabe, les dialectes parlés (syrien, égyptien, marocain, libanais, du Golfe) sont l’arabe de tous les jours ; l’arabe standard moderne est la norme écrite. Une traduction automatique peut être fausse : relisez-la avant d’envoyer quelque chose d’important.',
   translationTitle: 'Traduction et résumé',
   trigger: 'Raccourci (1 à 32 lettres ou chiffres)',
   triggerKeyboard:
@@ -746,6 +753,7 @@ export const HTML_FR: Record<HtmlKey, string> = {
   triggersHint:
     'Le bouton de la barre d’outils ouvre toujours la fenêtre Correctly. L’IA n’est appelée qu’après une action de votre part.',
   triggersTitle: 'Ouvrir Correctly',
+  variant: 'Variante',
   warn80: 'Prévenir à 80 % d’une limite',
   warn95: 'Prévenir à 95 % d’une limite',
   warnings: 'Alertes',

@@ -166,15 +166,20 @@ const TEXTS = {
   ],
   translationTitle: ['Traduction et résumé', 'Translation and summary'],
   translationHint: [
-    'Langues par défaut de l’onglet Traduction (et du menu clic droit). L’onglet <strong>Résumé</strong> démarre avec la même langue cible et la même variante d’arabe, et écrit le résumé directement dans cette langue, en une requête.',
-    'Default languages of the Translation tab (and the right-click menu). The <strong>Summary</strong> tab starts with the same target language and Arabic variant, and writes the summary directly in that language, in one request.',
+    'Langues par défaut de l’onglet Traduction (et du menu clic droit). L’onglet <strong>Résumé</strong> démarre avec la même langue cible et la même variante, et écrit le résumé directement dans cette langue, en une requête.',
+    'Default languages of the Translation tab (and the right-click menu). The <strong>Summary</strong> tab starts with the same target language and variant, and writes the summary directly in that language, in one request.',
   ],
   from: ['De', 'From'],
   to: ['Vers', 'To'],
-  arabicVariant: ['Variante d’arabe', 'Arabic variant'],
+  variant: ['Variante', 'Variant'],
+  favoritesLegend: ['Vos langues', 'Your languages'],
+  favoritesHint: [
+    'Cochez jusqu’à 12 langues : elles sont proposées en premier dans tous les menus de langue (fenêtre, menu clic droit, bulle de traduction, résumé). Les autres restent dans « Toutes les langues ». La variante choisie est retenue pour chaque langue qui en a (arabe, portugais, chinois, kurde).',
+    'Tick up to 12 languages: they come first in every language menu (window, right-click menu, translate bubble, summary). The others stay under “All languages”. The chosen variant is remembered for each language that has variants (Arabic, Portuguese, Chinese, Kurdish).',
+  ],
   translationNote: [
-    'Une requête IA par traduction (détection de la langue comprise). Le syrien est l’arabe parlé au quotidien ; l’arabe standard moderne est la norme écrite. Une traduction automatique peut être fausse : relisez-la avant d’envoyer quelque chose d’important.',
-    'One AI request per translation (language detection included). Syrian colloquial is everyday spoken Arabic; Modern Standard Arabic is the formal written standard. Machine translation can be wrong: review it before sending anything important.',
+    'Une requête IA par traduction (détection de la langue comprise). Pour l’arabe, les dialectes parlés (syrien, égyptien, marocain, libanais, du Golfe) sont l’arabe de tous les jours ; l’arabe standard moderne est la norme écrite. Une traduction automatique peut être fausse : relisez-la avant d’envoyer quelque chose d’important.',
+    'One AI request per translation (language detection included). For Arabic, the colloquial dialects (Syrian, Egyptian, Moroccan, Lebanese, Gulf) are everyday spoken Arabic; Modern Standard Arabic is the formal written standard. Machine translation can be wrong: review it before sending anything important.',
   ],
   keyboardLead: [
     'Deux sortes de raccourcis, utilisables ensemble. Ils ne font qu’ouvrir Correctly ou lancer une action sur la sélection : rien n’est envoyé à l’IA sans votre clic sur Générer (sauf « Corriger la sélection », qui corrige directement comme le menu clic droit).',
@@ -681,10 +686,14 @@ const TEMPLATE = `<!doctype html>
               <label class="stack" for="translation-target"><span ${T('to')}</span>
                 <select id="translation-target" disabled></select>
               </label>
-              <label class="stack" id="translation-variant-row" for="translation-variant"><span ${T('arabicVariant')}</span>
+              <label class="stack" id="translation-variant-row" for="translation-variant"><span ${T('variant')}</span>
                 <select id="translation-variant" disabled></select>
               </label>
             </div>
+            <fieldset id="translation-favorites" class="styles favorites">
+              <legend ${T('favoritesLegend')}</legend>
+            </fieldset>
+            <p class="hint" ${T('favoritesHint')}</p>
             <p class="hint" ${T('translationNote')}</p>
             <p id="translation-message" class="message" aria-live="polite"></p>
           </section>

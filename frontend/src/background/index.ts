@@ -367,7 +367,8 @@ export async function pageConfig(area: StorageArea) {
     selectionButton: settings.triggers.selectionButton,
     translation: {
       target: settings.translation.target,
-      arabicVariant: settings.translation.arabicVariant,
+      variants: settings.translation.variants,
+      favorites: settings.translation.favorites,
     },
     handleY: handle.yRatio,
     // Correctly's own keyboard shortcuts: only when on (and keyboard allowed).

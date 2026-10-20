@@ -19,6 +19,10 @@ import { QuotaStore } from '../../src/shared/quota-store';
 import { normalizeSettings } from '../../src/shared/settings';
 import { saveSettings, STORAGE_KEYS } from '../../src/shared/storage';
 import {
+  DEFAULT_TRANSLATION,
+  normalizeTranslation,
+} from '../../src/shared/translate';
+import {
   FakeStorage,
   FAKE_KEY,
   GEMINI_ID,
@@ -816,6 +820,8 @@ describe('V5.4 rewrite', () => {
 
 describe('V5.5 translation', () => {
   const PREFS = { source: 'auto', target: 'ar', arabicVariant: 'syrian' };
+  // A 5.15 preference, read back with its Arabic variant (5.16 shape).
+  const SAVED = normalizeTranslation(PREFS);
   const configureTranslation = (triggers: object = {}) =>
     saveSettings(
       area,
@@ -878,7 +884,7 @@ describe('V5.5 translation', () => {
     for (const [message, sender] of [
       [{ ...base, target: 'auto' }, contentSender],
       [{ ...base, target: 'fr' }, contentSender],
-      [{ ...base, variant: 'egyptian' }, contentSender],
+      [{ ...base, variant: 'pt_br' }, contentSender],
       [{ ...base, styleIds: ['evil'] }, contentSender],
       [{ ...base, tabId: 9 }, contentSender],
       [base, { ...contentSender, id: 'other' }],
@@ -896,22 +902,22 @@ describe('V5.5 translation', () => {
       id: 7,
     } as chrome.tabs.Tab);
     await vi.waitFor(() => expect(executeScript).toHaveBeenCalledTimes(2));
-    expectInjected([0], ['translate', ['friendly'], PREFS]);
+    expectInjected([0], ['translate', ['friendly'], SAVED]);
     executeScript.mockClear();
     onMenuClick(
       { menuItemId: 'correctly-translate-rewrite-selection', frameId: 0 },
       { id: 7 } as chrome.tabs.Tab,
     );
     await vi.waitFor(() => expect(executeScript).toHaveBeenCalledTimes(2));
-    expectInjected([0], ['translateRewrite', ['friendly'], PREFS]);
+    expectInjected([0], ['translateRewrite', ['friendly'], SAVED]);
     executeScript.mockClear();
     onCommand('translate-selection', { id: 7 } as chrome.tabs.Tab);
     await vi.waitFor(() => expect(executeScript).toHaveBeenCalledTimes(2));
-    expectInjected([0], ['translate', ['friendly'], PREFS]);
+    expectInjected([0], ['translate', ['friendly'], SAVED]);
     executeScript.mockClear();
     await send({ type: OPEN_MODAL }, { ...contentSender, frameId: 3 });
     await vi.waitFor(() => expect(executeScript).toHaveBeenCalledTimes(2));
-    expectInjected([3], ['open', ['friendly'], PREFS, true]);
+    expectInjected([3], ['open', ['friendly'], SAVED, true]);
     expect(fetcher).not.toHaveBeenCalled();
   });
 });
@@ -1031,7 +1037,11 @@ describe('V5.6 text shortcuts', () => {
       locale: 'en',
       smartButton: true,
       selectionButton: false,
-      translation: { target: 'en', arabicVariant: 'msa' },
+      translation: {
+        target: 'en',
+        variants: DEFAULT_TRANSLATION.variants,
+        favorites: DEFAULT_TRANSLATION.favorites,
+      },
       handleY: 0.5,
       keybindings: {},
       shortcuts: [{ trigger: 'bjr', replacement: 'Bonjour' }],

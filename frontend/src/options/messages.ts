@@ -21,6 +21,8 @@ export interface OptionsMessages {
   triggersSaved: string;
   sameLanguages: string;
   translationSaved: string;
+  /** 5.16: more favorite languages than the menus show first. */
+  tooManyFavorites: (max: number) => string;
   keepOneStyle: string;
   rewriteSaved: string;
   handleNoAccess: string;
@@ -410,6 +412,8 @@ const EN: OptionsMessages = {
   triggersSaved: 'Entry points saved.',
   sameLanguages: 'Source and target are the same. The previous choice is kept.',
   translationSaved: 'Translation defaults saved.',
+  tooManyFavorites: (max) =>
+    `At most ${max} favorite languages. The previous choice is kept.`,
   keepOneStyle: 'Keep at least one default style. The previous choice is kept.',
   rewriteSaved: 'Rewrite settings saved.',
   handleNoAccess:
@@ -924,6 +928,8 @@ const FR: OptionsMessages = {
   sameLanguages:
     'La langue source et la langue cible sont identiques. Le choix précédent est conservé.',
   translationSaved: 'Langues par défaut enregistrées.',
+  tooManyFavorites: (max) =>
+    `${max} langues favorites au maximum. Le choix précédent est conservé.`,
   keepOneStyle:
     'Gardez au moins un style par défaut. Le choix précédent est conservé.',
   rewriteSaved: 'Réglages de reformulation enregistrés.',

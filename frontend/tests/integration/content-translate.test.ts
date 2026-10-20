@@ -10,6 +10,7 @@ import { TRANSLATE_TEXT } from '../../src/shared/contracts';
 import type { RewriteStyleId } from '../../src/shared/rewrite';
 import {
   DEFAULT_TRANSLATION,
+  normalizeTranslation,
   type TranslationPreferences,
 } from '../../src/shared/translate';
 
@@ -45,11 +46,13 @@ function textarea(value: string) {
 }
 
 function open(
-  prefs: TranslationPreferences = {
+  // A 5.15 preference: the Arabic variant is read from `arabicVariant`.
+  prefs: TranslationPreferences = normalizeTranslation({
     ...DEFAULT_TRANSLATION,
+    variants: undefined,
     target: 'ar',
     arabicVariant: 'syrian',
-  },
+  }),
   withStyles = false,
   styles: RewriteStyleId[] = ['friendly'],
 ) {
@@ -158,7 +161,7 @@ describe('generation and results', () => {
     expect(q(panel, '.card strong').textContent).toBe(
       'Translation → Arabic (Syrian colloquial)',
     );
-    expect(q(panel, '.card .text').getAttribute('dir')).toBe('auto');
+    expect(q(panel, '.card .text').getAttribute('dir')).toBe('rtl');
   });
 
   it('E01/E10/E15: Apply puts the Arabic text in the exact range; Undo restores', async () => {

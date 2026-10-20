@@ -1,5 +1,5 @@
 // V5.12 summaries: one request condenses the text and writes the summary
-// directly in the chosen language (and Arabic variant). Shared by the modal
+// directly in the chosen language (and variant). Shared by the modal
 // and the worker; reuses the V5.5 language catalog, never a second one.
 import {
   MAX_SUMMARY_CODE_POINTS,
@@ -11,10 +11,10 @@ import {
 } from './contracts';
 import type { QuotaNote } from './quota';
 import {
-  isArabicVariant,
   isLanguageId,
-  type ArabicVariant,
+  variantFits,
   type LanguageId,
+  type VariantId,
 } from './translate';
 
 /** Semantic targets for the model, not exact word counts. */
@@ -59,8 +59,8 @@ export interface SummarizeTextRequest {
   type: typeof SUMMARIZE_TEXT;
   text: string;
   target: LanguageId;
-  // Required (msa | syrian) for Arabic, null for every other target.
-  variant: ArabicVariant | null;
+  // Required for a target with variants (one of its own), null otherwise.
+  variant: VariantId | null;
   length: SummaryLength;
   format: SummaryFormat;
 }
@@ -83,9 +83,7 @@ export function isSummarizeTextRequest(
     data.text.trim() !== '' &&
     [...data.text].length <= MAX_SUMMARY_CODE_POINTS &&
     isLanguageId(data.target) &&
-    (data.target === 'ar'
-      ? isArabicVariant(data.variant)
-      : data.variant === null) &&
+    variantFits(data.target, data.variant) &&
     isSummaryLength(data.length) &&
     isSummaryFormat(data.format)
   );

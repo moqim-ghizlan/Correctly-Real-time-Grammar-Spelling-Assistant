@@ -5,11 +5,15 @@ import {
   type Formality,
 } from '../shared/rewrite';
 import {
-  ARABIC_VARIANTS,
-  LANGUAGES,
+  MAX_FAVORITES,
+  hasVariants,
+  isLanguageId,
+  isVariantOf,
   normalizeTranslation,
+  preferredVariant,
 } from '../shared/translate';
-import { COMMON, languageName, type CommonMessages } from '../shared/i18n';
+import { COMMON, languageOptions, type CommonMessages } from '../shared/i18n';
+import { fillLanguages, fillVariants } from '../shared/language-menu';
 import {
   isLanguageSetting,
   resolveLocale,
@@ -113,35 +117,30 @@ export class SettingsPage {
     }
   }
 
+  /** 5.16 "Your languages": one box per catalog language, A→Z. */
   private populateLanguages() {
-    const fill = (
-      id: string,
-      options: readonly { id: string; label: string }[],
-    ) =>
-      this.el<HTMLSelectElement>(id).replaceChildren(
-        ...options.map((item) => {
-          const option = this.doc.createElement('option');
-          option.value = item.id;
-          option.textContent = item.label;
-          return option;
-        }),
-      );
-    const languages = LANGUAGES.map((language) => ({
-      id: language.id,
-      label: languageName(this.c, language.id),
-    }));
-    fill('translation-source', [
-      { id: 'auto', label: this.m.autoDetect },
-      ...languages,
-    ]);
-    fill('translation-target', languages);
-    fill(
-      'translation-variant',
-      ARABIC_VARIANTS.map((item) => ({
-        id: item.id,
-        label: this.c.variant[item.id],
-      })),
+    const all = languageOptions(this.c, []).at(-1)?.items ?? [];
+    this.el('translation-favorites').append(
+      ...all.map((item) => {
+        const label = this.doc.createElement('label');
+        label.className = 'check';
+        const box = this.doc.createElement('input');
+        box.type = 'checkbox';
+        box.value = item.id;
+        box.disabled = true;
+        box.dataset.favorite = '';
+        const text = this.doc.createElement('span');
+        text.textContent = item.label;
+        label.append(box, text);
+        return label;
+      }),
     );
+  }
+
+  private get favoriteBoxes(): HTMLInputElement[] {
+    return [
+      ...this.doc.querySelectorAll<HTMLInputElement>('input[data-favorite]'),
+    ];
   }
 
   private get styleBoxes(): HTMLInputElement[] {
@@ -159,6 +158,10 @@ export class SettingsPage {
       'translation-variant',
     ])
       this.el<HTMLSelectElement>(id).addEventListener('change', () => {
+        void this.saveTranslation();
+      });
+    for (const box of this.favoriteBoxes)
+      box.addEventListener('change', () => {
         void this.saveTranslation();
       });
     this.el<HTMLInputElement>('rewrite-enabled').addEventListener(
@@ -224,7 +227,8 @@ export class SettingsPage {
       'ui-language',
     ])
       this.el<HTMLInputElement>(id).disabled = !enabled;
-    for (const box of this.styleBoxes) box.disabled = !enabled;
+    for (const box of [...this.styleBoxes, ...this.favoriteBoxes])
+      box.disabled = !enabled;
   }
 
   private message(id: string, text: string, tone: Tone = 'neutral') {
@@ -249,15 +253,30 @@ export class SettingsPage {
     this.el<HTMLInputElement>('rewrite-enabled').checked =
       settings.rewrite.enabled;
     this.el<HTMLSelectElement>('ui-language').value = settings.ui.language;
-    this.el<HTMLSelectElement>('translation-source').value =
-      settings.translation.source;
-    this.el<HTMLSelectElement>('translation-target').value =
-      settings.translation.target;
-    this.el<HTMLSelectElement>('translation-variant').value =
-      settings.translation.arabicVariant;
-    // Hidden, not cleared: switching back to Arabic restores the variant.
-    this.el('translation-variant-row').hidden =
-      settings.translation.target !== 'ar';
+    // 5.16: menus rebuilt from the saved favorites; the variant menu shows
+    // the target's own variants (each language keeps its saved one).
+    const translation = settings.translation;
+    fillLanguages(
+      this.el<HTMLSelectElement>('translation-source'),
+      this.c,
+      translation.favorites,
+      translation.source,
+      [{ id: 'auto', label: this.m.autoDetect }],
+    );
+    fillLanguages(
+      this.el<HTMLSelectElement>('translation-target'),
+      this.c,
+      translation.favorites,
+      translation.target,
+    );
+    this.el('translation-variant-row').hidden = !fillVariants(
+      this.el<HTMLSelectElement>('translation-variant'),
+      this.c,
+      translation.target,
+      preferredVariant(translation, translation.target),
+    );
+    for (const box of this.favoriteBoxes)
+      box.checked = translation.favorites.some((id) => id === box.value);
     for (const box of this.styleBoxes)
       box.checked = settings.rewrite.defaultStyles.some(
         (id) => id === box.value,
@@ -318,18 +337,48 @@ export class SettingsPage {
 
   async saveTranslation(): Promise<void> {
     const value = (id: string) => this.el<HTMLSelectElement>(id).value;
-    const translation = normalizeTranslation({
-      source: value('translation-source'),
-      target: value('translation-target'),
-      arabicVariant: value('translation-variant'),
-    });
-    if (translation.source === translation.target) {
+    const source = value('translation-source');
+    const target = value('translation-target');
+    const variant = value('translation-variant');
+    const checked = this.favoriteBoxes
+      .filter((box) => box.checked)
+      .map((box) => box.value)
+      .filter(isLanguageId);
+    if (source === target) {
       this.message('translation-message', this.m.sameLanguages, 'error');
       this.render();
       return;
     }
+    if (checked.length > MAX_FAVORITES) {
+      this.message(
+        'translation-message',
+        this.m.tooManyFavorites(MAX_FAVORITES),
+        'error',
+      );
+      this.render();
+      return;
+    }
     try {
-      await this.update((settings) => ({ ...settings, translation }));
+      await this.update((settings) => {
+        const old = settings.translation;
+        // Favorites keep the order they were added in; new ones go last.
+        const favorites = [
+          ...old.favorites.filter((id) => checked.includes(id)),
+          ...checked.filter((id) => !old.favorites.includes(id)),
+        ];
+        // A variant counts only for the target it was shown for.
+        const variants =
+          hasVariants(target) && isVariantOf(target, variant)
+            ? { ...old.variants, [target]: variant }
+            : old.variants;
+        const translation = normalizeTranslation({
+          source,
+          target,
+          variants,
+          favorites,
+        });
+        return { ...settings, translation };
+      });
       this.message('translation-message', this.m.translationSaved, 'ok');
     } catch {
       this.message(

@@ -12,6 +12,7 @@ import {
   saveSettings,
   STORAGE_KEYS,
 } from '../../src/shared/storage';
+import { DEFAULT_TRANSLATION } from '../../src/shared/translate';
 import { FakeStorage, FAKE_KEY } from '../helpers/fake-storage';
 
 describe('settings defaults and validation', () => {
@@ -33,7 +34,7 @@ describe('settings defaults and validation', () => {
         defaultStyles: ['professional'],
         formality: 3,
       },
-      translation: { source: 'auto', target: 'en', arabicVariant: 'msa' },
+      translation: DEFAULT_TRANSLATION,
       ui: { language: 'auto' },
     });
   });

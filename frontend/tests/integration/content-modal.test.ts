@@ -13,6 +13,7 @@ import {
   OPEN_LIMITS,
   OPEN_SETTINGS,
   REWRITE_TEXT,
+  SUMMARIZE_TEXT,
   TRANSLATE_TEXT,
 } from '../../src/shared/contracts';
 
@@ -563,7 +564,7 @@ describe('reformulation and translation options', () => {
     await flush();
     const output = view.panel('translation').querySelector('.results .text')!;
     expect(output.textContent).toBe('صباح الخير');
-    expect(output.getAttribute('dir')).toBe('auto');
+    expect(output.getAttribute('dir')).toBe('rtl');
   });
 
   it('same source and target: Generate stays disabled', () => {
@@ -735,5 +736,126 @@ describe('Apply, Copy, Cancel and Undo', () => {
     expect(modal.apply()).toBe(false);
     expect(el.value).toBe('Hello I have a cat. Bye');
     expect(document.querySelectorAll('correctly-undo')).toHaveLength(1);
+  });
+});
+
+describe('5.16 languages', () => {
+  const PREFS = {
+    source: 'auto',
+    target: 'ja',
+    favorites: ['ar', 'en'],
+    variants: { pt: 'pt_pt' },
+  };
+  const open = () => {
+    field('Bonjour à tous', 0, 14);
+    const modal = openModal(
+      document,
+      { ...OPTIONS, translation: PREFS, locale: 'fr' },
+      send,
+    );
+    modal.selectTab('translation');
+    const panel = ui(modal).panel('translation');
+    const [from, to, variant] = [...panel.querySelectorAll('select')];
+    return { modal, panel, from: from!, to: to!, variant: variant! };
+  };
+  const change = (node: HTMLSelectElement, value: string) => {
+    node.value = value;
+    node.dispatchEvent(new Event('change'));
+  };
+  const reply = (text: string) =>
+    replies.at(-1)!({
+      ok: true,
+      candidates: [{ styleId: 'neutral', text, suspicious: false }],
+      missing: [],
+    });
+
+  it('L5: favorites first, then every language A→Z in the interface language', () => {
+    const { to, from } = open();
+    const groups = [...to.querySelectorAll('optgroup')];
+    expect(groups.map((group) => group.label)).toEqual([
+      'Vos langues',
+      'Toutes les langues',
+    ]);
+    expect(
+      [...groups[0]!.querySelectorAll('option')].map((o) => o.text),
+    ).toEqual(['Arabe — العربية', 'Anglais — English']);
+    expect(to.value).toBe('ja');
+    expect(to.selectedOptions[0]!.text).toBe('Japonais — 日本語');
+    expect(from.options[0]!.value).toBe('auto');
+    expect(ai()).toHaveLength(0);
+  });
+
+  it('L6/L7: Japanese, then Persian, Hebrew and Urdu: one request each, RTL only for RTL targets', async () => {
+    const { modal, panel, to } = open();
+    const output = () => panel.querySelector('.results .text')!;
+    void modal.generate('translation');
+    expect(ai()).toEqual([
+      expect.objectContaining({ target: 'ja', variant: null }),
+    ]);
+    reply('皆さん、こんにちは');
+    await flush();
+    expect(output().getAttribute('dir')).toBe('auto');
+    expect(output().getAttribute('lang')).toBe('ja');
+    for (const [id, text] of [
+      ['fa', 'سلام به همه'],
+      ['he', 'שלום לכולם'],
+      ['ur', 'سب کو سلام'],
+    ] as const) {
+      change(to, id);
+      void modal.generate('translation');
+      reply(text);
+      await flush();
+      expect(output().getAttribute('dir')).toBe('rtl');
+      expect(output().getAttribute('lang')).toBe(id);
+    }
+    expect(ai()).toHaveLength(4);
+  });
+
+  it('variants: only the target’s own, its saved one preselected; one request', async () => {
+    const { modal, to, variant } = open();
+    const row = variant.closest('label')!;
+    expect(row.hidden).toBe(true);
+    change(to, 'pt');
+    expect(row.hidden).toBe(false);
+    expect([...variant.options].map((o) => o.value)).toEqual([
+      'pt_br',
+      'pt_pt',
+    ]);
+    expect(variant.value).toBe('pt_pt');
+    change(variant, 'pt_br');
+    change(to, 'zh');
+    expect([...variant.options].map((o) => o.value)).toEqual([
+      'zh_hans',
+      'zh_hant',
+    ]);
+    change(variant, 'zh_hant');
+    change(to, 'pt');
+    // The choice made in this session is kept per language.
+    expect(variant.value).toBe('pt_br');
+    change(to, 'zh');
+    expect(variant.value).toBe('zh_hant');
+    void modal.generate('translation');
+    expect(ai()).toEqual([
+      expect.objectContaining({ target: 'zh', variant: 'zh_hant' }),
+    ]);
+    reply('大家好');
+    await flush();
+    expect(
+      ui(modal).panel('translation').querySelector('.results h2')!.textContent,
+    ).toContain('Chinois (Traditionnel)');
+  });
+
+  it('Summary in Korean: one request, Korean target', () => {
+    const { modal } = open();
+    modal.selectTab('summary');
+    const summaryTo = ui(modal).panel('summary').querySelector('select')!;
+    change(summaryTo, 'ko');
+    void modal.generate('summary');
+    const sent = send.mock.calls
+      .map(([message]) => message as { type: string })
+      .filter((message) => message.type === SUMMARIZE_TEXT);
+    expect(sent).toEqual([
+      expect.objectContaining({ target: 'ko', variant: null }),
+    ]);
   });
 });

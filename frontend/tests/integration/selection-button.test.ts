@@ -10,6 +10,7 @@ import {
 } from '../../src/content/selection';
 import { OPEN_TRANSLATION, TRANSLATE_TEXT } from '../../src/shared/contracts';
 import { COMMON } from '../../src/shared/i18n';
+import { DEFAULT_TRANSLATION } from '../../src/shared/translate';
 
 let send: ReturnType<typeof vi.fn<(message: unknown) => Promise<unknown>>>;
 let selector: SelectionButton;
@@ -41,7 +42,7 @@ async function selectText(element: Element) {
 const make = () => {
   selector = new SelectionButton(
     document,
-    { locale: 'en', translation: { target: 'en', arabicVariant: 'msa' } },
+    { locale: 'en', translation: DEFAULT_TRANSLATION },
     send,
   );
   selector.install();
@@ -263,5 +264,60 @@ describe('window opened by the button', () => {
     );
     await flush();
     expect(modalSend).not.toHaveBeenCalled();
+  });
+});
+
+describe('5.16 languages in the bubble', () => {
+  it('favorites first; Chinese Traditional → one request, Persian shown RTL', async () => {
+    selector = new SelectionButton(
+      document,
+      {
+        locale: 'en',
+        translation: { ...DEFAULT_TRANSLATION, favorites: ['zh', 'fa'] },
+      },
+      send,
+    );
+    selector.install();
+    await selectText(document.getElementById('short')!);
+    selector.button!.click();
+    await flush();
+    const [target, variant] = [...selector.bubble!.querySelectorAll('select')];
+    const groups = [...target!.querySelectorAll('optgroup')];
+    expect(groups.map((group) => group.label)).toEqual([
+      'Your languages',
+      'All languages',
+    ]);
+    expect(
+      [...groups[0]!.querySelectorAll('option')].map((o) => o.value),
+    ).toEqual(['zh', 'fa']);
+    target!.value = 'zh';
+    target!.dispatchEvent(new Event('change'));
+    expect(variant!.hidden).toBe(false);
+    expect([...variant!.options].map((o) => o.value)).toEqual([
+      'zh_hans',
+      'zh_hant',
+    ]);
+    variant!.value = 'zh_hant';
+    variant!.dispatchEvent(new Event('change'));
+    send.mockResolvedValueOnce(translated('什麼是'));
+    bubbleButton(CONTENT.en.bubbleTranslate).click();
+    await flush();
+    expect(send).toHaveBeenCalledTimes(2);
+    expect(send).toHaveBeenLastCalledWith(
+      expect.objectContaining({ target: 'zh', variant: 'zh_hant' }),
+    );
+    target!.value = 'fa';
+    target!.dispatchEvent(new Event('change'));
+    expect(variant!.hidden).toBe(true);
+    send.mockResolvedValueOnce(translated('چه چیزی'));
+    bubbleButton(CONTENT.en.bubbleTranslate).click();
+    await flush();
+    expect(send).toHaveBeenCalledTimes(3);
+    expect(send).toHaveBeenLastCalledWith(
+      expect.objectContaining({ target: 'fa', variant: null }),
+    );
+    expect(selector.bubble!.querySelector('.result')!.getAttribute('dir')).toBe(
+      'rtl',
+    );
   });
 });

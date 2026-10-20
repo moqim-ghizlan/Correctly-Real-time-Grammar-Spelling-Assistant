@@ -47,8 +47,8 @@ const options = (extra: Partial<TranslateTextRequest> = {}) => {
 };
 
 describe('A: language catalog', () => {
-  it('A01/A07: six unique targets; only Arabic is RTL', () => {
-    expect(LANGUAGES.map((language) => language.id)).toEqual([
+  it('A01/A07: the V5.5 six come first; RTL languages are flagged (5.16)', () => {
+    expect(LANGUAGES.slice(0, 6).map((language) => language.id)).toEqual([
       'fr',
       'en',
       'ar',
@@ -58,7 +58,7 @@ describe('A: language catalog', () => {
     ]);
     expect(
       LANGUAGES.filter((language) => language.rtl).map((l) => l.id),
-    ).toEqual(['ar']);
+    ).toEqual(['ar', 'he', 'fa', 'ur']);
     expect(targetLabel('ar', 'syrian')).toBe('Arabic (Syrian colloquial)');
     expect(targetLabel('fr', 'syrian')).toBe('French');
   });
@@ -68,16 +68,16 @@ describe('A: language catalog', () => {
       normalizeTranslation({
         source: 'xx',
         target: 'auto',
-        arabicVariant: 'egyptian',
+        arabicVariant: 'pt_br',
       }),
-    ).toEqual({ source: 'auto', target: 'en', arabicVariant: 'msa' });
+    ).toMatchObject({ source: 'auto', target: 'en', arabicVariant: 'msa' });
     expect(
       normalizeTranslation({
         source: 'tr',
         target: 'ar',
         arabicVariant: 'syrian',
       }),
-    ).toEqual({ source: 'tr', target: 'ar', arabicVariant: 'syrian' });
+    ).toMatchObject({ source: 'tr', target: 'ar', arabicVariant: 'syrian' });
   });
 });
 
@@ -104,7 +104,9 @@ describe('B: request validation (before any network)', () => {
       request({ source: 'xx' as never }),
       request({ target: 'fr', variant: 'syrian' }),
       request({ variant: null }),
-      { ...request(), variant: 'egyptian' },
+      { ...request(), variant: 'pt_br' },
+      request({ target: 'pt', variant: null }),
+      request({ target: 'zh', variant: 'pt_br' }),
       request({ styleIds: ['evil' as never] }),
       request({ styleIds: ['formal', 'formal'] }),
       { ...request(), model: 'other' },

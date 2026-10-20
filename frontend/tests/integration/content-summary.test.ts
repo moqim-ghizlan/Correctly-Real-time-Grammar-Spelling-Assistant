@@ -236,11 +236,11 @@ describe('Summary tab', () => {
     modal.selectTab('summary');
     const view = ui(modal);
     expect(view.select('Summary language').value).toBe('ar');
-    expect(view.select('Arabic variant').value).toBe('syrian');
+    expect(view.select('Variant').value).toBe('syrian');
     expect(view.select('Length').value).toBe('medium');
     expect(view.select('Format').value).toBe('paragraph');
     change(view.select('Summary language'), 'fr');
-    expect(view.select('Arabic variant').closest('label')!.hidden).toBe(true);
+    expect(view.select('Variant').closest('label')!.hidden).toBe(true);
     change(view.select('Length'), 'detailed');
     expect(ai()).toHaveLength(0);
   });
@@ -275,8 +275,9 @@ describe('Summary tab', () => {
     );
     const output = result.querySelector('p')!;
     expect(output.textContent).toBe('• ميزانية 12 مليون لتلات مدارس');
-    expect(output.dir).toBe('auto');
-    expect(output.lang).toBe('ar');
+    // 5.16: an RTL target is shown right-to-left, tagged with its variant.
+    expect(output.dir).toBe('rtl');
+    expect(output.lang).toBe('ar-SY');
     expect(view.button('Apply').disabled).toBe(true);
     expect(view.note()).toBe(NOTICES.readOnlyPage);
     expect(view.button('Copy').disabled).toBe(false);

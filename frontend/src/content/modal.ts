@@ -11,12 +11,8 @@ import {
   toCorrectionResult,
 } from '../shared/contracts';
 import type { ErrorCode } from '../shared/errors';
-import {
-  COMMON,
-  languageName,
-  targetName,
-  type CommonMessages,
-} from '../shared/i18n';
+import { COMMON, targetName, type CommonMessages } from '../shared/i18n';
+import { fillLanguages, linkVariants } from '../shared/language-menu';
 import type { Locale } from '../shared/locale';
 import type { QuotaNote } from '../shared/quota';
 import {
@@ -40,13 +36,13 @@ import {
   type SummaryOptions,
 } from '../shared/summary';
 import {
-  ARABIC_VARIANTS,
-  LANGUAGES,
   NEUTRAL,
-  isArabicVariant,
   isLanguageId,
+  isRtl,
+  langTag,
   normalizeTranslation,
   translationKeys,
+  variantFor,
   type TranslateTextRequest,
   type TranslationKey,
 } from '../shared/translate';
@@ -148,8 +144,10 @@ interface Choice {
   label: string;
   text: string;
   suspicious: boolean;
-  /** Language of the result when known (summaries), for rendering. */
+  /** Language of the result when known (summaries, translations). */
   lang?: string;
+  /** 5.16: the result is in a right-to-left target (Persian, Hebrew…). */
+  rtl?: boolean;
 }
 
 /** Everything one tab shows; replaced as a whole on any reset. */
@@ -441,12 +439,10 @@ export class CorrectlyModal {
     from: HTMLSelectElement;
     to: HTMLSelectElement;
     variant: HTMLSelectElement;
-    variantRow: HTMLElement;
     alsoRewrite: HTMLInputElement;
     sameNote: HTMLElement;
     summaryTo: HTMLSelectElement;
     summaryVariant: HTMLSelectElement;
-    summaryVariantRow: HTMLElement;
     summaryLength: HTMLSelectElement;
     summaryFormat: HTMLSelectElement;
     apply: HTMLButtonElement;
@@ -617,7 +613,8 @@ export class CorrectlyModal {
         : [make('p', 'hint', m.notices.rewriteOff)]),
     );
 
-    // Translation: the V5.5 languages, Arabic variant and optional styles.
+    // Translation: the 5.16 catalog (favorites first), the target's variant
+    // and optional styles.
     const prefs = normalizeTranslation(options.translation);
     const select = (
       text: string,
@@ -635,21 +632,21 @@ export class CorrectlyModal {
       wrap.append(make('span', '', text), node);
       return { wrap, node };
     };
-    const languages = LANGUAGES.map((language) => ({
-      id: language.id,
-      label: languageName(this.c, language.id),
-    }));
-    const variants = ARABIC_VARIANTS.map((item) => ({
-      id: item.id,
-      label: this.c.variant[item.id],
-    }));
-    const from = select(
-      m.from,
-      [{ id: 'auto', label: m.autoDetect }, ...languages],
-      prefs.source,
-    );
-    const to = select(m.to, languages, prefs.target);
-    const variant = select(m.arabicVariant, variants, prefs.arabicVariant);
+    const languageSelect = (text: string, value: string, auto = false) => {
+      const item = select(text, [], '');
+      fillLanguages(
+        item.node,
+        this.c,
+        prefs.favorites,
+        value,
+        auto ? [{ id: 'auto', label: m.autoDetect }] : [],
+      );
+      return item;
+    };
+    const from = languageSelect(m.from, prefs.source, true);
+    const to = languageSelect(m.to, prefs.target);
+    const variant = select(m.variant, [], '');
+    linkVariants(to.node, variant.node, variant.wrap, this.c, prefs.variants);
     const langs = make('div', 'langs');
     langs.append(from.wrap, to.wrap, variant.wrap);
     const also = make('label', 'choice');
@@ -662,11 +659,14 @@ export class CorrectlyModal {
     panel.translation.append(langs, also, translate.fieldset, sameNote);
 
     // Summary (V5.12): written directly in the chosen language, ONE request.
-    const summaryTo = select(m.summaryLanguage, languages, prefs.target);
-    const summaryVariant = select(
-      m.arabicVariant,
-      variants,
-      prefs.arabicVariant,
+    const summaryTo = languageSelect(m.summaryLanguage, prefs.target);
+    const summaryVariant = select(m.variant, [], '');
+    linkVariants(
+      summaryTo.node,
+      summaryVariant.node,
+      summaryVariant.wrap,
+      this.c,
+      prefs.variants,
     );
     const summaryLength = select(
       m.length,
@@ -738,12 +738,10 @@ export class CorrectlyModal {
       from: from.node,
       to: to.node,
       variant: variant.node,
-      variantRow: variant.wrap,
       alsoRewrite,
       sameNote,
       summaryTo: summaryTo.node,
       summaryVariant: summaryVariant.node,
-      summaryVariantRow: summaryVariant.wrap,
       summaryLength: summaryLength.node,
       summaryFormat: summaryFormat.node,
       apply,
@@ -863,10 +861,7 @@ export class CorrectlyModal {
     const target = isLanguageId(summaryTo.value) ? summaryTo.value : 'en';
     return {
       target,
-      variant:
-        target === 'ar' && isArabicVariant(summaryVariant.value)
-          ? summaryVariant.value
-          : null,
+      variant: variantFor(target, summaryVariant.value),
       length: isSummaryLength(summaryLength.value)
         ? summaryLength.value
         : DEFAULT_SUMMARY_LENGTH,
@@ -893,10 +888,7 @@ export class CorrectlyModal {
     return {
       source,
       target,
-      variant:
-        target === 'ar' && isArabicVariant(variant.value)
-          ? variant.value
-          : null,
+      variant: variantFor(target, variant.value),
       styleIds,
       ...formalityField(styleIds, this.ui.translateFormality()),
     };
@@ -966,23 +958,29 @@ export class CorrectlyModal {
       const target = targetName(this.c, choice.target, choice.variant);
       message = { type: SUMMARIZE_TEXT, text, ...choice };
       parse = (reply) =>
-        this.parseSummary(reply, this.m.summaryLabel(target), choice.target);
+        this.inScript(
+          this.parseSummary(reply, this.m.summaryLabel(target)),
+          choice,
+        );
     } else {
       const choice = this.translationChoice();
       const target = targetName(this.c, choice.target, choice.variant);
       const formality = choice.formality ?? DEFAULT_FORMALITY;
       message = { type: TRANSLATE_TEXT, text, ...choice };
       parse = (reply) =>
-        this.parseCandidates(
-          reply,
-          translationKeys(choice.styleIds),
-          (key: TranslationKey) =>
-            key === NEUTRAL
-              ? this.m.translationLabel(target)
-              : this.m.styledLabel(styleName(this.c, key, formality), target),
-          text,
-          'translation',
-          this.m.sameLanguage(target, 'reformulation'),
+        this.inScript(
+          this.parseCandidates(
+            reply,
+            translationKeys(choice.styleIds),
+            (key: TranslationKey) =>
+              key === NEUTRAL
+                ? this.m.translationLabel(target)
+                : this.m.styledLabel(styleName(this.c, key, formality), target),
+            text,
+            'translation',
+            this.m.sameLanguage(target, 'reformulation'),
+          ),
+          choice,
         );
     }
     let reply: unknown;
@@ -1043,7 +1041,20 @@ export class CorrectlyModal {
     };
   }
 
-  private parseSummary(reply: unknown, label: string, lang: string): TabState {
+  /** Results in this target: its language tag and writing direction. */
+  private inScript(
+    state: TabState,
+    choice: Pick<SummaryOptions, 'target' | 'variant'>,
+  ): TabState {
+    const lang = langTag(choice.target, choice.variant);
+    const rtl = isRtl(choice.target, choice.variant);
+    return {
+      ...state,
+      choices: state.choices.map((item) => ({ ...item, lang, rtl })),
+    };
+  }
+
+  private parseSummary(reply: unknown, label: string): TabState {
     const result = toSummaryResult(reply);
     const state = this.withQuota(emptyTab(), result);
     if (!result.ok)
@@ -1061,9 +1072,7 @@ export class CorrectlyModal {
       ...state,
       status: this.m.suggestedSummary,
       operationId: result.operationId ?? null,
-      choices: [
-        { label, text: result.text, suspicious: result.suspicious, lang },
-      ],
+      choices: [{ label, text: result.text, suspicious: result.suspicious }],
       chosen: 0,
     };
   }
@@ -1295,10 +1304,13 @@ export class CorrectlyModal {
     box.replaceChildren();
     const [only] = state.choices;
     if (!only) return;
-    const text = (value: string, lang = '') =>
-      Object.assign(this.make('p', 'text', value), { dir: 'auto', lang });
+    const text = ({ text: value, lang = '', rtl }: Choice) =>
+      Object.assign(this.make('p', 'text', value), {
+        dir: rtl ? 'rtl' : 'auto',
+        lang,
+      });
     if (state.choices.length === 1) {
-      box.append(this.make('h2', '', only.label), text(only.text, only.lang));
+      box.append(this.make('h2', '', only.label), text(only));
       return;
     }
     const group = this.make('div');
@@ -1317,11 +1329,7 @@ export class CorrectlyModal {
         this.copied = '';
         this.renderFooter();
       });
-      card.append(
-        radio,
-        this.make('strong', '', choice.label),
-        text(choice.text),
-      );
+      card.append(radio, this.make('strong', '', choice.label), text(choice));
       group.append(card);
     });
     box.append(group);
@@ -1364,7 +1372,6 @@ export class CorrectlyModal {
       ...(ui.translateRange ? [ui.translateRange] : []),
     ])
       node.disabled = busyTranslate;
-    ui.variantRow.hidden = ui.to.value !== 'ar';
     ui.translateStyleBox.hidden = !ui.alsoRewrite.checked;
     const busySummary = !!this.tabs.summary.pending;
     for (const node of [
@@ -1374,7 +1381,6 @@ export class CorrectlyModal {
       ui.summaryFormat,
     ])
       node.disabled = busySummary;
-    ui.summaryVariantRow.hidden = ui.summaryTo.value !== 'ar';
     const choice = this.translationChoice();
     ui.sameNote.textContent =
       choice.source === choice.target

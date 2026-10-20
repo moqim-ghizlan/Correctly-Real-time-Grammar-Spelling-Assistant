@@ -35,7 +35,10 @@ export interface PageConfig {
   handleY: number;
   /** 5.15: translate button on selected text, and its bubble's defaults. */
   selectionButton: boolean;
-  translation: Pick<TranslationPreferences, 'target' | 'arabicVariant'>;
+  translation: Pick<
+    TranslationPreferences,
+    'target' | 'variants' | 'favorites'
+  >;
   shortcuts: { trigger: string; replacement: string }[];
   /** Correctly's own keyboard shortcuts ({} when they are off). */
   keybindings: KeybindingsStore['bindings'];
@@ -54,9 +57,11 @@ export function toPageConfig(value: unknown): PageConfig {
     locale: isLocale(data.locale) ? data.locale : 'en',
     smartButton: data.smartButton === true,
     selectionButton: data.selectionButton === true,
-    translation: (({ target, arabicVariant }) => ({ target, arabicVariant }))(
-      normalizeTranslation(data.translation),
-    ),
+    translation: (({ target, variants, favorites }) => ({
+      target,
+      variants,
+      favorites,
+    }))(normalizeTranslation(data.translation)),
     handleY: normalizeHandle({ yRatio: data.handleY }).yRatio,
     shortcuts: list
       .map((item) => (item ?? {}) as Record<string, unknown>)

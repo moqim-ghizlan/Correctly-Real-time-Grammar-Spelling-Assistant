@@ -1,5 +1,13 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { ShortcutExpander, toPageConfig } from '../../src/content/shortcuts';
+import { DEFAULT_TRANSLATION } from '../../src/shared/translate';
+
+/** What the page script keeps of the translation defaults (5.16). */
+const PAGE_TRANSLATION = {
+  target: DEFAULT_TRANSLATION.target,
+  variants: DEFAULT_TRANSLATION.variants,
+  favorites: DEFAULT_TRANSLATION.favorites,
+};
 
 const ENTRIES = [
   { trigger: 'bjr', replacement: 'Bonjour' },
@@ -33,7 +41,7 @@ beforeEach(() => {
     Promise.resolve({
       smartButton: false,
       selectionButton: false,
-      translation: { target: 'en' as const, arabicVariant: 'msa' as const },
+      translation: PAGE_TRANSLATION,
       locale: 'en' as const,
       keybindings: {},
       handleY: 0.5,
@@ -152,7 +160,7 @@ describe('I03/I05/I06: never expand when unsafe', () => {
       Promise.resolve({
         smartButton: false,
         selectionButton: false,
-        translation: { target: 'en' as const, arabicVariant: 'msa' as const },
+        translation: PAGE_TRANSLATION,
         locale: 'en' as const,
         keybindings: {},
         handleY: 0.5,
@@ -332,7 +340,7 @@ describe('toPageConfig', () => {
     ).toEqual({
       smartButton: false,
       selectionButton: false,
-      translation: { target: 'en' as const, arabicVariant: 'msa' as const },
+      translation: PAGE_TRANSLATION,
       locale: 'en' as const,
       keybindings: {},
       handleY: 0.5,
@@ -341,7 +349,7 @@ describe('toPageConfig', () => {
     expect(toPageConfig(undefined)).toEqual({
       smartButton: false,
       selectionButton: false,
-      translation: { target: 'en' as const, arabicVariant: 'msa' as const },
+      translation: PAGE_TRANSLATION,
       locale: 'en' as const,
       keybindings: {},
       handleY: 0.5,

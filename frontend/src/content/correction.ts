@@ -9,12 +9,8 @@ import {
   type CorrectionResult,
 } from '../shared/contracts';
 import type { ErrorCode } from '../shared/errors';
-import {
-  COMMON,
-  type CommonMessages,
-  languageName,
-  targetName,
-} from '../shared/i18n';
+import { COMMON, type CommonMessages, targetName } from '../shared/i18n';
+import { fillLanguages, linkVariants } from '../shared/language-menu';
 import type { Locale } from '../shared/locale';
 import type { QuotaNote } from '../shared/quota';
 import {
@@ -36,13 +32,12 @@ import {
   type RewriteStyleId,
 } from '../shared/rewrite';
 import {
-  ARABIC_VARIANTS,
-  LANGUAGES,
   NEUTRAL,
-  isArabicVariant,
   isLanguageId,
+  isRtl,
   normalizeTranslation,
   translationKeys,
+  variantFor,
   type TranslateTextRequest,
   type TranslationKey,
   type TranslationPreferences,
@@ -788,24 +783,15 @@ export class CorrectionPanel {
       wrap.append(this.make('span', '', label), node);
       return { wrap, node };
     };
-    const languages = LANGUAGES.map((language) => ({
-      id: language.id,
-      label: languageName(this.c, language.id),
-    }));
-    const from = select(
-      m.from,
-      [{ id: 'auto', label: m.autoDetect }, ...languages],
-      prefs.source,
-    );
-    const to = select(m.to, languages, prefs.target);
-    const variant = select(
-      m.arabicVariant,
-      ARABIC_VARIANTS.map((item) => ({
-        id: item.id,
-        label: this.c.variant[item.id],
-      })),
-      prefs.arabicVariant,
-    );
+    // 5.16: the whole catalog, favorites first; the variant follows the target.
+    const from = select(m.from, [], '');
+    fillLanguages(from.node, this.c, prefs.favorites, prefs.source, [
+      { id: 'auto', label: m.autoDetect },
+    ]);
+    const to = select(m.to, [], '');
+    fillLanguages(to.node, this.c, prefs.favorites, prefs.target);
+    const variant = select(m.variant, [], '');
+    linkVariants(to.node, variant.node, variant.wrap, this.c, prefs.variants);
     const styled = this.make('label', 'choice');
     const styledBox = this.make('input', '');
     styledBox.type = 'checkbox';
@@ -827,16 +813,12 @@ export class CorrectionPanel {
       return {
         source,
         target,
-        variant:
-          target === 'ar' && isArabicVariant(variant.node.value)
-            ? variant.node.value
-            : null,
+        variant: variantFor(target, variant.node.value),
         styleIds,
         ...formalityField(styleIds, this.formality()),
       };
     };
     const sync = () => {
-      variant.wrap.hidden = to.node.value !== 'ar';
       this.ui.styles.hidden = !styledBox.checked;
       const { source, target } = choice();
       // Same languages: no request at all; Rewrite is the right action.
@@ -870,6 +852,7 @@ export class CorrectionPanel {
         label,
         () => send(request),
         m.sameLanguage(target, 'rewrite'),
+        isRtl(request.target, request.variant),
       );
     };
     this.show(m.chooseLanguages, 'info', ['generate']);
@@ -942,6 +925,8 @@ export class CorrectionPanel {
     label: (key: K) => string,
     call: (text: string) => Promise<unknown>,
     sameLanguage = '',
+    /** 5.16: results in a right-to-left target language. */
+    rtl = false,
   ): Promise<void> {
     const snapshot = this.snapshot;
     // In-flight guard: a double click never makes a second paid request.
@@ -982,7 +967,7 @@ export class CorrectionPanel {
       this.ui.close.focus();
       return;
     }
-    this.renderCards(snapshot, result.candidates, result.missing, label);
+    this.renderCards(snapshot, result.candidates, result.missing, label, rtl);
   }
 
   private renderCards<K extends string>(
@@ -990,6 +975,7 @@ export class CorrectionPanel {
     candidates: Candidate<K>[],
     missing: K[],
     label: (key: K) => string,
+    rtl: boolean,
   ) {
     const noun = this.noun;
     const cards = this.ui.cards;
@@ -1011,7 +997,7 @@ export class CorrectionPanel {
         same
           ? this.make('p', 'missing', this.m.noMeaningfulForStyle(noun))
           : Object.assign(this.make('p', 'text', candidate.text), {
-              dir: 'auto',
+              dir: rtl ? 'rtl' : 'auto',
             }),
       );
       cards.append(card);

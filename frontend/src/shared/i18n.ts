@@ -28,10 +28,11 @@ import {
   type SummaryLength,
 } from './summary';
 import {
-  ARABIC_VARIANTS,
+  ALL_VARIANTS,
   LANGUAGES,
-  type ArabicVariant,
+  variantsOf,
   type LanguageId,
+  type VariantId,
 } from './translate';
 
 export {
@@ -58,7 +59,9 @@ export interface CommonMessages {
   formality: Record<Formality, string>;
   formalityScale: { name: string; less: string; more: string };
   language: Record<LanguageId, string>;
-  variant: Record<ArabicVariant, string>;
+  variant: Record<VariantId, string>;
+  /** 5.16 target menus: favorites first, then every language. */
+  languageGroups: { favorites: string; all: string };
   summaryLength: Record<SummaryLength, string>;
   summaryFormat: Record<SummaryFormat, string>;
   number: (value: number) => string;
@@ -104,7 +107,8 @@ const EN: CommonMessages = {
     more: 'More formal',
   },
   language: fromCatalog(LANGUAGES),
-  variant: fromCatalog(ARABIC_VARIANTS),
+  variant: fromCatalog(ALL_VARIANTS),
+  languageGroups: { favorites: 'Your languages', all: 'All languages' },
   summaryLength: fromCatalog(SUMMARY_LENGTHS),
   summaryFormat: fromCatalog(SUMMARY_FORMATS),
   number: formatCount,
@@ -277,8 +281,55 @@ const FR: CommonMessages = {
     tr: 'Turc',
     de: 'Allemand',
     es: 'Espagnol',
+    pt: 'Portugais',
+    it: 'Italien',
+    nl: 'Néerlandais',
+    pl: 'Polonais',
+    ro: 'Roumain',
+    el: 'Grec',
+    sv: 'Suédois',
+    da: 'Danois',
+    no: 'Norvégien',
+    fi: 'Finnois',
+    cs: 'Tchèque',
+    hu: 'Hongrois',
+    uk: 'Ukrainien',
+    ru: 'Russe',
+    bg: 'Bulgare',
+    sr: 'Serbe',
+    hr: 'Croate',
+    he: 'Hébreu',
+    fa: 'Persan',
+    ku: 'Kurde',
+    sw: 'Swahili',
+    am: 'Amharique',
+    hi: 'Hindi',
+    ur: 'Ourdou',
+    bn: 'Bengali',
+    id: 'Indonésien',
+    ms: 'Malais',
+    vi: 'Vietnamien',
+    th: 'Thaï',
+    fil: 'Filipino',
+    zh: 'Chinois',
+    ja: 'Japonais',
+    ko: 'Coréen',
   },
-  variant: { msa: 'Arabe standard moderne', syrian: 'Syrien (dialecte parlé)' },
+  variant: {
+    msa: 'Arabe standard moderne',
+    syrian: 'Syrien (dialecte parlé)',
+    egyptian: 'Égyptien (dialecte parlé)',
+    moroccan: 'Marocain (darija)',
+    lebanese: 'Libanais (dialecte parlé)',
+    gulf: 'Golfe (khaleeji)',
+    pt_br: 'Brésil',
+    pt_pt: 'Portugal',
+    zh_hans: 'Simplifié',
+    zh_hant: 'Traditionnel',
+    kmr: 'Kurmandji (alphabet latin)',
+    ckb: 'Sorani (alphabet arabe)',
+  },
+  languageGroups: { favorites: 'Vos langues', all: 'Toutes les langues' },
   summaryLength: { short: 'Court', medium: 'Moyen', detailed: 'Détaillé' },
   summaryFormat: { paragraph: 'Paragraphe', key_points: 'Points clés' },
   number: frNumber,
@@ -297,14 +348,54 @@ export function languageName(common: CommonMessages, id: LanguageId): string {
   return name === native ? name : `${name} — ${native}`;
 }
 
-/** "Arabic (Syrian colloquial)" / "Arabe (Syrien (dialecte parlé))". */
+/** "Arabic (Syrian colloquial)" / "Portugais (Brésil)". */
 export function targetName(
   common: CommonMessages,
   target: LanguageId,
-  variant: ArabicVariant | null,
+  variant: VariantId | null,
 ): string {
   const name = common.language[target];
-  return target === 'ar' && variant
+  return variantsOf(target).some((item) => item.id === variant) && variant
     ? `${name} (${common.variant[variant]})`
     : name;
 }
+
+export interface MenuItem {
+  id: string;
+  label: string;
+}
+export interface MenuGroup {
+  label: string;
+  items: MenuItem[];
+}
+
+/**
+ * 5.16 language menus: "Your languages" (favorites, in the user's order)
+ * then every language, sorted in the interface language ("Japonais — 日本語").
+ */
+export function languageOptions(
+  common: CommonMessages,
+  favorites: readonly LanguageId[],
+): MenuGroup[] {
+  const item = (id: LanguageId) => ({ id, label: languageName(common, id) });
+  const collator = new Intl.Collator(common.locale);
+  const all = LANGUAGES.map((language) => item(language.id)).sort((a, b) =>
+    collator.compare(a.label, b.label),
+  );
+  return [
+    ...(favorites.length
+      ? [{ label: common.languageGroups.favorites, items: favorites.map(item) }]
+      : []),
+    { label: common.languageGroups.all, items: all },
+  ];
+}
+
+/** Variants of this target, in catalog order (empty when it has none). */
+export const variantOptions = (
+  common: CommonMessages,
+  target: LanguageId,
+): MenuItem[] =>
+  variantsOf(target).map((item) => ({
+    id: item.id,
+    label: common.variant[item.id],
+  }));

@@ -1,4 +1,4 @@
-# Correctly V5.15
+# Correctly V5.16
 
 Personal Chrome/Brave extension (Manifest V3, TypeScript): an on-demand AI
 writing assistant using your own Google Gemini and/or OpenAI API keys.
@@ -9,7 +9,7 @@ Interface language; "Automatic" follows the browser).
   the optional logo handle on the right edge of every page open the same
   centered window with four tabs: **Correction**, **Reformulation**,
   **Translation** and **Summary** (V5.12: a summary written directly in the
-  chosen language and Arabic variant, short/medium/detailed, paragraph or key
+  chosen language and variant, short/medium/detailed, paragraph or key
   points, in one request). Text selected on an ordinary web page can be read
   too: results are copy-only, the page is never edited. Your selected text is copied into one shared, editable
   text field (or it starts empty). Nothing is sent until you click a tab's
@@ -42,10 +42,16 @@ Interface language; "Automatic" follows the browser).
   the same language. Choose one, then Apply, Copy or Cancel.
 - **Translate (V5.5).** Right-click **Correctly → Translate selected text…**
   or **Translate & rewrite…**, the **Translation** tab, or an optional
-  shortcut. Choose From (Auto-detect or a language), To (French, English,
-  Arabic, Turkish, German, Spanish) and, for Arabic, **Modern Standard** or
-  **Syrian colloquial**; optionally tick styles. **One** AI request
-  detects, translates and styles; then Apply, Copy or Cancel.
+  shortcut. Choose From (Auto-detect or a language), To (V5.16: about 40
+  languages, e.g. Japanese, Persian, Hindi, Portuguese, Chinese, Ukrainian…)
+  and, where it matters, a **variant**: Arabic (Modern Standard, Syrian,
+  Egyptian, Moroccan, Lebanese, Gulf), Portuguese (Brazil, Portugal),
+  Chinese (Simplified, Traditional), Kurdish (Kurmanji, Sorani); optionally
+  tick styles. **One** AI request detects, translates and styles; then
+  Apply, Copy or Cancel. Every language menu shows **Your languages**
+  (favorites, Settings → Actions → Translation) first, then all languages
+  A→Z; right-to-left results (Arabic, Hebrew, Persian, Urdu, Sorani) are
+  shown right-to-left.
 - **Text shortcuts (V5.6).** In the settings, turn on **Text shortcuts**
   (asks for site access), add e.g. `bjr` → `Bonjour`; typing `bjr` then a
   space or `, ; : . ! ?` expands it locally — no internet, no AI, no quota.
@@ -74,7 +80,7 @@ Interface language; "Automatic" follows the browser).
 - **Translate button on selected text (V5.15, optional).** Settings →
   Getting started → Opening Correctly. Select text on any page: a small
   button appears at the end of the selection. Up to 5 words, a click shows a
-  bubble with the translation (one request), the target language and Arabic
+  bubble with the translation (one request), the target language and
   variant, Copy and **Open in Correctly**; longer selections open the
   Correctly window on Translation and translate at once. Showing the button
   sends nothing; each click counts as one request. Off by default; it asks
@@ -114,7 +120,7 @@ npm run lint
 Optional:
 
 ```powershell
-npm run package        # release/Correctly-V5.15-Extension.zip (+ .sha256)
+npm run package        # release/Correctly-V5.16-Extension.zip (+ .sha256)
 npm run test:browser   # real-browser smoke test (Brave by default)
 node scripts/verify-browser.mjs --browser=chrome
 ```
@@ -190,11 +196,12 @@ IndexedDB.
 | `frontend/tests/`            | unit and integration tests                                |
 | `frontend/manifest.json`     | the only manifest (copied to `dist/` by Vite)             |
 | `scripts/`                   | dist audit, packaging, dev watch, browser smoke test      |
-| `docs/v5.1/` … `docs/v5.15/` | architecture, security, test reports, checklists          |
+| `docs/v5.1/` … `docs/v5.16/` | architecture, security, test reports, checklists          |
 | `v5/`                        | V5.1–V5.x specifications                                  |
 | `plans/`                     | V1–V4 plans (history)                                     |
 
-See [docs/v5.15/TEST_REPORT.md](docs/v5.15/TEST_REPORT.md) (translate button on selected text),
+See [docs/v5.16/TEST_REPORT.md](docs/v5.16/TEST_REPORT.md) (about 40 translation languages, favorites, variants, RTL),
+[docs/v5.15/TEST_REPORT.md](docs/v5.15/TEST_REPORT.md) (translate button on selected text),
 [docs/v5.14/TEST_REPORT.md](docs/v5.14/TEST_REPORT.md) (sync between computers, fixed extension ID),
 [docs/v5.12/TEST_REPORT.md](docs/v5.12/TEST_REPORT.md) (Summary tab, read-only page selection, French settings page),
 [docs/v5.11/TEST_REPORT.md](docs/v5.11/TEST_REPORT.md) (right-edge handle and three-tab modal),

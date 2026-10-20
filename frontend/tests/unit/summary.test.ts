@@ -104,7 +104,8 @@ describe('request contract (exact shape, allowlists only)', () => {
       { length: 'huge' },
       { format: 'html' },
       { target: 'xx' },
-      { variant: 'egyptian' },
+      { variant: 'pt_br' },
+      { variant: 'syrian ' },
       { type: 'correctly.v5.translateText' },
     ])
       expect(isSummarizeTextRequest({ ...request(), ...bad })).toBe(false);
