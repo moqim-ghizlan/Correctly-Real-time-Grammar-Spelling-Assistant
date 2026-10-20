@@ -2521,6 +2521,49 @@ html:has(.film-player[open]) {
   }
 }
 
+/* ---------- What's new ---------- */
+.new-grid {
+  display: grid;
+  gap: 40px;
+}
+@media (min-width: 1040px) {
+  .new-grid {
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+    gap: 64px;
+    align-items: center;
+  }
+}
+.new-soon {
+  margin-top: 16px;
+  font-size: 0.9375rem;
+  color: var(--ink-2);
+}
+.new-points {
+  display: grid;
+  gap: 14px;
+}
+.new-point {
+  display: flex;
+  gap: 16px;
+  align-items: flex-start;
+  padding: 22px 24px;
+  border: 1px solid var(--line);
+  border-radius: 18px;
+  background: var(--bg-raised);
+}
+.new-icon {
+  margin-top: 2px;
+  color: var(--accent);
+}
+.new-point-title {
+  font-weight: 640;
+  font-size: 1.0625rem;
+}
+.new-point-text {
+  margin-top: 4px;
+  color: var(--ink-2);
+}
+
 /* ---------- More features ---------- */
 .more-grid {
   display: grid;

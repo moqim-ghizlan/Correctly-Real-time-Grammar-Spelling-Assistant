@@ -14,6 +14,7 @@
 
   'nav.home': 'Correctly, haut de page',
   'nav.primary': 'Navigation principale',
+  'nav.new': 'Nouveauté',
   'nav.actions': 'Fonctions',
   'nav.demo': 'Démo',
   'nav.privacy': 'Confidentialité',
@@ -275,12 +276,27 @@
   'shot.alt':
     'Capture de la fenêtre Correctly ouverte sur l’onglet Summary, avec un texte en français, les choix de langue, de longueur et de format, et l’avertissement indiquant que le résultat ne peut être que copié.',
 
+  'new.badge': 'Nouveau',
+  'new.title': 'Vos réglages vous suivent d’un ordinateur à l’autre',
+  'new.lede':
+    'Avec la version 5.14, Correctly peut retrouver vos raccourcis de texte, vos réglages et vos clés API sur tous vos ordinateurs, grâce à la synchronisation de votre navigateur.',
+  'new.soon': 'Une page dédiée, avec le pas-à-pas complet, arrive bientôt.',
+  'new.1.t': 'Configurez une fois, retrouvez partout',
+  'new.1.d':
+    'Raccourcis de texte, styles, langues et raccourcis clavier passent tout seuls d’un PC à l’autre.',
+  'new.2.t': 'Des clés protégées par votre phrase secrète',
+  'new.2.d':
+    'Les clés API sont chiffrées sur votre ordinateur avant de partir : ni Google ni personne d’autre ne peut les lire.',
+  'new.3.t': 'Optionnelle et sans serveur Correctly',
+  'new.3.d':
+    'Désactivée par défaut, elle passe par votre compte Google. Vos limites et statistiques restent propres à chaque ordinateur.',
+
   'privacy.title': 'Ce qui reste chez vous, ce qui part chez le fournisseur',
   'privacy.lede':
     'Correctly n’a pas de serveur. L’extension parle directement au fournisseur que vous avez configuré, et seulement quand vous le demandez.',
 
   'dg.title':
-    'Schéma : le texte va de la page à l’extension, puis au fournisseur d’IA seulement après un clic sur Générer. Les clés, réglages, limites et statistiques restent dans le stockage local.',
+    'Schéma : le texte va de la page à l’extension, puis au fournisseur d’IA seulement après un clic sur Générer. Les clés, réglages, limites et statistiques restent dans le stockage local (une copie des raccourcis, réglages et clés chiffrées peut passer par la synchronisation du navigateur, si vous l’activez).',
   'dg.page': 'Page web',
   'dg.pageSub': 'votre sélection',
   'dg.ext': 'Extension Correctly',
@@ -296,7 +312,7 @@
 
   'privacy.local.title': 'Reste dans votre navigateur',
   'privacy.local.1':
-    'Vos clés API, réglages, limites et statistiques, dans le stockage de l’extension, fermé aux scripts injectés dans les pages.',
+    'Vos clés API, réglages, limites et statistiques, dans le stockage de l’extension, fermé aux scripts injectés dans les pages. Si vous activez la synchronisation (désactivée par défaut), une copie passe par le compte Google du navigateur, jamais par un serveur Correctly ; les clés n’y sont que chiffrées par votre phrase secrète.',
   'privacy.local.2':
     'Les raccourcis de texte : leur expansion se fait dans la page, sans réseau.',
   'privacy.local.3':
@@ -342,6 +358,9 @@
   'm.ui.t': 'Interface en français ou en anglais',
   'm.ui.d':
     'Automatique, Français ou English : pour les réglages, la fenêtre, le demi-cercle et le menu clic droit.',
+  'm.sync.t': 'Synchronisation entre vos ordinateurs',
+  'm.sync.d':
+    'En option : raccourcis de texte, réglages, raccourcis clavier et, si vous le voulez, clés API chiffrées par une phrase secrète, via la synchronisation du navigateur. Les limites et statistiques restent propres à chaque ordinateur.',
   'm.models.t': 'Modèles du catalogue',
   'm.models.d':
     'Gemini 3.1 Flash-Lite (par défaut), Gemini 3.5 Flash-Lite, GPT-5 nano, GPT-5.6 Luna et GPT-6 Luna.',
@@ -378,7 +397,7 @@
     'Une extension personnelle pour Chrome et Brave qui corrige, reformule, traduit et résume du texte avec votre propre clé Gemini ou OpenAI. Elle propose un résultat, et vous décidez de l’appliquer, de le copier ou de l’écarter.',
   'faq.2.q': 'Est-ce compatible avec Chrome et Brave ?',
   'faq.2.a':
-    'Oui, à partir de la version 120 de Chrome. Chaque profil du navigateur garde ses propres clés, limites et statistiques.',
+    'Oui, à partir de la version 120 de Chrome. Chaque profil du navigateur garde ses propres limites et statistiques. La synchronisation optionnelle des raccourcis, réglages et clés passe par la synchronisation du navigateur : prise en charge dans Chrome, non garantie dans Brave.',
   'faq.3.q': 'Comment l’installer ?',
   'faq.3.a':
     'Correctly n’est pas sur le Chrome Web Store. Téléchargez le fichier .zip, décompressez-le, puis chargez le dossier depuis la page des extensions, en mode développeur. Les trois étapes sont détaillées dans la section Télécharger.',
@@ -387,7 +406,7 @@
     'Les raccourcis de texte, oui. La correction, la reformulation, la traduction et le résumé demandent une clé Gemini ou OpenAI. Une clé API est facturée à l’usage : un abonnement ChatGPT ou Gemini ne la paie pas.',
   'faq.5.q': 'Quels fournisseurs sont pris en charge ?',
   'faq.5.a':
-    'Google Gemini et OpenAI. Le catalogue de la version 5.13.4 propose Gemini 3.1 Flash-Lite (par défaut), Gemini 3.5 Flash-Lite, GPT-5 nano, GPT-5.6 Luna et GPT-6 Luna. Chaque action peut utiliser sa propre clé et son propre modèle.',
+    'Google Gemini et OpenAI. Le catalogue de la version 5.14.0 propose Gemini 3.1 Flash-Lite (par défaut), Gemini 3.5 Flash-Lite, GPT-5 nano, GPT-5.6 Luna et GPT-6 Luna. Chaque action peut utiliser sa propre clé et son propre modèle.',
   'faq.6.q': 'Correctly modifie-t-il mon texte automatiquement ?',
   'faq.6.a':
     'Non. Rien n’est remplacé sans un clic sur Appliquer, et seulement dans une zone de texte simple qui n’a pas changé. Ailleurs, vous copiez le résultat. Seule exception, voulue : les raccourcis de texte que vous avez définis se développent pendant la frappe.',
@@ -406,21 +425,28 @@
   'faq.11.q': 'Où trouver les versions précédentes ?',
   'faq.11.a':
     'La section Télécharger propose la dernière version. Les versions précédentes sont listées sur la page de toutes les versions.',
+  'faq.12.q': 'Mes raccourcis et clés passent-ils par un serveur ?',
+  'faq.12.a':
+    'Pas par un serveur Correctly : il n’y en a pas. Si vous activez la synchronisation, désactivée par défaut, vos raccourcis et réglages passent par le stockage synchronisé de votre navigateur, lié à votre compte Google. Les clés API ne s’y trouvent que chiffrées par votre phrase secrète, que Google ne connaît pas.',
+  'faq.13.q': 'Pourquoi repartir de zéro en passant à la version 5.14 ?',
+  'faq.13.a':
+    'La version 5.14 donne à l’extension un identifiant fixe, le même sur tous vos ordinateurs : c’est nécessaire pour la synchronisation. Ce changement, unique, fait repartir l’extension à vide. Avant de mettre à jour, exportez vos raccourcis de texte, puis importez-les et ressaisissez vos clés, routes et limites. Les mises à jour suivantes gardent vos données.',
 
   'dl.title': 'Installez la dernière version',
   'dl.lede':
-    'Version 5.13.4, publiée le 20 octobre 2026. Aucun compte Correctly : vous utilisez vos propres clés Gemini ou OpenAI.',
+    'Version 5.14.0, publiée le 20 octobre 2026. Aucun compte Correctly : vous utilisez vos propres clés Gemini ou OpenAI.',
   'dl.newTitle': 'Dans cette version',
-  'dl.new1': 'L’interface en français ou en anglais, au choix.',
+  'dl.new1':
+    'La synchronisation entre vos ordinateurs, en option : raccourcis de texte, réglages et raccourcis clavier, par la synchronisation du navigateur.',
   'dl.new2':
-    'Le style Formalité personnalisée : cinq niveaux, de la retouche légère au très formel.',
+    'Les clés API peuvent suivre aussi, chiffrées sur votre ordinateur par une phrase secrète que vous choisissez.',
   'dl.new3':
-    'Les raccourcis de texte marchent aussi dans WhatsApp Web, Gmail et les autres éditeurs riches.',
-  'dl.button': 'Télécharger la version 5.13.4',
-  'dl.size': '.zip, 127 Ko',
+    'À savoir : l’identifiant de l’extension change une fois. Exportez vos raccourcis de texte avant la mise à jour, puis ressaisissez vos clés.',
+  'dl.button': 'Télécharger la version 5.14.0',
+  'dl.size': '.zip, 139 Ko',
   'dl.all': 'Toutes les versions',
   'dl.note':
-    'Cette version a réussi ses tests automatisés ; elle n’a pas encore été vérifiée à la main dans Chrome et Brave.',
+    'Cette version a réussi ses tests automatisés et un test automatique dans Brave ; la synchronisation entre deux ordinateurs n’a pas encore été vérifiée à la main.',
   'dl.stepsTitle': 'Installer en trois étapes',
   'dl.step1': 'Téléchargez le fichier .zip, puis décompressez-le.',
   'dl.step2':
@@ -430,7 +456,7 @@
 
   'footer.desc':
     'Un assistant d’écriture pour Chrome et Brave qui corrige, reformule, traduit et résume, en vous laissant le dernier mot.',
-  'footer.version': 'Version présentée : 5.13.4',
+  'footer.version': 'Version présentée : 5.14.0',
   'footer.site':
     'Ce site n’utilise ni cookies, ni mesure d’audience, ni appel à une IA.',
   'footer.nav': 'Plan du site',

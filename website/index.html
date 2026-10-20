@@ -90,6 +90,12 @@
         <rect x="2" y="6" width="20" height="12" rx="2" />
         <path d="M6 10h.01M10 10h.01M14 10h.01M18 10h.01M7 14h10" />
       </symbol>
+      <symbol id="i-sync" viewBox="0 0 24 24">
+        <path d="M20 11a8 8 0 0 0-14.3-4.9L4 8" />
+        <path d="M4 3v5h5" />
+        <path d="M4 13a8 8 0 0 0 14.3 4.9L20 16" />
+        <path d="M20 21v-5h-5" />
+      </symbol>
       <symbol id="i-check" viewBox="0 0 24 24">
         <path d="M5 12.5l4.5 4.5L19 7.5" />
       </symbol>
@@ -173,6 +179,7 @@
 
         <nav class="nav-desktop" data-i18n-attr="aria-label:nav.primary">
           <ul class="nav-list">
+            <li><a href="#new" data-nav data-i18n="nav.new"></a></li>
             <li><a href="#actions" data-nav data-i18n="nav.actions"></a></li>
             <li><a href="#demo" data-nav data-i18n="nav.demo"></a></li>
             <li><a href="#privacy" data-nav data-i18n="nav.privacy"></a></li>
@@ -255,6 +262,7 @@
         data-i18n-attr="aria-label:nav.primary"
       >
         <ul class="wrap mobile-list">
+          <li><a href="#new" data-i18n="nav.new"></a></li>
           <li><a href="#actions" data-i18n="nav.actions"></a></li>
           <li><a href="#demo" data-i18n="nav.demo"></a></li>
           <li><a href="#privacy" data-i18n="nav.privacy"></a></li>
@@ -414,6 +422,51 @@
               </svg>
               <h3 class="benefit-title" data-i18n="benefit.4.t"></h3>
               <p class="benefit-text" data-i18n="benefit.4.d"></p>
+            </li>
+          </ul>
+        </div>
+      </section>
+
+      <!-- What's new (5.14): a short presentation of sync; a dedicated
+           page will come later. -->
+      <section class="section" id="new" aria-labelledby="new-title">
+        <div class="wrap new-grid">
+          <header class="new-head">
+            <p class="release-tag">
+              <span data-i18n="new.badge"></span>
+              <span class="release-num">5.14</span>
+            </p>
+            <h2 id="new-title" class="section-title" data-i18n="new.title"></h2>
+            <p class="section-lede" data-i18n="new.lede"></p>
+            <p class="new-soon" data-i18n="new.soon"></p>
+          </header>
+          <ul class="new-points">
+            <li class="new-point">
+              <svg class="icon new-icon" aria-hidden="true">
+                <use href="#i-sync" />
+              </svg>
+              <div>
+                <h3 class="new-point-title" data-i18n="new.1.t"></h3>
+                <p class="new-point-text" data-i18n="new.1.d"></p>
+              </div>
+            </li>
+            <li class="new-point">
+              <svg class="icon new-icon" aria-hidden="true">
+                <use href="#i-key" />
+              </svg>
+              <div>
+                <h3 class="new-point-title" data-i18n="new.2.t"></h3>
+                <p class="new-point-text" data-i18n="new.2.d"></p>
+              </div>
+            </li>
+            <li class="new-point">
+              <svg class="icon new-icon" aria-hidden="true">
+                <use href="#i-check" />
+              </svg>
+              <div>
+                <h3 class="new-point-title" data-i18n="new.3.t"></h3>
+                <p class="new-point-text" data-i18n="new.3.d"></p>
+              </div>
             </li>
           </ul>
         </div>
@@ -1194,6 +1247,12 @@
               </dd>
             </div>
             <div class="feature">
+              <dt data-i18n="m.sync.t"></dt>
+              <dd>
+                <p data-i18n="m.sync.d"></p>
+              </dd>
+            </div>
+            <div class="feature">
               <dt data-i18n="m.models.t"></dt>
               <dd>
                 <p data-i18n="m.models.d"></p>
@@ -1353,6 +1412,24 @@
               </summary>
               <p data-i18n="faq.11.a"></p>
             </details>
+            <details class="faq">
+              <summary>
+                <h3 data-i18n="faq.12.q"></h3>
+                <svg class="icon faq-chevron" aria-hidden="true">
+                  <use href="#i-chevron" />
+                </svg>
+              </summary>
+              <p data-i18n="faq.12.a"></p>
+            </details>
+            <details class="faq">
+              <summary>
+                <h3 data-i18n="faq.13.q"></h3>
+                <svg class="icon faq-chevron" aria-hidden="true">
+                  <use href="#i-chevron" />
+                </svg>
+              </summary>
+              <p data-i18n="faq.13.a"></p>
+            </details>
           </div>
         </div>
       </section>
@@ -1366,7 +1443,7 @@
           <div class="release">
             <p class="release-tag">
               <span class="release-name">Correctly</span>
-              <span class="release-num">5.13.4</span>
+              <span class="release-num">5.14.0</span>
             </p>
             <h2
               id="download-title"
@@ -1435,6 +1512,7 @@
         <nav data-i18n-attr="aria-label:footer.nav">
           <h2 class="footer-title" data-i18n="footer.nav"></h2>
           <ul>
+            <li><a href="#new" data-i18n="nav.new"></a></li>
             <li><a href="#actions" data-i18n="nav.actions"></a></li>
             <li><a href="#demo" data-i18n="nav.demo"></a></li>
             <li><a href="#download" data-i18n="nav.download"></a></li>

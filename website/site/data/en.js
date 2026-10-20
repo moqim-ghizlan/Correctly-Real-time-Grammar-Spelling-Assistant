@@ -13,6 +13,7 @@
 
   'nav.home': 'Correctly, back to top',
   'nav.primary': 'Main navigation',
+  'nav.new': 'What’s new',
   'nav.actions': 'Features',
   'nav.demo': 'Demo',
   'nav.privacy': 'Privacy',
@@ -272,12 +273,27 @@
   'shot.alt':
     'Screenshot of the Correctly window open on the Summary tab, with French text, the language, length and format choices, and a warning that the result can only be copied.',
 
+  'new.badge': 'New',
+  'new.title': 'Your setup follows you from one computer to another',
+  'new.lede':
+    'With version 5.14, Correctly can bring your text shortcuts, settings and API keys to all your computers, through your browser’s sync.',
+  'new.soon': 'A dedicated page with the full walkthrough is coming soon.',
+  'new.1.t': 'Set up once, find it everywhere',
+  'new.1.d':
+    'Text shortcuts, styles, languages and keyboard shortcuts move from one computer to another on their own.',
+  'new.2.t': 'Keys protected by your passphrase',
+  'new.2.d':
+    'API keys are encrypted on your computer before they leave it: neither Google nor anyone else can read them.',
+  'new.3.t': 'Optional, with no Correctly server',
+  'new.3.d':
+    'Off by default, it goes through your Google account. Your limits and statistics stay on each computer.',
+
   'privacy.title': 'What stays with you, what goes to the provider',
   'privacy.lede':
     'Correctly has no server. The extension talks directly to the provider you configured, and only when you ask.',
 
   'dg.title':
-    'Diagram: text goes from the page to the extension, then to the AI provider only after a click on Generate. Keys, settings, limits and statistics stay in local storage.',
+    'Diagram: text goes from the page to the extension, then to the AI provider only after a click on Generate. Keys, settings, limits and statistics stay in local storage (a copy of shortcuts, settings and encrypted keys can go through the browser’s sync, if you turn it on).',
   'dg.page': 'Web page',
   'dg.pageSub': 'your selection',
   'dg.ext': 'Correctly extension',
@@ -293,7 +309,7 @@
 
   'privacy.local.title': 'Stays in your browser',
   'privacy.local.1':
-    'Your API keys, settings, limits and statistics, in the extension’s storage, closed to scripts injected into pages.',
+    'Your API keys, settings, limits and statistics, in the extension’s storage, closed to scripts injected into pages. If you turn on sync (off by default), a copy goes through the browser’s Google account, never through a Correctly server; keys are there only encrypted with your passphrase.',
   'privacy.local.2':
     'Text shortcuts: they expand on the page, with no network.',
   'privacy.local.3':
@@ -337,6 +353,9 @@
   'm.ui.t': 'French or English interface',
   'm.ui.d':
     'Automatic, Français or English: for the settings, the window, the handle and the right-click menu.',
+  'm.sync.t': 'Sync between your computers',
+  'm.sync.d':
+    'Optional: text shortcuts, settings, keyboard shortcuts and, if you want, API keys encrypted with a passphrase, through the browser’s sync. Limits and statistics stay per computer.',
   'm.models.t': 'Catalog models',
   'm.models.d':
     'Gemini 3.1 Flash-Lite (default), Gemini 3.5 Flash-Lite, GPT-5 nano, GPT-5.6 Luna and GPT-6 Luna.',
@@ -372,7 +391,7 @@
     'A personal extension for Chrome and Brave that corrects, rewrites, translates and summarizes text with your own Gemini or OpenAI key. It suggests a result, and you decide whether to apply it, copy it or discard it.',
   'faq.2.q': 'Does it work in Chrome and Brave?',
   'faq.2.a':
-    'Yes, from Chrome version 120. Each browser profile keeps its own keys, limits and statistics.',
+    'Yes, from Chrome version 120. Each browser profile keeps its own limits and statistics. Optional sync of shortcuts, settings and keys goes through the browser’s sync: supported in Chrome, not guaranteed in Brave.',
   'faq.3.q': 'How do I install it?',
   'faq.3.a':
     'Correctly is not on the Chrome Web Store. Download the .zip file, unzip it, then load the folder from the extensions page, in developer mode. The three steps are in the Download section.',
@@ -381,7 +400,7 @@
     'Text shortcuts do. Correction, reformulation, translation and summary need a Gemini or OpenAI key. API keys are billed by usage: a ChatGPT or Gemini subscription does not pay for them.',
   'faq.5.q': 'Which providers are supported?',
   'faq.5.a':
-    'Google Gemini and OpenAI. The catalog of version 5.13.4 offers Gemini 3.1 Flash-Lite (default), Gemini 3.5 Flash-Lite, GPT-5 nano, GPT-5.6 Luna and GPT-6 Luna. Each action can use its own key and model.',
+    'Google Gemini and OpenAI. The catalog of version 5.14.0 offers Gemini 3.1 Flash-Lite (default), Gemini 3.5 Flash-Lite, GPT-5 nano, GPT-5.6 Luna and GPT-6 Luna. Each action can use its own key and model.',
   'faq.6.q': 'Does Correctly change my text automatically?',
   'faq.6.a':
     'No. Nothing is replaced without a click on Apply, and only in a plain text box that has not changed. Elsewhere, you copy the result. The one deliberate exception: text shortcuts you defined expand as you type.',
@@ -400,21 +419,28 @@
   'faq.11.q': 'Where can I find earlier versions?',
   'faq.11.a':
     'The Download section offers the latest version. Earlier versions are listed on the all-versions page.',
+  'faq.12.q': 'Do my shortcuts and keys go through a server?',
+  'faq.12.a':
+    'Not through a Correctly server: there is none. If you turn on sync, off by default, your shortcuts and settings go through your browser’s synced storage, tied to your Google account. API keys are there only encrypted with your passphrase, which Google does not know.',
+  'faq.13.q': 'Why start over when updating to version 5.14?',
+  'faq.13.a':
+    'Version 5.14 gives the extension a fixed ID, the same on all your computers: sync needs it. This one-time change makes the extension start empty. Before updating, export your text shortcuts, then import them and enter your keys, routes and limits again. Later updates keep your data.',
 
   'dl.title': 'Install the latest version',
   'dl.lede':
-    'Version 5.13.4, released on 20 October 2026. No Correctly account: you use your own Gemini or OpenAI keys.',
+    'Version 5.14.0, released on 20 October 2026. No Correctly account: you use your own Gemini or OpenAI keys.',
   'dl.newTitle': 'In this version',
-  'dl.new1': 'The interface in French or English, your choice.',
+  'dl.new1':
+    'Optional sync between your computers: text shortcuts, settings and keyboard shortcuts, through the browser’s sync.',
   'dl.new2':
-    'The Custom formality style: five levels, from a light touch to very formal.',
+    'API keys can follow too, encrypted on your computer with a passphrase you choose.',
   'dl.new3':
-    'Text shortcuts now also work in WhatsApp Web, Gmail and other rich editors.',
-  'dl.button': 'Download version 5.13.4',
-  'dl.size': '.zip, 127 KB',
+    'Good to know: the extension ID changes once. Export your text shortcuts before updating, then enter your keys again.',
+  'dl.button': 'Download version 5.14.0',
+  'dl.size': '.zip, 139 KB',
   'dl.all': 'All versions',
   'dl.note':
-    'This version passed its automated tests; it has not yet been checked by hand in Chrome and Brave.',
+    'This version passed its automated tests and an automated check in Brave; sync between two computers has not yet been checked by hand.',
   'dl.stepsTitle': 'Install in three steps',
   'dl.step1': 'Download the .zip file, then unzip it.',
   'dl.step2':
@@ -424,7 +450,7 @@
 
   'footer.desc':
     'A writing assistant for Chrome and Brave that corrects, rewrites, translates and summarizes, while you keep the last word.',
-  'footer.version': 'Version shown: 5.13.4',
+  'footer.version': 'Version shown: 5.14.0',
   'footer.site': 'This site uses no cookies, no analytics and no AI calls.',
   'footer.nav': 'Site map',
   'footer.project': 'Project',

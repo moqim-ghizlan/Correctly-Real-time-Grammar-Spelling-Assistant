@@ -84,6 +84,12 @@
         <rect x="2" y="6" width="20" height="12" rx="2" />
         <path d="M6 10h.01M10 10h.01M14 10h.01M18 10h.01M7 14h10" />
       </symbol>
+      <symbol id="i-sync" viewBox="0 0 24 24">
+        <path d="M20 11a8 8 0 0 0-14.3-4.9L4 8" />
+        <path d="M4 3v5h5" />
+        <path d="M4 13a8 8 0 0 0 14.3 4.9L20 16" />
+        <path d="M20 21v-5h-5" />
+      </symbol>
       <symbol id="i-check" viewBox="0 0 24 24">
         <path d="M5 12.5l4.5 4.5L19 7.5" />
       </symbol>
@@ -167,6 +173,7 @@
 
         <nav class="nav-desktop" data-i18n-attr="aria-label:nav.primary" aria-label="Navigation principale">
           <ul class="nav-list">
+            <li><a href="#new" data-nav data-i18n="nav.new">Nouveauté</a></li>
             <li><a href="#actions" data-nav data-i18n="nav.actions">Fonctions</a></li>
             <li><a href="#demo" data-nav data-i18n="nav.demo">Démo</a></li>
             <li><a href="#privacy" data-nav data-i18n="nav.privacy">Confidentialité</a></li>
@@ -243,6 +250,7 @@
         id="mobile-menu"
         data-i18n-attr="aria-label:nav.primary" aria-label="Navigation principale">
         <ul class="wrap mobile-list">
+          <li><a href="#new" data-i18n="nav.new">Nouveauté</a></li>
           <li><a href="#actions" data-i18n="nav.actions">Fonctions</a></li>
           <li><a href="#demo" data-i18n="nav.demo">Démo</a></li>
           <li><a href="#privacy" data-i18n="nav.privacy">Confidentialité</a></li>
@@ -402,6 +410,51 @@
               </svg>
               <h3 class="benefit-title" data-i18n="benefit.4.t">Des raccourcis de texte locaux</h3>
               <p class="benefit-text" data-i18n="benefit.4.d">« bjr » devient « Bonjour » dans la page, sans connexion, sans IA et sans quota.</p>
+            </li>
+          </ul>
+        </div>
+      </section>
+
+      <!-- What's new (5.14): a short presentation of sync; a dedicated
+           page will come later. -->
+      <section class="section" id="new" aria-labelledby="new-title">
+        <div class="wrap new-grid">
+          <header class="new-head">
+            <p class="release-tag">
+              <span data-i18n="new.badge">Nouveau</span>
+              <span class="release-num">5.14</span>
+            </p>
+            <h2 id="new-title" class="section-title" data-i18n="new.title">Vos réglages vous suivent d’un ordinateur à l’autre</h2>
+            <p class="section-lede" data-i18n="new.lede">Avec la version 5.14, Correctly peut retrouver vos raccourcis de texte, vos réglages et vos clés API sur tous vos ordinateurs, grâce à la synchronisation de votre navigateur.</p>
+            <p class="new-soon" data-i18n="new.soon">Une page dédiée, avec le pas-à-pas complet, arrive bientôt.</p>
+          </header>
+          <ul class="new-points">
+            <li class="new-point">
+              <svg class="icon new-icon" aria-hidden="true">
+                <use href="#i-sync" />
+              </svg>
+              <div>
+                <h3 class="new-point-title" data-i18n="new.1.t">Configurez une fois, retrouvez partout</h3>
+                <p class="new-point-text" data-i18n="new.1.d">Raccourcis de texte, styles, langues et raccourcis clavier passent tout seuls d’un PC à l’autre.</p>
+              </div>
+            </li>
+            <li class="new-point">
+              <svg class="icon new-icon" aria-hidden="true">
+                <use href="#i-key" />
+              </svg>
+              <div>
+                <h3 class="new-point-title" data-i18n="new.2.t">Des clés protégées par votre phrase secrète</h3>
+                <p class="new-point-text" data-i18n="new.2.d">Les clés API sont chiffrées sur votre ordinateur avant de partir : ni Google ni personne d’autre ne peut les lire.</p>
+              </div>
+            </li>
+            <li class="new-point">
+              <svg class="icon new-icon" aria-hidden="true">
+                <use href="#i-check" />
+              </svg>
+              <div>
+                <h3 class="new-point-title" data-i18n="new.3.t">Optionnelle et sans serveur Correctly</h3>
+                <p class="new-point-text" data-i18n="new.3.d">Désactivée par défaut, elle passe par votre compte Google. Vos limites et statistiques restent propres à chaque ordinateur.</p>
+              </div>
             </li>
           </ul>
         </div>
@@ -1054,7 +1107,7 @@
           </header>
 
           <figure class="diagram" id="diagram">
-            <figcaption class="sr-only" data-i18n="dg.title">Schéma : le texte va de la page à l’extension, puis au fournisseur d’IA seulement après un clic sur Générer. Les clés, réglages, limites et statistiques restent dans le stockage local.</figcaption>
+            <figcaption class="sr-only" data-i18n="dg.title">Schéma : le texte va de la page à l’extension, puis au fournisseur d’IA seulement après un clic sur Générer. Les clés, réglages, limites et statistiques restent dans le stockage local (une copie des raccourcis, réglages et clés chiffrées peut passer par la synchronisation du navigateur, si vous l’activez).</figcaption>
             <div class="dg" aria-hidden="true">
               <div class="dg-node dg-page">
                 <strong data-i18n="dg.page"></strong
@@ -1099,7 +1152,7 @@
             <div class="pcol">
               <h3 class="pcol-title" data-i18n="privacy.local.title">Reste dans votre navigateur</h3>
               <ul>
-                <li data-i18n="privacy.local.1">Vos clés API, réglages, limites et statistiques, dans le stockage de l’extension, fermé aux scripts injectés dans les pages.</li>
+                <li data-i18n="privacy.local.1">Vos clés API, réglages, limites et statistiques, dans le stockage de l’extension, fermé aux scripts injectés dans les pages. Si vous activez la synchronisation (désactivée par défaut), une copie passe par le compte Google du navigateur, jamais par un serveur Correctly ; les clés n’y sont que chiffrées par votre phrase secrète.</li>
                 <li data-i18n="privacy.local.2">Les raccourcis de texte : leur expansion se fait dans la page, sans réseau.</li>
                 <li data-i18n="privacy.local.3">Correctly ne garde aucun journal de vos clés, de vos textes ni des réponses.</li>
               </ul>
@@ -1180,6 +1233,12 @@
               </dd>
             </div>
             <div class="feature">
+              <dt data-i18n="m.sync.t">Synchronisation entre vos ordinateurs</dt>
+              <dd>
+                <p data-i18n="m.sync.d">En option : raccourcis de texte, réglages, raccourcis clavier et, si vous le voulez, clés API chiffrées par une phrase secrète, via la synchronisation du navigateur. Les limites et statistiques restent propres à chaque ordinateur.</p>
+              </dd>
+            </div>
+            <div class="feature">
               <dt data-i18n="m.models.t">Modèles du catalogue</dt>
               <dd>
                 <p data-i18n="m.models.d">Gemini 3.1 Flash-Lite (par défaut), Gemini 3.5 Flash-Lite, GPT-5 nano, GPT-5.6 Luna et GPT-6 Luna.</p>
@@ -1256,7 +1315,7 @@
                   <use href="#i-chevron" />
                 </svg>
               </summary>
-              <p data-i18n="faq.2.a">Oui, à partir de la version 120 de Chrome. Chaque profil du navigateur garde ses propres clés, limites et statistiques.</p>
+              <p data-i18n="faq.2.a">Oui, à partir de la version 120 de Chrome. Chaque profil du navigateur garde ses propres limites et statistiques. La synchronisation optionnelle des raccourcis, réglages et clés passe par la synchronisation du navigateur : prise en charge dans Chrome, non garantie dans Brave.</p>
             </details>
             <details class="faq">
               <summary>
@@ -1283,7 +1342,7 @@
                   <use href="#i-chevron" />
                 </svg>
               </summary>
-              <p data-i18n="faq.5.a">Google Gemini et OpenAI. Le catalogue de la version 5.13.4 propose Gemini 3.1 Flash-Lite (par défaut), Gemini 3.5 Flash-Lite, GPT-5 nano, GPT-5.6 Luna et GPT-6 Luna. Chaque action peut utiliser sa propre clé et son propre modèle.</p>
+              <p data-i18n="faq.5.a">Google Gemini et OpenAI. Le catalogue de la version 5.14.0 propose Gemini 3.1 Flash-Lite (par défaut), Gemini 3.5 Flash-Lite, GPT-5 nano, GPT-5.6 Luna et GPT-6 Luna. Chaque action peut utiliser sa propre clé et son propre modèle.</p>
             </details>
             <details class="faq">
               <summary>
@@ -1339,6 +1398,24 @@
               </summary>
               <p data-i18n="faq.11.a">La section Télécharger propose la dernière version. Les versions précédentes sont listées sur la page de toutes les versions.</p>
             </details>
+            <details class="faq">
+              <summary>
+                <h3 data-i18n="faq.12.q">Mes raccourcis et clés passent-ils par un serveur ?</h3>
+                <svg class="icon faq-chevron" aria-hidden="true">
+                  <use href="#i-chevron" />
+                </svg>
+              </summary>
+              <p data-i18n="faq.12.a">Pas par un serveur Correctly : il n’y en a pas. Si vous activez la synchronisation, désactivée par défaut, vos raccourcis et réglages passent par le stockage synchronisé de votre navigateur, lié à votre compte Google. Les clés API ne s’y trouvent que chiffrées par votre phrase secrète, que Google ne connaît pas.</p>
+            </details>
+            <details class="faq">
+              <summary>
+                <h3 data-i18n="faq.13.q">Pourquoi repartir de zéro en passant à la version 5.14 ?</h3>
+                <svg class="icon faq-chevron" aria-hidden="true">
+                  <use href="#i-chevron" />
+                </svg>
+              </summary>
+              <p data-i18n="faq.13.a">La version 5.14 donne à l’extension un identifiant fixe, le même sur tous vos ordinateurs : c’est nécessaire pour la synchronisation. Ce changement, unique, fait repartir l’extension à vide. Avant de mettre à jour, exportez vos raccourcis de texte, puis importez-les et ressaisissez vos clés, routes et limites. Les mises à jour suivantes gardent vos données.</p>
+            </details>
           </div>
         </div>
       </section>
@@ -1352,31 +1429,31 @@
           <div class="release">
             <p class="release-tag">
               <span class="release-name">Correctly</span>
-              <span class="release-num">5.13.4</span>
+              <span class="release-num">5.14.0</span>
             </p>
             <h2
               id="download-title"
               class="section-title"
               data-i18n="dl.title"
             >Installez la dernière version</h2>
-            <p class="section-lede" data-i18n="dl.lede">Version 5.13.4, publiée le 20 octobre 2026. Aucun compte Correctly : vous utilisez vos propres clés Gemini ou OpenAI.</p>
+            <p class="section-lede" data-i18n="dl.lede">Version 5.14.0, publiée le 20 octobre 2026. Aucun compte Correctly : vous utilisez vos propres clés Gemini ou OpenAI.</p>
             <h3 class="release-sub" data-i18n="dl.newTitle">Dans cette version</h3>
             <ul class="release-list">
-              <li data-i18n="dl.new1">L’interface en français ou en anglais, au choix.</li>
-              <li data-i18n="dl.new2">Le style Formalité personnalisée : cinq niveaux, de la retouche légère au très formel.</li>
-              <li data-i18n="dl.new3">Les raccourcis de texte marchent aussi dans WhatsApp Web, Gmail et les autres éditeurs riches.</li>
+              <li data-i18n="dl.new1">La synchronisation entre vos ordinateurs, en option : raccourcis de texte, réglages et raccourcis clavier, par la synchronisation du navigateur.</li>
+              <li data-i18n="dl.new2">Les clés API peuvent suivre aussi, chiffrées sur votre ordinateur par une phrase secrète que vous choisissez.</li>
+              <li data-i18n="dl.new3">À savoir : l’identifiant de l’extension change une fois. Exportez vos raccourcis de texte avant la mise à jour, puis ressaisissez vos clés.</li>
             </ul>
             <div class="cta-row">
               <a
                 class="btn btn-primary btn-download"
-                href="assets/download/Correctly-5.13.4.zip"
+                href="assets/download/Correctly-5.14.0.zip"
                 download
               >
                 <svg class="icon" aria-hidden="true">
                   <use href="#i-download" />
                 </svg>
-                <span data-i18n="dl.button">Télécharger la version 5.13.4</span>
-                <span class="btn-meta" data-i18n="dl.size">.zip, 127 Ko</span>
+                <span data-i18n="dl.button">Télécharger la version 5.14.0</span>
+                <span class="btn-meta" data-i18n="dl.size">.zip, 139 Ko</span>
               </a>
               <a
                 class="btn btn-secondary"
@@ -1391,7 +1468,7 @@
                 </svg>
               </a>
             </div>
-            <p class="release-note" data-i18n="dl.note">Cette version a réussi ses tests automatisés ; elle n’a pas encore été vérifiée à la main dans Chrome et Brave.</p>
+            <p class="release-note" data-i18n="dl.note">Cette version a réussi ses tests automatisés et un test automatique dans Brave ; la synchronisation entre deux ordinateurs n’a pas encore été vérifiée à la main.</p>
           </div>
           <div class="install">
             <h3 class="install-title" data-i18n="dl.stepsTitle">Installer en trois étapes</h3>
@@ -1415,12 +1492,13 @@
             <span class="brand-name">Correctly</span>
           </a>
           <p data-i18n="footer.desc">Un assistant d’écriture pour Chrome et Brave qui corrige, reformule, traduit et résume, en vous laissant le dernier mot.</p>
-          <p class="footer-fine" data-i18n="footer.version">Version présentée : 5.13.4</p>
+          <p class="footer-fine" data-i18n="footer.version">Version présentée : 5.14.0</p>
           <p class="footer-fine" data-i18n="footer.site">Ce site n’utilise ni cookies, ni mesure d’audience, ni appel à une IA.</p>
         </div>
         <nav data-i18n-attr="aria-label:footer.nav" aria-label="Plan du site">
           <h2 class="footer-title" data-i18n="footer.nav">Plan du site</h2>
           <ul>
+            <li><a href="#new" data-i18n="nav.new">Nouveauté</a></li>
             <li><a href="#actions" data-i18n="nav.actions">Fonctions</a></li>
             <li><a href="#demo" data-i18n="nav.demo">Démo</a></li>
             <li><a href="#download" data-i18n="nav.download">Télécharger</a></li>
@@ -1433,7 +1511,7 @@
           <h2 class="footer-title" data-i18n="footer.project">Projet</h2>
           <ul>
             <li>
-              <a href="assets/download/Correctly-5.13.4.zip" download data-i18n="dl.button">Télécharger la version 5.13.4</a>
+              <a href="assets/download/Correctly-5.14.0.zip" download data-i18n="dl.button">Télécharger la version 5.14.0</a>
             </li>
             <li>
               <a href="https://github.com/moqim-ghizlan/Correctly-Real-time-Grammar-Spelling-Assistant/releases" target="_blank" rel="noopener noreferrer"
