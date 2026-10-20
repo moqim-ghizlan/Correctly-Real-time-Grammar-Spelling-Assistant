@@ -274,19 +274,20 @@
     'Screenshot of the Correctly window open on the Summary tab, with French text, the language, length and format choices, and a warning that the result can only be copied.',
 
   'new.badge': 'New',
-  'new.title': 'Your setup follows you from one computer to another',
+  'new.title': 'Select, click, translated',
   'new.lede':
-    'With version 5.14, Correctly can bring your text shortcuts, settings and API keys to all your computers, through your browser’s sync.',
-  'new.soon': 'A dedicated page with the full walkthrough is coming soon.',
-  'new.1.t': 'Set up once, find it everywhere',
+    'With version 5.15, a small button appears at the end of the text you select on a page. One click, and Correctly translates it into your language.',
+  'new.soon':
+    'Turn it on in Correctly’s settings → Getting started. A dedicated page is coming soon.',
+  'new.1.t': 'A few words: a small bubble',
   'new.1.d':
-    'Text shortcuts, styles, languages and keyboard shortcuts move from one computer to another on their own.',
-  'new.2.t': 'Keys protected by your passphrase',
+    'Up to 5 words, the translation shows in a bubble, with the language choice (Syrian Arabic included), Copy and Open in Correctly.',
+  'new.2.t': 'A paragraph: the Correctly window',
   'new.2.d':
-    'API keys are encrypted on your computer before they leave it: neither Google nor anyone else can read them.',
-  'new.3.t': 'Optional, with no Correctly server',
+    'Beyond that, Correctly opens directly on the Translation tab and translates right away.',
+  'new.3.t': 'Nothing leaves without your click',
   'new.3.d':
-    'Off by default, it goes through your Google account. Your limits and statistics stay on each computer.',
+    'The button alone sends nothing. Each click counts as one request in your limits. Off by default.',
 
   'privacy.title': 'What stays with you, what goes to the provider',
   'privacy.lede':
@@ -327,14 +328,14 @@
   'privacy.limits.3':
     'An answer lost after sending may still be billed: Correctly never retries a request.',
   'privacy.access':
-    'The script is injected only into the tab where you act, after you agree in the settings. The handle and text shortcuts ask for access to all sites only when you turn them on, and give it back when you turn them off.',
+    'The script is injected only into the tab where you act, after you agree in the settings. The handle, the translate button and text shortcuts ask for access to all sites only when you turn them on, and give it back when nothing needs it any more.',
 
   'more.title': 'And also',
   'more.lede': 'Settings that keep you in charge of usage and costs.',
 
   'm.access.t': 'Several ways to open it',
   'm.access.d':
-    'Toolbar button, Ctrl+M, Alt+Shift+C to correct directly, the right-click menu and a movable handle on the right edge.',
+    'Toolbar button, Ctrl+M, Alt+Shift+C to correct directly, the right-click menu, a movable handle on the right edge and a translate button on selected text.',
   'm.keys.t': 'Your own keyboard shortcuts',
   'm.keys.d':
     'A settings page to define Correctly shortcuts that work in pages, on top of Chrome’s own.',
@@ -400,7 +401,7 @@
     'Text shortcuts do. Correction, reformulation, translation and summary need a Gemini or OpenAI key. API keys are billed by usage: a ChatGPT or Gemini subscription does not pay for them.',
   'faq.5.q': 'Which providers are supported?',
   'faq.5.a':
-    'Google Gemini and OpenAI. The catalog of version 5.14.1 offers Gemini 3.1 Flash-Lite (default), Gemini 3.5 Flash-Lite, GPT-5 nano, GPT-5.6 Luna and GPT-6 Luna. Each action can use its own key and model.',
+    'Google Gemini and OpenAI. The catalog of version 5.15.0 offers Gemini 3.1 Flash-Lite (default), Gemini 3.5 Flash-Lite, GPT-5 nano, GPT-5.6 Luna and GPT-6 Luna. Each action can use its own key and model.',
   'faq.6.q': 'Does Correctly change my text automatically?',
   'faq.6.a':
     'No. Nothing is replaced without a click on Apply, and only in a plain text box that has not changed. Elsewhere, you copy the result. The one deliberate exception: text shortcuts you defined expand as you type.',
@@ -428,19 +429,19 @@
 
   'dl.title': 'Install the latest version',
   'dl.lede':
-    'Version 5.14.1, released on 20 October 2026. No Correctly account: you use your own Gemini or OpenAI keys.',
+    'Version 5.15.0, released on 21 October 2026. No Correctly account: you use your own Gemini or OpenAI keys.',
   'dl.newTitle': 'In this version',
   'dl.new1':
-    'A larger, clearer Correctly window: pill tabs, a taller text box, results as cards.',
+    'A translate button at the end of selected text: a bubble for a few words, the Correctly window for a paragraph.',
   'dl.new2':
-    'With Gemini, long translations and summaries no longer stop with an “unusable response”.',
+    'A larger, clearer Correctly window, and reliable long translations with Gemini.',
   'dl.new3':
     'To update, do not remove the extension: replace its folder’s content, then click Reload. Removing it deletes your data.',
-  'dl.button': 'Download version 5.14.1',
-  'dl.size': '.zip, 140 KB',
+  'dl.button': 'Download version 5.15.0',
+  'dl.size': '.zip, 150 KB',
   'dl.all': 'All versions',
   'dl.note':
-    'This version passed its automated tests and an automated check in Brave; sync between two computers and the Gemini fix have not yet been checked by hand.',
+    'This version passed its automated tests and an automated check in Brave; the translate button and sync between two computers have not yet been checked by hand.',
   'dl.stepsTitle': 'Install in three steps',
   'dl.step1':
     'Download the .zip file, then unzip it into a folder you keep (do not delete it afterwards).',
@@ -451,7 +452,7 @@
 
   'footer.desc':
     'A writing assistant for Chrome and Brave that corrects, rewrites, translates and summarizes, while you keep the last word.',
-  'footer.version': 'Version shown: 5.14.1',
+  'footer.version': 'Version shown: 5.15.0',
   'footer.site': 'This site uses no cookies, no analytics and no AI calls.',
   'footer.nav': 'Site map',
   'footer.project': 'Project',

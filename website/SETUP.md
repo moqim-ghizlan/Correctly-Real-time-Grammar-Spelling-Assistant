@@ -30,9 +30,10 @@ Consignes pour l'agent. Détails techniques (build, structure, contrôles) :
 | Situation                                                  | À faire                         |
 | ---------------------------------------------------------- | ------------------------------- |
 | Simple travail sur l'extension, sans nouvelle version      | Rien sur le site                |
-| Nouvelle version publiée de l'extension                    | « Nouvelle version » ci-dessous |
+| Nouvelle version **mineure ou majeure** de l'extension     | « Nouvelle version » ci-dessous |
+| Simple correctif de l'extension (`x.y.Z`)                  | Rien sur le site                |
 | Une fonction affichée sur le site change, apparaît ou part | Mettre les textes à jour        |
-| La vidéo (`video-brag/brag.mp4`) change                    | Suivre `video-brag/SETUP.md`    |
+| Version majeure (`X.0.0`) : la vidéo est refaite           | Suivre `video-brag/SETUP.md`    |
 
 Le site ne doit **jamais** présenter comme disponible une fonction qui
 n'existe pas dans la version proposée au téléchargement. En cas de doute,

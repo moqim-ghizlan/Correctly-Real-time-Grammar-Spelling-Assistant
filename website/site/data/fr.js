@@ -277,19 +277,20 @@
     'Capture de la fenêtre Correctly ouverte sur l’onglet Summary, avec un texte en français, les choix de langue, de longueur et de format, et l’avertissement indiquant que le résultat ne peut être que copié.',
 
   'new.badge': 'Nouveau',
-  'new.title': 'Vos réglages vous suivent d’un ordinateur à l’autre',
+  'new.title': 'Sélectionnez, cliquez, c’est traduit',
   'new.lede':
-    'Avec la version 5.14, Correctly peut retrouver vos raccourcis de texte, vos réglages et vos clés API sur tous vos ordinateurs, grâce à la synchronisation de votre navigateur.',
-  'new.soon': 'Une page dédiée, avec le pas-à-pas complet, arrive bientôt.',
-  'new.1.t': 'Configurez une fois, retrouvez partout',
+    'Avec la version 5.15, un petit bouton apparaît au bout du texte que vous sélectionnez sur une page. Un clic, et Correctly le traduit dans votre langue.',
+  'new.soon':
+    'À activer dans les paramètres de Correctly → Démarrage. Une page dédiée arrive bientôt.',
+  'new.1.t': 'Quelques mots : une petite bulle',
   'new.1.d':
-    'Raccourcis de texte, styles, langues et raccourcis clavier passent tout seuls d’un PC à l’autre.',
-  'new.2.t': 'Des clés protégées par votre phrase secrète',
+    'Jusqu’à 5 mots, la traduction s’affiche dans une bulle, avec le choix de la langue (et de l’arabe syrien), Copier et Ouvrir dans Correctly.',
+  'new.2.t': 'Un paragraphe : la fenêtre Correctly',
   'new.2.d':
-    'Les clés API sont chiffrées sur votre ordinateur avant de partir : ni Google ni personne d’autre ne peut les lire.',
-  'new.3.t': 'Optionnelle et sans serveur Correctly',
+    'Au-delà, Correctly s’ouvre directement sur l’onglet Traduction et traduit tout de suite.',
+  'new.3.t': 'Rien ne part sans votre clic',
   'new.3.d':
-    'Désactivée par défaut, elle passe par votre compte Google. Vos limites et statistiques restent propres à chaque ordinateur.',
+    'Le bouton seul n’envoie rien. Chaque clic compte comme une requête dans vos limites. Désactivé par défaut.',
 
   'privacy.title': 'Ce qui reste chez vous, ce qui part chez le fournisseur',
   'privacy.lede':
@@ -331,7 +332,7 @@
   'privacy.limits.3':
     'Une réponse perdue après l’envoi peut quand même être facturée : Correctly ne relance jamais une requête.',
   'privacy.access':
-    'Le script n’est injecté que dans l’onglet où vous agissez, après votre accord dans les réglages. Le demi-cercle et les raccourcis de texte ne demandent l’accès à tous les sites qu’au moment où vous les activez, et le rendent quand vous les désactivez.',
+    'Le script n’est injecté que dans l’onglet où vous agissez, après votre accord dans les réglages. Le demi-cercle, le bouton de traduction et les raccourcis de texte ne demandent l’accès à tous les sites qu’au moment où vous les activez, et le rendent quand plus rien n’en a besoin.',
 
   'more.title': 'Et aussi',
   'more.lede':
@@ -339,7 +340,7 @@
 
   'm.access.t': 'Plusieurs façons d’ouvrir',
   'm.access.d':
-    'Bouton de la barre d’outils, Ctrl+M, Alt+Shift+C pour corriger directement, menu clic droit et demi-cercle déplaçable au bord droit.',
+    'Bouton de la barre d’outils, Ctrl+M, Alt+Shift+C pour corriger directement, menu clic droit, demi-cercle déplaçable au bord droit et bouton de traduction sur le texte sélectionné.',
   'm.keys.t': 'Vos propres raccourcis clavier',
   'm.keys.d':
     'Une page de réglages pour définir des raccourcis Correctly utilisables dans les pages, en plus de ceux de Chrome.',
@@ -406,7 +407,7 @@
     'Les raccourcis de texte, oui. La correction, la reformulation, la traduction et le résumé demandent une clé Gemini ou OpenAI. Une clé API est facturée à l’usage : un abonnement ChatGPT ou Gemini ne la paie pas.',
   'faq.5.q': 'Quels fournisseurs sont pris en charge ?',
   'faq.5.a':
-    'Google Gemini et OpenAI. Le catalogue de la version 5.14.1 propose Gemini 3.1 Flash-Lite (par défaut), Gemini 3.5 Flash-Lite, GPT-5 nano, GPT-5.6 Luna et GPT-6 Luna. Chaque action peut utiliser sa propre clé et son propre modèle.',
+    'Google Gemini et OpenAI. Le catalogue de la version 5.15.0 propose Gemini 3.1 Flash-Lite (par défaut), Gemini 3.5 Flash-Lite, GPT-5 nano, GPT-5.6 Luna et GPT-6 Luna. Chaque action peut utiliser sa propre clé et son propre modèle.',
   'faq.6.q': 'Correctly modifie-t-il mon texte automatiquement ?',
   'faq.6.a':
     'Non. Rien n’est remplacé sans un clic sur Appliquer, et seulement dans une zone de texte simple qui n’a pas changé. Ailleurs, vous copiez le résultat. Seule exception, voulue : les raccourcis de texte que vous avez définis se développent pendant la frappe.',
@@ -434,19 +435,19 @@
 
   'dl.title': 'Installez la dernière version',
   'dl.lede':
-    'Version 5.14.1, publiée le 20 octobre 2026. Aucun compte Correctly : vous utilisez vos propres clés Gemini ou OpenAI.',
+    'Version 5.15.0, publiée le 21 octobre 2026. Aucun compte Correctly : vous utilisez vos propres clés Gemini ou OpenAI.',
   'dl.newTitle': 'Dans cette version',
   'dl.new1':
-    'Une fenêtre Correctly plus grande et plus claire : onglets en pastilles, zone de texte plus haute, résultats en cartes.',
+    'Un bouton de traduction au bout du texte sélectionné : une bulle pour quelques mots, la fenêtre Correctly pour un paragraphe.',
   'dl.new2':
-    'Avec Gemini, les longues traductions et les résumés ne s’arrêtent plus en « réponse inutilisable ».',
+    'Une fenêtre Correctly plus grande et plus claire, et des traductions longues fiables avec Gemini.',
   'dl.new3':
     'Pour mettre à jour, ne supprimez pas l’extension : remplacez le contenu de son dossier, puis cliquez sur Actualiser. Supprimer efface vos données.',
-  'dl.button': 'Télécharger la version 5.14.1',
-  'dl.size': '.zip, 140 Ko',
+  'dl.button': 'Télécharger la version 5.15.0',
+  'dl.size': '.zip, 150 Ko',
   'dl.all': 'Toutes les versions',
   'dl.note':
-    'Cette version a réussi ses tests automatisés et un test automatique dans Brave ; la synchronisation entre deux ordinateurs et le correctif Gemini n’ont pas encore été vérifiés à la main.',
+    'Cette version a réussi ses tests automatisés et un test automatique dans Brave ; le bouton de traduction et la synchronisation entre deux ordinateurs n’ont pas encore été vérifiés à la main.',
   'dl.stepsTitle': 'Installer en trois étapes',
   'dl.step1':
     'Téléchargez le fichier .zip, puis décompressez-le dans un dossier que vous gardez (ne le supprimez pas ensuite).',
@@ -457,7 +458,7 @@
 
   'footer.desc':
     'Un assistant d’écriture pour Chrome et Brave qui corrige, reformule, traduit et résume, en vous laissant le dernier mot.',
-  'footer.version': 'Version présentée : 5.14.1',
+  'footer.version': 'Version présentée : 5.15.0',
   'footer.site':
     'Ce site n’utilise ni cookies, ni mesure d’audience, ni appel à une IA.',
   'footer.nav': 'Plan du site',

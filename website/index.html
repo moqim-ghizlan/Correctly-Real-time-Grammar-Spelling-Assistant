@@ -90,6 +90,9 @@
         <rect x="2" y="6" width="20" height="12" rx="2" />
         <path d="M6 10h.01M10 10h.01M14 10h.01M18 10h.01M7 14h10" />
       </symbol>
+      <symbol id="i-translate" viewBox="0 0 24 24">
+        <path d="m5 8 6 6M4 14l6-6 2-3M2 5h12M7 2h1m14 20-5-10-5 10m2-4h6" />
+      </symbol>
       <symbol id="i-sync" viewBox="0 0 24 24">
         <path d="M20 11a8 8 0 0 0-14.3-4.9L4 8" />
         <path d="M4 3v5h5" />
@@ -427,14 +430,13 @@
         </div>
       </section>
 
-      <!-- What's new (5.14): a short presentation of sync; a dedicated
-           page will come later. -->
+      <!-- What's new (5.15): the translate button on selected text. -->
       <section class="section" id="new" aria-labelledby="new-title">
         <div class="wrap new-grid">
           <header class="new-head">
             <p class="release-tag">
               <span data-i18n="new.badge"></span>
-              <span class="release-num">5.14</span>
+              <span class="release-num">5.15</span>
             </p>
             <h2 id="new-title" class="section-title" data-i18n="new.title"></h2>
             <p class="section-lede" data-i18n="new.lede"></p>
@@ -443,7 +445,7 @@
           <ul class="new-points">
             <li class="new-point">
               <svg class="icon new-icon" aria-hidden="true">
-                <use href="#i-sync" />
+                <use href="#i-translate" />
               </svg>
               <div>
                 <h3 class="new-point-title" data-i18n="new.1.t"></h3>
@@ -452,7 +454,7 @@
             </li>
             <li class="new-point">
               <svg class="icon new-icon" aria-hidden="true">
-                <use href="#i-key" />
+                <use href="#i-click" />
               </svg>
               <div>
                 <h3 class="new-point-title" data-i18n="new.2.t"></h3>
@@ -1443,7 +1445,7 @@
           <div class="release">
             <p class="release-tag">
               <span class="release-name">Correctly</span>
-              <span class="release-num">5.14.1</span>
+              <span class="release-num">5.15.0</span>
             </p>
             <h2
               id="download-title"
