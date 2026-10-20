@@ -387,7 +387,7 @@
     'Les raccourcis de texte, oui. La correction, la reformulation, la traduction et le résumé demandent une clé Gemini ou OpenAI. Une clé API est facturée à l’usage : un abonnement ChatGPT ou Gemini ne la paie pas.',
   'faq.5.q': 'Quels fournisseurs sont pris en charge ?',
   'faq.5.a':
-    'Google Gemini et OpenAI. Le catalogue de la version 5.13.3 propose Gemini 3.1 Flash-Lite (par défaut), Gemini 3.5 Flash-Lite, GPT-5 nano, GPT-5.6 Luna et GPT-6 Luna. Chaque action peut utiliser sa propre clé et son propre modèle.',
+    'Google Gemini et OpenAI. Le catalogue de la version 5.13.4 propose Gemini 3.1 Flash-Lite (par défaut), Gemini 3.5 Flash-Lite, GPT-5 nano, GPT-5.6 Luna et GPT-6 Luna. Chaque action peut utiliser sa propre clé et son propre modèle.',
   'faq.6.q': 'Correctly modifie-t-il mon texte automatiquement ?',
   'faq.6.a':
     'Non. Rien n’est remplacé sans un clic sur Appliquer, et seulement dans une zone de texte simple qui n’a pas changé. Ailleurs, vous copiez le résultat. Seule exception, voulue : les raccourcis de texte que vous avez définis se développent pendant la frappe.',
@@ -409,15 +409,15 @@
 
   'dl.title': 'Installez la dernière version',
   'dl.lede':
-    'Version 5.13.3, publiée le 16 octobre 2026. Aucun compte Correctly : vous utilisez vos propres clés Gemini ou OpenAI.',
+    'Version 5.13.4, publiée le 20 octobre 2026. Aucun compte Correctly : vous utilisez vos propres clés Gemini ou OpenAI.',
   'dl.newTitle': 'Dans cette version',
   'dl.new1': 'L’interface en français ou en anglais, au choix.',
   'dl.new2':
     'Le style Formalité personnalisée : cinq niveaux, de la retouche légère au très formel.',
   'dl.new3':
-    'L’onglet Résumé : court, moyen ou détaillé, en paragraphe ou en points clés.',
-  'dl.button': 'Télécharger la version 5.13.3',
-  'dl.size': '.zip, 126 Ko',
+    'Les raccourcis de texte marchent aussi dans WhatsApp Web, Gmail et les autres éditeurs riches.',
+  'dl.button': 'Télécharger la version 5.13.4',
+  'dl.size': '.zip, 127 Ko',
   'dl.all': 'Toutes les versions',
   'dl.note':
     'Cette version a réussi ses tests automatisés ; elle n’a pas encore été vérifiée à la main dans Chrome et Brave.',
@@ -430,7 +430,7 @@
 
   'footer.desc':
     'Un assistant d’écriture pour Chrome et Brave qui corrige, reformule, traduit et résume, en vous laissant le dernier mot.',
-  'footer.version': 'Version présentée : 5.13.3',
+  'footer.version': 'Version présentée : 5.13.4',
   'footer.site':
     'Ce site n’utilise ni cookies, ni mesure d’audience, ni appel à une IA.',
   'footer.nav': 'Plan du site',

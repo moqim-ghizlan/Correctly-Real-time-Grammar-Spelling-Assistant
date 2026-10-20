@@ -707,11 +707,11 @@ try {
       })()`,
     );
     record(
-      'download: button points at the 5.13.3 zip, which is served',
+      'download: button points at the 5.13.4 zip, which is served',
       d.download &&
-        d.zip.endsWith('Correctly-5.13.3.zip') &&
+        d.zip.endsWith('Correctly-5.13.4.zip') &&
         d.status === 200 &&
-        d.size === 128608,
+        d.size === 129684,
       `${d.zip}, ${d.size} bytes`,
     );
     record(

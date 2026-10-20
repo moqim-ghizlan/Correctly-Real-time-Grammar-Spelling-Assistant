@@ -381,7 +381,7 @@
     'Text shortcuts do. Correction, reformulation, translation and summary need a Gemini or OpenAI key. API keys are billed by usage: a ChatGPT or Gemini subscription does not pay for them.',
   'faq.5.q': 'Which providers are supported?',
   'faq.5.a':
-    'Google Gemini and OpenAI. The catalog of version 5.13.3 offers Gemini 3.1 Flash-Lite (default), Gemini 3.5 Flash-Lite, GPT-5 nano, GPT-5.6 Luna and GPT-6 Luna. Each action can use its own key and model.',
+    'Google Gemini and OpenAI. The catalog of version 5.13.4 offers Gemini 3.1 Flash-Lite (default), Gemini 3.5 Flash-Lite, GPT-5 nano, GPT-5.6 Luna and GPT-6 Luna. Each action can use its own key and model.',
   'faq.6.q': 'Does Correctly change my text automatically?',
   'faq.6.a':
     'No. Nothing is replaced without a click on Apply, and only in a plain text box that has not changed. Elsewhere, you copy the result. The one deliberate exception: text shortcuts you defined expand as you type.',
@@ -403,15 +403,15 @@
 
   'dl.title': 'Install the latest version',
   'dl.lede':
-    'Version 5.13.3, released on 16 October 2026. No Correctly account: you use your own Gemini or OpenAI keys.',
+    'Version 5.13.4, released on 20 October 2026. No Correctly account: you use your own Gemini or OpenAI keys.',
   'dl.newTitle': 'In this version',
   'dl.new1': 'The interface in French or English, your choice.',
   'dl.new2':
     'The Custom formality style: five levels, from a light touch to very formal.',
   'dl.new3':
-    'The Summary tab: short, medium or detailed, as a paragraph or key points.',
-  'dl.button': 'Download version 5.13.3',
-  'dl.size': '.zip, 126 KB',
+    'Text shortcuts now also work in WhatsApp Web, Gmail and other rich editors.',
+  'dl.button': 'Download version 5.13.4',
+  'dl.size': '.zip, 127 KB',
   'dl.all': 'All versions',
   'dl.note':
     'This version passed its automated tests; it has not yet been checked by hand in Chrome and Brave.',
@@ -424,7 +424,7 @@
 
   'footer.desc':
     'A writing assistant for Chrome and Brave that corrects, rewrites, translates and summarizes, while you keep the last word.',
-  'footer.version': 'Version shown: 5.13.3',
+  'footer.version': 'Version shown: 5.13.4',
   'footer.site': 'This site uses no cookies, no analytics and no AI calls.',
   'footer.nav': 'Site map',
   'footer.project': 'Project',
