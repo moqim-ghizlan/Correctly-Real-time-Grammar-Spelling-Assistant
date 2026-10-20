@@ -130,9 +130,9 @@
 
   'act.translation.t': 'Traduction',
   'act.translation.d':
-    'La langue source est détectée, puis le texte est traduit vers l’une de six langues. Vous pouvez aussi traduire et reformuler en une seule requête.',
+    'La langue source est détectée, puis le texte est traduit vers l’une de 39 langues, vos langues favorites en tête des menus. Vous pouvez aussi traduire et reformuler en une seule requête.',
   'act.translation.arabic':
-    'Pour l’arabe : l’arabe standard moderne, ou le dialecte syrien tel qu’on le parle et l’écrit au quotidien.',
+    'Des variantes quand elles comptent : arabe standard moderne ou dialecte (syrien, égyptien, marocain, libanais, du Golfe), portugais du Brésil ou du Portugal, chinois simplifié ou traditionnel, kurde kurmandji ou sorani.',
 
   'ex.t.src': 'Je t’envoie les chiffres demain avant 10 h.',
 
@@ -194,7 +194,7 @@
   'demo.help.translation':
     'La langue source est détectée automatiquement. Une seule requête traduit le texte.',
   'demo.help.summary':
-    'Le résumé est écrit directement dans la langue choisie. La démo le propose dans la langue de l’exemple ; l’extension offre les six langues.',
+    'Le résumé est écrit directement dans la langue choisie. La démo le propose dans la langue de l’exemple ; l’extension en propose 39.',
   'demo.go.correction': 'Générer la correction',
   'demo.go.rewrite': 'Générer les reformulations',
   'demo.go.translation': 'Générer la traduction',
@@ -277,20 +277,20 @@
     'Capture de la fenêtre Correctly ouverte sur l’onglet Summary, avec un texte en français, les choix de langue, de longueur et de format, et l’avertissement indiquant que le résultat ne peut être que copié.',
 
   'new.badge': 'Nouveau',
-  'new.title': 'Sélectionnez, cliquez, c’est traduit',
+  'new.title': 'Traduisez dans 39 langues',
   'new.lede':
-    'Avec la version 5.15, un petit bouton apparaît au bout du texte que vous sélectionnez sur une page. Un clic, et Correctly le traduit dans votre langue.',
+    'Avec la version 5.16, Correctly traduit et résume dans 39 langues au lieu de six : japonais, persan, hindi, portugais, chinois, ukrainien, coréen…',
   'new.soon':
-    'À activer dans les paramètres de Correctly → Démarrage. Une page dédiée arrive bientôt.',
-  'new.1.t': 'Quelques mots : une petite bulle',
+    'Choisissez vos langues favorites dans les paramètres de Correctly → Actions → Traduction.',
+  'new.1.t': 'Vos langues d’abord',
   'new.1.d':
-    'Jusqu’à 5 mots, la traduction s’affiche dans une bulle, avec le choix de la langue (et de l’arabe syrien), Copier et Ouvrir dans Correctly.',
-  'new.2.t': 'Un paragraphe : la fenêtre Correctly',
+    'Chaque menu de langue affiche d’abord vos favorites, puis toutes les langues par ordre alphabétique, avec leur nom dans leur propre écriture (Japonais — 日本語).',
+  'new.2.t': 'Des variantes quand elles comptent',
   'new.2.d':
-    'Au-delà, Correctly s’ouvre directement sur l’onglet Traduction et traduit tout de suite.',
-  'new.3.t': 'Rien ne part sans votre clic',
+    'Arabe standard, syrien, égyptien, marocain, libanais ou du Golfe ; portugais du Brésil ou du Portugal ; chinois simplifié ou traditionnel ; kurde kurmandji ou sorani.',
+  'new.3.t': 'De droite à gauche, en une requête',
   'new.3.d':
-    'Le bouton seul n’envoie rien. Chaque clic compte comme une requête dans vos limites. Désactivé par défaut.',
+    'L’arabe, l’hébreu, le persan, l’ourdou et le kurde sorani s’affichent de droite à gauche. Toujours une seule requête par clic.',
 
   'privacy.title': 'Ce qui reste chez vous, ce qui part chez le fournisseur',
   'privacy.lede':
@@ -407,7 +407,7 @@
     'Les raccourcis de texte, oui. La correction, la reformulation, la traduction et le résumé demandent une clé Gemini ou OpenAI. Une clé API est facturée à l’usage : un abonnement ChatGPT ou Gemini ne la paie pas.',
   'faq.5.q': 'Quels fournisseurs sont pris en charge ?',
   'faq.5.a':
-    'Google Gemini et OpenAI. Le catalogue de la version 5.15.0 propose Gemini 3.1 Flash-Lite (par défaut), Gemini 3.5 Flash-Lite, GPT-5 nano, GPT-5.6 Luna et GPT-6 Luna. Chaque action peut utiliser sa propre clé et son propre modèle.',
+    'Google Gemini et OpenAI. Le catalogue de la version 5.16.0 propose Gemini 3.1 Flash-Lite (par défaut), Gemini 3.5 Flash-Lite, GPT-5 nano, GPT-5.6 Luna et GPT-6 Luna. Chaque action peut utiliser sa propre clé et son propre modèle.',
   'faq.6.q': 'Correctly modifie-t-il mon texte automatiquement ?',
   'faq.6.a':
     'Non. Rien n’est remplacé sans un clic sur Appliquer, et seulement dans une zone de texte simple qui n’a pas changé. Ailleurs, vous copiez le résultat. Seule exception, voulue : les raccourcis de texte que vous avez définis se développent pendant la frappe.',
@@ -432,22 +432,25 @@
   'faq.13.q': 'Pourquoi repartir de zéro en passant à la version 5.14 ?',
   'faq.13.a':
     'La version 5.14 donne à l’extension un identifiant fixe, le même sur tous vos ordinateurs : c’est nécessaire pour la synchronisation. Ce changement, unique, fait repartir l’extension à vide. Avant de mettre à jour, exportez vos raccourcis de texte, puis importez-les et ressaisissez vos clés, routes et limites. Les mises à jour suivantes gardent vos données.',
+  'faq.14.q': 'Dans quelles langues Correctly traduit-il ?',
+  'faq.14.a':
+    '39 langues choisies parce que Gemini et OpenAI les traitent bien, avec des variantes pour l’arabe, le portugais, le chinois et le kurde. La fenêtre et les paramètres de Correctly restent en français ou en anglais. Avec la synchronisation, mettez tous vos ordinateurs en 5.16 : un ordinateur resté en 5.15 revient à sa langue par défaut s’il reçoit une langue qu’il ne connaît pas.',
 
   'dl.title': 'Installez la dernière version',
   'dl.lede':
-    'Version 5.15.0, publiée le 21 octobre 2026. Aucun compte Correctly : vous utilisez vos propres clés Gemini ou OpenAI.',
+    'Version 5.16.0, publiée le 21 octobre 2026. Aucun compte Correctly : vous utilisez vos propres clés Gemini ou OpenAI.',
   'dl.newTitle': 'Dans cette version',
   'dl.new1':
-    'Un bouton de traduction au bout du texte sélectionné : une bulle pour quelques mots, la fenêtre Correctly pour un paragraphe.',
+    'Traduction et résumé dans 39 langues, avec vos langues favorites en tête de chaque menu.',
   'dl.new2':
-    'Une fenêtre Correctly plus grande et plus claire, et des traductions longues fiables avec Gemini.',
+    'Des variantes pour l’arabe (dont égyptien, marocain, libanais, du Golfe), le portugais, le chinois et le kurde ; affichage de droite à gauche pour l’arabe, l’hébreu, le persan et l’ourdou.',
   'dl.new3':
     'Pour mettre à jour, ne supprimez pas l’extension : remplacez le contenu de son dossier, puis cliquez sur Actualiser. Supprimer efface vos données.',
-  'dl.button': 'Télécharger la version 5.15.0',
-  'dl.size': '.zip, 150 Ko',
+  'dl.button': 'Télécharger la version 5.16.0',
+  'dl.size': '.zip, 158 Ko',
   'dl.all': 'Toutes les versions',
   'dl.note':
-    'Cette version a réussi ses tests automatisés et un test automatique dans Brave ; le bouton de traduction et la synchronisation entre deux ordinateurs n’ont pas encore été vérifiés à la main.',
+    'Cette version a réussi ses tests automatisés et un test automatique dans Brave ; les traductions dans les nouvelles langues et la synchronisation entre deux ordinateurs n’ont pas encore été vérifiées à la main.',
   'dl.stepsTitle': 'Installer en trois étapes',
   'dl.step1':
     'Téléchargez le fichier .zip, puis décompressez-le dans un dossier que vous gardez (ne le supprimez pas ensuite).',
@@ -458,7 +461,7 @@
 
   'footer.desc':
     'Un assistant d’écriture pour Chrome et Brave qui corrige, reformule, traduit et résume, en vous laissant le dernier mot.',
-  'footer.version': 'Version présentée : 5.15.0',
+  'footer.version': 'Version présentée : 5.16.0',
   'footer.site':
     'Ce site n’utilise ni cookies, ni mesure d’audience, ni appel à une IA.',
   'footer.nav': 'Plan du site',

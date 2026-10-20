@@ -128,9 +128,9 @@
 
   'act.translation.t': 'Translation',
   'act.translation.d':
-    'The source language is detected, then the text is translated into one of six languages. You can also translate and rewrite in a single request.',
+    'The source language is detected, then the text is translated into one of 39 languages, your favorite languages first in the menus. You can also translate and rewrite in a single request.',
   'act.translation.arabic':
-    'For Arabic: Modern Standard Arabic, or Syrian colloquial as people actually speak and text it.',
+    'Variants where they matter: Modern Standard Arabic or a dialect (Syrian, Egyptian, Moroccan, Lebanese, Gulf), Brazilian or European Portuguese, Simplified or Traditional Chinese, Kurmanji or Sorani Kurdish.',
 
   'ex.t.src': 'I’ll send you the figures tomorrow before 10.',
 
@@ -192,7 +192,7 @@
   'demo.help.translation':
     'The source language is detected automatically. A single request translates the text.',
   'demo.help.summary':
-    'The summary is written directly in the chosen language. The demo offers it in the sample’s language; the extension offers all six.',
+    'The summary is written directly in the chosen language. The demo offers it in the sample’s language; the extension offers 39.',
   'demo.go.correction': 'Generate correction',
   'demo.go.rewrite': 'Generate rewrites',
   'demo.go.translation': 'Generate translation',
@@ -274,20 +274,20 @@
     'Screenshot of the Correctly window open on the Summary tab, with French text, the language, length and format choices, and a warning that the result can only be copied.',
 
   'new.badge': 'New',
-  'new.title': 'Select, click, translated',
+  'new.title': 'Translate into 39 languages',
   'new.lede':
-    'With version 5.15, a small button appears at the end of the text you select on a page. One click, and Correctly translates it into your language.',
+    'With version 5.16, Correctly translates and summarizes in 39 languages instead of six: Japanese, Persian, Hindi, Portuguese, Chinese, Ukrainian, Korean…',
   'new.soon':
-    'Turn it on in Correctly’s settings → Getting started. A dedicated page is coming soon.',
-  'new.1.t': 'A few words: a small bubble',
+    'Choose your favorite languages in Correctly’s settings → Actions → Translation.',
+  'new.1.t': 'Your languages first',
   'new.1.d':
-    'Up to 5 words, the translation shows in a bubble, with the language choice (Syrian Arabic included), Copy and Open in Correctly.',
-  'new.2.t': 'A paragraph: the Correctly window',
+    'Every language menu shows your favorites first, then all languages in alphabetical order, each with its name in its own script (Japanese — 日本語).',
+  'new.2.t': 'Variants where they matter',
   'new.2.d':
-    'Beyond that, Correctly opens directly on the Translation tab and translates right away.',
-  'new.3.t': 'Nothing leaves without your click',
+    'Modern Standard, Syrian, Egyptian, Moroccan, Lebanese or Gulf Arabic; Brazilian or European Portuguese; Simplified or Traditional Chinese; Kurmanji or Sorani Kurdish.',
+  'new.3.t': 'Right to left, in one request',
   'new.3.d':
-    'The button alone sends nothing. Each click counts as one request in your limits. Off by default.',
+    'Arabic, Hebrew, Persian, Urdu and Sorani Kurdish read right to left. Still one request per click.',
 
   'privacy.title': 'What stays with you, what goes to the provider',
   'privacy.lede':
@@ -401,7 +401,7 @@
     'Text shortcuts do. Correction, reformulation, translation and summary need a Gemini or OpenAI key. API keys are billed by usage: a ChatGPT or Gemini subscription does not pay for them.',
   'faq.5.q': 'Which providers are supported?',
   'faq.5.a':
-    'Google Gemini and OpenAI. The catalog of version 5.15.0 offers Gemini 3.1 Flash-Lite (default), Gemini 3.5 Flash-Lite, GPT-5 nano, GPT-5.6 Luna and GPT-6 Luna. Each action can use its own key and model.',
+    'Google Gemini and OpenAI. The catalog of version 5.16.0 offers Gemini 3.1 Flash-Lite (default), Gemini 3.5 Flash-Lite, GPT-5 nano, GPT-5.6 Luna and GPT-6 Luna. Each action can use its own key and model.',
   'faq.6.q': 'Does Correctly change my text automatically?',
   'faq.6.a':
     'No. Nothing is replaced without a click on Apply, and only in a plain text box that has not changed. Elsewhere, you copy the result. The one deliberate exception: text shortcuts you defined expand as you type.',
@@ -424,24 +424,27 @@
   'faq.12.a':
     'Not through a Correctly server: there is none. If you turn on sync, off by default, your shortcuts and settings go through your browser’s synced storage, tied to your Google account. API keys are there only encrypted with your passphrase, which Google does not know.',
   'faq.13.q': 'Why start over when updating to version 5.14?',
+  'faq.14.q': 'Which languages does Correctly translate into?',
+  'faq.14.a':
+    '39 languages, chosen because Gemini and OpenAI handle them well, with variants for Arabic, Portuguese, Chinese and Kurdish. Correctly’s window and settings stay in English or French. With sync on, update every computer to 5.16: a computer still on 5.15 falls back to its default language when it receives one it does not know.',
   'faq.13.a':
     'Version 5.14 gives the extension a fixed ID, the same on all your computers: sync needs it. This one-time change makes the extension start empty. Before updating, export your text shortcuts, then import them and enter your keys, routes and limits again. Later updates keep your data.',
 
   'dl.title': 'Install the latest version',
   'dl.lede':
-    'Version 5.15.0, released on 21 October 2026. No Correctly account: you use your own Gemini or OpenAI keys.',
+    'Version 5.16.0, released on 21 October 2026. No Correctly account: you use your own Gemini or OpenAI keys.',
   'dl.newTitle': 'In this version',
   'dl.new1':
-    'A translate button at the end of selected text: a bubble for a few words, the Correctly window for a paragraph.',
+    'Translation and summaries in 39 languages, with your favorite languages first in every menu.',
   'dl.new2':
-    'A larger, clearer Correctly window, and reliable long translations with Gemini.',
+    'Variants for Arabic (Egyptian, Moroccan, Lebanese and Gulf included), Portuguese, Chinese and Kurdish; right-to-left display for Arabic, Hebrew, Persian and Urdu.',
   'dl.new3':
     'To update, do not remove the extension: replace its folder’s content, then click Reload. Removing it deletes your data.',
-  'dl.button': 'Download version 5.15.0',
-  'dl.size': '.zip, 150 KB',
+  'dl.button': 'Download version 5.16.0',
+  'dl.size': '.zip, 158 KB',
   'dl.all': 'All versions',
   'dl.note':
-    'This version passed its automated tests and an automated check in Brave; the translate button and sync between two computers have not yet been checked by hand.',
+    'This version passed its automated tests and an automated check in Brave; translations into the new languages and sync between two computers have not yet been checked by hand.',
   'dl.stepsTitle': 'Install in three steps',
   'dl.step1':
     'Download the .zip file, then unzip it into a folder you keep (do not delete it afterwards).',
@@ -452,7 +455,7 @@
 
   'footer.desc':
     'A writing assistant for Chrome and Brave that corrects, rewrites, translates and summarizes, while you keep the last word.',
-  'footer.version': 'Version shown: 5.15.0',
+  'footer.version': 'Version shown: 5.16.0',
   'footer.site': 'This site uses no cookies, no analytics and no AI calls.',
   'footer.nav': 'Site map',
   'footer.project': 'Project',

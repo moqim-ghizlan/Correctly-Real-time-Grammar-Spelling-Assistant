@@ -707,11 +707,11 @@ try {
       })()`,
     );
     record(
-      'download: button points at the 5.15.0 zip, which is served',
+      'download: button points at the 5.16.0 zip, which is served',
       d.download &&
-        d.zip.endsWith('Correctly-5.15.0.zip') &&
+        d.zip.endsWith('Correctly-5.16.0.zip') &&
         d.status === 200 &&
-        d.size === 153444,
+        d.size === 161758,
       `${d.zip}, ${d.size} bytes`,
     );
     record(
@@ -914,7 +914,7 @@ try {
         n.visible === 'visible' &&
         n.langButtons === 'none' &&
         n.demoLive &&
-        n.faq === 13 &&
+        n.faq === 14 &&
         n.download &&
         n.reveal === 0,
       JSON.stringify(n),
