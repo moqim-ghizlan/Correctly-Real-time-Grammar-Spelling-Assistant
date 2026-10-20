@@ -6,12 +6,17 @@ import {
 } from '../shared/keybindings';
 import { normalizeHandle } from '../shared/settings';
 import {
+  isShortcutSeparator,
   MAX_REPLACEMENT,
   shortcutExpansion,
   shortcutMap,
   type ShortcutMap,
 } from '../shared/shortcuts';
-import { deepActiveElement, isEligibleField } from './correction';
+import {
+  deepActiveElement,
+  isEligibleField,
+  shortcutEditingHost,
+} from './correction';
 
 // V5.6 local text expansion. Runs in the opt-in page script, never calls the
 // network and never sees the API key: the worker sends only the active
@@ -66,6 +71,12 @@ export const requestPageConfig = async (): Promise<PageConfig> => {
   return toPageConfig(reply);
 };
 
+/**
+ * Upper bound of the wait for a rich editor to take in our selection before
+ * the insertion (WhatsApp's Lexical ignores a selection set in the same task).
+ */
+const SELECTION_WAIT_MS = 50;
+
 export class ShortcutExpander {
   private map: ShortcutMap = new Map();
   private expanding = false;
@@ -75,6 +86,7 @@ export class ShortcutExpander {
     private readonly load: () => Promise<PageConfig> = requestPageConfig,
   ) {
     doc.addEventListener('input', this.onInput, true);
+    doc.addEventListener('beforeinput', this.onBeforeInput, true);
     // Pick up dictionary changes when the user comes back from the settings.
     doc.addEventListener('focusin', this.refresh, true);
     doc.addEventListener('visibilitychange', this.refresh);
@@ -98,6 +110,107 @@ export class ShortcutExpander {
     if (target instanceof Element)
       this.typed(target, event.inputType, event.data, event.isComposing);
   };
+
+  private readonly onBeforeInput = (event: Event) => {
+    if (
+      !(event instanceof InputEvent) ||
+      !event.isTrusted ||
+      this.expanding ||
+      event.isComposing ||
+      event.inputType !== 'insertText' ||
+      !event.data ||
+      !isShortcutSeparator(event.data) ||
+      !this.map.size
+    )
+      return;
+    const target = event.composedPath()[0];
+    if (
+      !(target instanceof Element) ||
+      target instanceof HTMLInputElement ||
+      target instanceof HTMLTextAreaElement
+    )
+      return;
+    // Rich editors (WhatsApp's Lexical…) may cancel the native insertion and
+    // render the character themselves, with no input event: look once done.
+    setTimeout(() => void this.typedInEditable(target), 0);
+  };
+
+  /**
+   * A separator was just typed in the contenteditable `target`; resolves true
+   * when it expanded. Only a trigger inside the caret's own text node is
+   * replaced, through the browser's insertText (native undo, seen by the
+   * editor like typing); the editor's DOM is never rewritten directly.
+   */
+  typedInEditable(target: Element): Promise<boolean> {
+    if (this.expanding || !this.map.size) return Promise.resolve(false);
+    const host = shortcutEditingHost(target);
+    const selection = this.doc.getSelection();
+    const node = selection?.anchorNode;
+    if (
+      !host ||
+      !selection?.isCollapsed ||
+      host !== deepActiveElement(this.doc) ||
+      !(node instanceof Text) ||
+      shortcutEditingHost(node) !== host
+    )
+      return Promise.resolve(false);
+    const caret = selection.anchorOffset;
+    const text = node.data;
+    const plan = shortcutExpansion(text, caret, this.map);
+    if (!plan || text.slice(plan.start, plan.end) !== plan.trigger)
+      return Promise.resolve(false);
+    // The separator is replaced too, so the caret ends up after it.
+    const separator = text.slice(plan.end, caret).replace(/\xa0/gu, ' ');
+    const range = this.doc.createRange();
+    range.setStart(node, plan.start);
+    range.setEnd(node, caret);
+    selection.removeAllRanges();
+    selection.addRange(range);
+    // Rich editors read the selection on selectionchange: insert only after
+    // they saw it. A key pressed meanwhile cancels, so it is never lost.
+    return new Promise((resolve) => {
+      let settled = false;
+      const finish = (insert: boolean) => {
+        if (settled) return;
+        settled = true;
+        clearTimeout(timer);
+        this.doc.removeEventListener('selectionchange', onChange);
+        this.doc.removeEventListener('keydown', onKey, true);
+        const current = selection.rangeCount ? selection.getRangeAt(0) : null;
+        const unchanged =
+          node.data === text &&
+          host === deepActiveElement(this.doc) &&
+          current?.startContainer === node &&
+          current.startOffset === plan.start &&
+          current.endContainer === node &&
+          current.endOffset === caret;
+        if (!unchanged) return resolve(false);
+        let inserted = false;
+        if (insert) {
+          this.expanding = true;
+          try {
+            inserted =
+              typeof this.doc.execCommand === 'function' &&
+              this.doc.execCommand(
+                'insertText',
+                false,
+                plan.replacement + separator,
+              );
+          } finally {
+            this.expanding = false;
+          }
+        }
+        // Cancelled or refused: the text stays as typed, caret back in place.
+        if (!inserted) selection.collapse(node, caret);
+        resolve(inserted);
+      };
+      const onChange = () => setTimeout(() => finish(true), 0);
+      const onKey = () => finish(false);
+      const timer = setTimeout(() => finish(true), SELECTION_WAIT_MS);
+      this.doc.addEventListener('selectionchange', onChange);
+      this.doc.addEventListener('keydown', onKey, true);
+    });
+  }
 
   /** One typed character in `field`; returns true when it expanded. */
   typed(
@@ -153,6 +266,7 @@ export class ShortcutExpander {
 
   dispose(): void {
     this.doc.removeEventListener('input', this.onInput, true);
+    this.doc.removeEventListener('beforeinput', this.onBeforeInput, true);
     this.doc.removeEventListener('focusin', this.refresh, true);
     this.doc.removeEventListener('visibilitychange', this.refresh);
   }

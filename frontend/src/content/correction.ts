@@ -127,8 +127,9 @@ export const NOTICES: Notices = CONTENT.en.notices;
 // code/rich editors whose hidden textareas must never be rewritten.
 const SENSITIVE =
   /(?:password|one-time|otp|credit|cc-|card|cvc|cvv|secret|token|verification|security.?code)/iu;
-const CODE_OR_RICH_EDITOR =
-  '.monaco-editor, .CodeMirror, .cm-editor, .ace_editor, pre, code, [data-slate-editor], .ProseMirror, .ql-editor, [data-lexical-editor]';
+const CODE_EDITOR =
+  '.monaco-editor, .CodeMirror, .cm-editor, .ace_editor, pre, code';
+const CODE_OR_RICH_EDITOR = `${CODE_EDITOR}, [data-slate-editor], .ProseMirror, .ql-editor, [data-lexical-editor]`;
 const hasSensitiveLabel = (el: Element) =>
   SENSITIVE.test(
     ['autocomplete', 'name', 'id', 'aria-label']
@@ -146,6 +147,25 @@ const isTextField = (el: Element | null): el is TextField =>
 /** A focused field the smart button may offer to correct (Apply-capable). */
 export const isEligibleField = (el: Element | null): el is TextField =>
   isTextField(el) && !el.disabled && !el.readOnly && !isSensitiveField(el);
+
+/**
+ * The contenteditable host owning `node` when shortcuts may expand there.
+ * Rich editors (Lexical, ProseMirror…) are allowed: the expansion only goes
+ * through the browser's own insertText, which they handle like typing.
+ */
+export function shortcutEditingHost(node: Node | null): HTMLElement | null {
+  const parent = node instanceof Element ? node : (node?.parentElement ?? null);
+  const host = parent?.closest<HTMLElement>('[contenteditable]');
+  if (
+    !parent ||
+    !host ||
+    host.getAttribute('contenteditable') === 'false' ||
+    hasSensitiveLabel(host) ||
+    parent.closest(CODE_EDITOR)
+  )
+    return null;
+  return host;
+}
 
 /** Follows focus into open shadow roots (closed ones stop at their host). */
 export function deepActiveElement(doc: Document): Element | null {

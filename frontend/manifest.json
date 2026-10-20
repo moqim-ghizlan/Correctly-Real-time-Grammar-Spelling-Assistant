@@ -1,8 +1,8 @@
 {
   "manifest_version": 3,
   "name": "Correctly V5.13",
-  "version": "5.13.3",
-  "version_name": "5.13.3",
+  "version": "5.13.4",
+  "version_name": "5.13.4",
   "description": "Personal AI writing assistant (V5.13: English or French interface; one modal to correct, rewrite, translate or summarize text, including text selected on a page, with your Gemini or OpenAI keys; usage limits; local statistics and estimated cost; local text shortcuts).",
   "minimum_chrome_version": "120",
   "permissions": ["activeTab", "contextMenus", "scripting", "storage"],

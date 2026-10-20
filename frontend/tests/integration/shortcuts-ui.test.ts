@@ -118,6 +118,7 @@ describe('7: CRUD', () => {
     expect(rows()).toEqual([]);
     expect(deps.confirm).toHaveBeenCalledWith(
       'Supprimer le raccourci « bjr » ?',
+      'Supprimer',
     );
   });
 
@@ -242,6 +243,10 @@ describe('8: backup', () => {
     deps.confirm.mockReturnValueOnce(false);
     await section.confirmImport();
     expect(rows()).toEqual(['mine']);
+    expect(deps.confirm).toHaveBeenLastCalledWith(
+      expect.stringContaining('1 raccourci'),
+      'Tout remplacer',
+    );
     await section.confirmImport();
     expect(rows()).toEqual(['cbj']);
 

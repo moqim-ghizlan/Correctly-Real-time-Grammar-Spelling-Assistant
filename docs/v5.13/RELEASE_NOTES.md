@@ -1,4 +1,28 @@
-# Correctly 5.13.3 — Release notes
+# Correctly 5.13.4 — Release notes
+
+## Fixed: text shortcuts in rich editors (WhatsApp Web, Gmail…)
+
+- Text shortcuts now also expand in `contenteditable` fields (WhatsApp
+  Web's Lexical editor, Gmail compose, simple rich editors), not only in
+  `<input>` and `<textarea>`. Only a trigger inside the caret's own text
+  node is replaced, through the browser's `insertText` (native undo, seen by
+  the editor like typing); code editors, sensitive or non-editable areas are
+  excluded. The trigger is selected, the editor is given time to see the
+  selection (at most 50 ms), then the text is inserted; a key pressed
+  meanwhile cancels the expansion and is never lost.
+
+## Changed: confirmation dialogs (Text shortcuts settings)
+
+- Deleting a shortcut and "Replace all" on import now ask in an in-page
+  dialog styled like the settings page (Cancel focused by default; Escape
+  or a click outside cancels), instead of the browser's `confirm()` box.
+  Other settings pages still use `confirm()`.
+
+- Tests: 37 files, 683 tests. Checked by the owner on WhatsApp Web with an
+  equivalent in-page test; the release build itself not yet checked in
+  Chrome/Brave nor with a real key.
+
+## 5.13.3 — Release notes
 
 ## New: Custom formality (Reformulation)
 

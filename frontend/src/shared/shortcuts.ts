@@ -432,6 +432,10 @@ export const applyImport = (plan: ImportPlan) => (store: ShortcutStore) => {
 const SEPARATOR = /^[ \xa0,;:.!?]$/u;
 const TOKEN_BEFORE = /(?:^|[\s(«“])([\p{L}\p{M}\p{N}_-]{1,32})$/u;
 
+/** True for a character that may end a trigger (Tab and Enter never do). */
+export const isShortcutSeparator = (character: string): boolean =>
+  SEPARATOR.test(character);
+
 export type ShortcutMap = ReadonlyMap<string, string>;
 
 export function shortcutMap(

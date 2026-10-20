@@ -31,7 +31,8 @@ import type { Tone } from './settings-ui';
 
 export interface ShortcutsDeps {
   area: StorageArea;
-  confirm: (question: string) => boolean;
+  /** Asks before a destructive change; `action` labels the confirm button. */
+  confirm: (question: string, action: string) => boolean | Promise<boolean>;
   /** Asks Chrome for all-sites access (needed to expand while typing). */
   requestSiteAccess: () => Promise<boolean>;
   hasSiteAccess: () => Promise<boolean>;
@@ -270,7 +271,13 @@ export class ShortcutsSection {
   }
 
   async remove(entry: ShortcutRecord): Promise<void> {
-    if (!this.deps.confirm(this.m.confirmDeleteShortcut(entry.trigger))) return;
+    if (
+      !(await this.deps.confirm(
+        this.m.confirmDeleteShortcut(entry.trigger),
+        this.m.remove,
+      ))
+    )
+      return;
     if (this.editing?.id === entry.id) this.resetForm();
     await this.run(
       removeShortcut(entry),
@@ -348,9 +355,10 @@ export class ShortcutsSection {
     if (!plan) return;
     if (
       plan.policy === 'replaceAll' &&
-      !this.deps.confirm(
+      !(await this.deps.confirm(
         this.m.confirmReplaceAll(plan.next.length, plan.removed),
-      )
+        this.m.replaceAllAction,
+      ))
     )
       return;
     if (

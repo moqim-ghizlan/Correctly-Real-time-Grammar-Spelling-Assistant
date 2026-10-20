@@ -274,6 +274,8 @@ export interface OptionsMessages {
   }) => string;
   invalidImport: string;
   confirmReplaceAll: (count: number, removed: number) => string;
+  /** Action button of the replace-all confirmation. */
+  replaceAllAction: string;
   importDone: (
     added: number,
     replaced: number | null,
@@ -676,6 +678,7 @@ const EN: OptionsMessages = {
   invalidImport: 'Invalid import.',
   confirmReplaceAll: (count, removed) =>
     `Replace ALL your shortcuts with the ${count} from the file? ${removed} current shortcut(s) will be deleted. Export a backup first if unsure.`,
+  replaceAllAction: 'Replace all',
   importDone: (added, replaced, removed) =>
     `Import done: ${added} added` +
     (replaced === null ? '' : `, ${replaced} replaced`) +
@@ -1135,6 +1138,7 @@ const FR: OptionsMessages = {
   invalidImport: 'Import invalide.',
   confirmReplaceAll: (count, removed) =>
     `Remplacer TOUS vos raccourcis par les ${count} du fichier ? ${removed} raccourci(s) actuel(s) seront supprimé(s). Exportez d’abord une sauvegarde en cas de doute.`,
+  replaceAllAction: 'Tout remplacer',
   importDone: (added, replaced, removed) =>
     `Import terminé : ${added} ajouté(s)` +
     (replaced === null ? '' : `, ${replaced} remplacé(s)`) +

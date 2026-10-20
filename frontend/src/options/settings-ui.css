@@ -608,6 +608,37 @@ button:disabled {
   cursor: not-allowed;
 }
 
+/* ------------------------------------------------- confirmation dialog */
+
+.confirm-dialog {
+  width: min(420px, calc(100vw - 32px));
+  padding: 0;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--card);
+  color: var(--text);
+  box-shadow: 0 12px 32px rgba(16, 24, 40, 0.18);
+}
+
+.confirm-dialog::backdrop {
+  background: rgba(16, 24, 40, 0.45);
+}
+
+.confirm-box {
+  padding: 20px;
+}
+
+.confirm-box p {
+  margin: 0 0 18px;
+  overflow-wrap: anywhere;
+}
+
+.confirm-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+}
+
 .sticky-actions {
   margin-top: 16px;
   padding-top: 14px;

@@ -2,7 +2,7 @@
 
 Extension personnelle Chrome/Brave, **Manifest V3, TypeScript strict**, qui
 deviendra un assistant d'écriture IA à la demande (Gemini et OpenAI, clés
-personnelles de l'utilisateur). État actuel : **V5.13.3** (style de reformulation « Formalité personnalisée » `custom`, curseur 1–5 `FORMALITY_LEVELS` dans `shared/rewrite.ts`, champ `formality` exigé avec ce style, réglage `rewrite.formality`) ; V5.13 (interface anglais/français au choix, voir plus bas) ; V5.12 (4ᵉ onglet Résumé
+personnelles de l'utilisateur). État actuel : **V5.13.4** (raccourcis de texte aussi dans les `contenteditable` comme WhatsApp Web, `typedInEditable()` de `content/shortcuts.ts` ; modale de confirmation `options/dialog.ts` pour les raccourcis) ; V5.13.3 (style de reformulation « Formalité personnalisée » `custom`, curseur 1–5 `FORMALITY_LEVELS` dans `shared/rewrite.ts`, champ `formality` exigé avec ce style, réglage `rewrite.formality`) ; V5.13 (interface anglais/français au choix, voir plus bas) ; V5.12 (4ᵉ onglet Résumé
 `shared/summary.ts` + `background/summary.ts`, tâche `summary` distincte
 (route, limites, stats), résumé écrit directement dans la langue cible en
 une requête ; texte de page sélectionné accepté en lecture seule, copie

@@ -3,6 +3,7 @@ import { loadKeybindings } from '../shared/keybindings';
 import { QUOTA_CHANNEL, browserQuotaStore } from '../shared/quota-store';
 import { loadShortcuts } from '../shared/shortcuts';
 import { browserStorage, loadSettings } from '../shared/storage';
+import { confirmDialog } from './dialog';
 import { KeyboardSection } from './keyboard-ui';
 import { LimitsSection } from './limits-ui';
 import { resolveLocale, type Locale } from '../shared/locale';
@@ -74,7 +75,12 @@ function start(locale: Locale): void {
   const shortcuts = new ShortcutsSection(document, {
     locale,
     area,
-    confirm: (question) => window.confirm(question),
+    confirm: (question, action) =>
+      confirmDialog(document, {
+        question,
+        confirm: action,
+        cancel: OPTIONS[locale].cancel,
+      }),
     requestSiteAccess: () => chrome.permissions.request(ALL_SITES),
     hasSiteAccess: () => chrome.permissions.contains(ALL_SITES),
     releaseSiteAccess,
